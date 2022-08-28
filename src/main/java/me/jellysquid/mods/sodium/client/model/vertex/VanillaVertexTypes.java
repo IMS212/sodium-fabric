@@ -1,5 +1,7 @@
 package me.jellysquid.mods.sodium.client.model.vertex;
 
+import me.jellysquid.mods.sodium.client.model.vertex.formats.clouds.CloudVertexSink;
+import me.jellysquid.mods.sodium.client.model.vertex.formats.clouds.CloudVertexType;
 import me.jellysquid.mods.sodium.client.model.vertex.formats.glyph.GlyphVertexSink;
 import me.jellysquid.mods.sodium.client.model.vertex.formats.glyph.GlyphVertexType;
 import me.jellysquid.mods.sodium.client.model.vertex.formats.line.LineVertexSink;
@@ -14,6 +16,7 @@ import me.jellysquid.mods.sodium.client.model.vertex.type.VanillaVertexType;
 
 public class VanillaVertexTypes {
     public static final VanillaVertexType<QuadVertexSink> QUADS = new QuadVertexType();
+    public static final VanillaVertexType<CloudVertexSink> CLOUDS = new CloudVertexType();
     public static final VanillaVertexType<LineVertexSink> LINES = new LineVertexType();
     public static final VanillaVertexType<GlyphVertexSink> GLYPHS = new GlyphVertexType();
     public static final VanillaVertexType<ParticleVertexSink> PARTICLES = new ParticleVertexType();
