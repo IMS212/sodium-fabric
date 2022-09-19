@@ -11,79 +11,36 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.caffeinemc.gfx.api.shader.ShaderType;
 import net.minecraft.client.gl.GLImportProcessor;
 import net.minecraft.util.Identifier;
 
 public class ShaderParser {
 
-    public static String parseVanillaShader(ShaderLoader<Identifier> loader, Identifier name) {
-        String src = loader.getShaderSource(name);
+    public static <T> String parseSodiumShader(ShaderLoader<T> loader, ShaderType type,  T name) {
+        String src = loader.getShaderSource(name, type);
 
-        List<String> lines = parseVanillaShader(loader, name,src);
-
-        return String.join("\n", lines);
-    }
-
-    public static String parseVanillaShader(ShaderLoader<Identifier> loader, Identifier name, ShaderConstants constants) {
-        String src = loader.getShaderSource(name);
-
-        List<String> lines = parseVanillaShader(loader, name,src);
-        lines.addAll(1, constants.getDefineStrings());
+        List<String> lines = parseSodiumShader(loader, type, src);
 
         return String.join("\n", lines);
     }
 
-    public static List<String> parseVanillaShader(ShaderLoader<Identifier> loader, Identifier name, String src) {
-        // redirect imports to our shader loader. requires some identifier trickery to get the right path for inlined imports.
-        GLImportProcessor mojImportProcessor = new GLImportProcessor() {
-            private final Set<Identifier> visitedImports = new ObjectOpenHashSet<>();
+    public static <T> String parseSodiumShader(ShaderLoader<T> loader, T name, ShaderType type, ShaderConstants constants) {
+        String src = loader.getShaderSource(name, type);
 
-            @Override
-            public String loadImport(boolean inline, String importName) {
-                Identifier importIdentifier;
-                if (inline) {
-                    String shaderPath = name.getPath();
-                    String shaderDir = shaderPath.substring(0, shaderPath.lastIndexOf('/') + 1);
-                    importIdentifier = new Identifier(name.getNamespace(), shaderDir + importName);
-                } else {
-                    importIdentifier = new Identifier(Identifier.DEFAULT_NAMESPACE, "include/" + importName);
-                }
-                if (!this.visitedImports.add(importIdentifier)) {
-                    return null;
-                }
-
-                return loader.getShaderSource(importIdentifier);
-            }
-        };
-
-        return mojImportProcessor.readSource(src);
-    }
-
-    public static <T> String parseSodiumShader(ShaderLoader<T> loader, T name) {
-        String src = loader.getShaderSource(name);
-
-        List<String> lines = parseSodiumShader(loader, src);
+        List<String> lines = parseSodiumShader(loader, type, src);
 
         return String.join("\n", lines);
     }
 
-    public static <T> String parseSodiumShader(ShaderLoader<T> loader, T name, ShaderConstants constants) {
-        String src = loader.getShaderSource(name);
-
-        List<String> lines = parseSodiumShader(loader, src);
-        lines.addAll(1, constants.getDefineStrings());
-
-        return String.join("\n", lines);
-    }
-
-    public static List<String> parseSodiumShader(ShaderLoader<?> loader, String src) {
+    public static List<String> parseSodiumShader(ShaderLoader<?> loader, ShaderType type, String src) {
         List<String> builder = new LinkedList<>();
         String line;
 
         try (BufferedReader reader = new BufferedReader(new StringReader(src))) {
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("#import")) {
-                    builder.addAll(resolveImport(loader, line));
+                    builder.addAll(resolveImport(loader, type, line));
                 } else {
                     builder.add(line);
                 }
@@ -97,7 +54,7 @@ public class ShaderParser {
 
     private static final Pattern IMPORT_PATTERN = Pattern.compile("#import <(?<name>.*)>");
 
-    private static List<String> resolveImport(ShaderLoader<?> loader, String line) {
+    private static List<String> resolveImport(ShaderLoader<?> loader, ShaderType type, String line) {
         Matcher matcher = IMPORT_PATTERN.matcher(line);
 
         if (!matcher.matches()) {
@@ -105,8 +62,8 @@ public class ShaderParser {
         }
 
         String name = matcher.group("name");
-        String source = loader.getShaderSource(name);
+        String source = loader.getShaderSource(name, type);
 
-        return ShaderParser.parseSodiumShader(loader, source);
+        return ShaderParser.parseSodiumShader(loader, type, source);
     }
 }

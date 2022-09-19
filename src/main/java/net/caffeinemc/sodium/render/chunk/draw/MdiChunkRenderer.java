@@ -28,6 +28,7 @@ import net.caffeinemc.sodium.render.chunk.shader.ChunkShaderInterface;
 import net.caffeinemc.sodium.render.shader.ShaderConstants;
 import net.caffeinemc.sodium.render.terrain.format.TerrainVertexType;
 import net.caffeinemc.gfx.util.misc.MathUtil;
+import net.caffeinemc.sodium.render.terrain.quad.properties.ChunkMeshFace;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import org.lwjgl.system.MemoryUtil;
@@ -61,6 +62,11 @@ public class MdiChunkRenderer extends AbstractMdChunkRenderer<MdiChunkRenderer.M
         constants.add("BASE_INSTANCE_INDEX");
         constants.add("MAX_BATCH_SIZE", String.valueOf(RenderRegion.REGION_SIZE));
         return constants;
+    }
+
+    @Override
+    public int getMaxBatchSize() {
+        return RenderRegion.REGION_SIZE;
     }
 
     @Override

@@ -2,10 +2,15 @@ package net.caffeinemc.sodium.render.chunk.draw;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import it.unimi.dsi.fastutil.longs.LongList;
+
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+
 import net.caffeinemc.gfx.api.array.VertexArrayDescription;
 import net.caffeinemc.gfx.api.array.VertexArrayResourceBinding;
 import net.caffeinemc.gfx.api.array.attribute.VertexAttributeBinding;
@@ -23,6 +28,7 @@ import net.caffeinemc.gfx.util.buffer.streaming.SequenceBuilder;
 import net.caffeinemc.gfx.util.buffer.streaming.SequenceIndexBuffer;
 import net.caffeinemc.gfx.util.buffer.streaming.StreamingBuffer;
 import net.caffeinemc.sodium.SodiumClientMod;
+import net.caffeinemc.sodium.interop.vanilla.shader.CoreShaderTransformer;
 import net.caffeinemc.sodium.render.chunk.passes.ChunkRenderPass;
 import net.caffeinemc.sodium.render.chunk.passes.ChunkRenderPassManager;
 import net.caffeinemc.sodium.render.chunk.shader.ChunkShaderBindingPoints;
@@ -34,6 +40,7 @@ import net.caffeinemc.sodium.render.terrain.format.TerrainMeshAttribute;
 import net.caffeinemc.sodium.render.terrain.format.TerrainVertexType;
 import net.caffeinemc.gfx.util.misc.MathUtil;
 import net.caffeinemc.sodium.util.TextureUtil;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix4f;
@@ -74,7 +81,33 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
                 BufferTarget.values(),
                 List.of(new VertexArrayResourceBinding<>(
                         BufferTarget.VERTICES,
-                        new VertexAttributeBinding[] {
+                        vertexType.getVertexRange() == 1.0f ? new VertexAttributeBinding[] {
+                                new VertexAttributeBinding(
+                                        ChunkShaderBindingPoints.ATTRIBUTE_POSITION,
+                                        vertexFormat.getAttribute(
+                                                TerrainMeshAttribute.POSITION)
+                                ),
+                                new VertexAttributeBinding(
+                                        ChunkShaderBindingPoints.ATTRIBUTE_COLOR,
+                                        vertexFormat.getAttribute(
+                                                TerrainMeshAttribute.COLOR)
+                                ),
+                                new VertexAttributeBinding(
+                                        ChunkShaderBindingPoints.ATTRIBUTE_BLOCK_TEXTURE,
+                                        vertexFormat.getAttribute(
+                                                TerrainMeshAttribute.BLOCK_TEXTURE)
+                                ),
+                                new VertexAttributeBinding(
+                                        ChunkShaderBindingPoints.ATTRIBUTE_LIGHT_TEXTURE,
+                                        vertexFormat.getAttribute(
+                                                TerrainMeshAttribute.LIGHT_TEXTURE)
+                                ),
+                                new VertexAttributeBinding(
+                                        ChunkShaderBindingPoints.ATTRIBUTE_NORMAL,
+                                        vertexFormat.getAttribute(
+                                                TerrainMeshAttribute.NORMAL)
+                                )
+                        } : new VertexAttributeBinding[] {
                                 new VertexAttributeBinding(
                                         ChunkShaderBindingPoints.ATTRIBUTE_POSITION,
                                         vertexFormat.getAttribute(
@@ -104,18 +137,25 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
         
             var vertShader = ShaderParser.parseSodiumShader(
                     ShaderLoader.MINECRAFT_ASSETS,
-                    new Identifier("sodium", "terrain/terrain_opaque.vert"),
+                    "rendertype_cutout", ShaderType.VERTEX,
                     constants
             );
             var fragShader = ShaderParser.parseSodiumShader(
                     ShaderLoader.MINECRAFT_ASSETS,
-                    new Identifier("sodium", "terrain/terrain_opaque.frag"),
+                    "rendertype_cutout", ShaderType.FRAGMENT,
                     constants
             );
-        
+
+
+            Map<ShaderType, String> values = CoreShaderTransformer.transformString(vertShader, fragShader, vertexType, getMaxBatchSize(), this instanceof MdiChunkRenderer);
+            try {
+                Files.writeString(FabricLoader.getInstance().getGameDir().resolve("sodium-test.vsh"), values.get(ShaderType.VERTEX));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             var desc = ShaderDescription.builder()
-                                        .addShaderSource(ShaderType.VERTEX, vertShader)
-                                        .addShaderSource(ShaderType.FRAGMENT, fragShader)
+                                        .addShaderSource(ShaderType.VERTEX, values.get(ShaderType.VERTEX))
+                                        .addShaderSource(ShaderType.FRAGMENT, values.get(ShaderType.FRAGMENT))
                                         .build();
         
             Program<ChunkShaderInterface> program = this.device.createProgram(desc, ChunkShaderInterface::new);
@@ -227,7 +267,9 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
         
         commandList.bindElementBuffer(this.indexBuffer.getBuffer());
     }
-    
+
+    public abstract int getMaxBatchSize();
+
     protected void setupPerBatch(
             ChunkRenderPass renderPass,
             ChunkRenderMatrices matrices,

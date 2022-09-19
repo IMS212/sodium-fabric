@@ -14,7 +14,7 @@ public class StandardTerrainVertexBufferWriterNio extends VertexBufferWriterNio 
     }
 
     @Override
-    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, int light) {
+    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, byte normal, int light) {
         int i = this.writeOffset;
 
         ByteBuffer buffer = this.byteBuffer;
@@ -28,6 +28,8 @@ public class StandardTerrainVertexBufferWriterNio extends VertexBufferWriterNio 
         buffer.putFloat(i + 20, v);
 
         buffer.putInt(i + 24, light);
+
+        buffer.put(i + 28, normal);
 
         this.advance();
     }

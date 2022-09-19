@@ -29,10 +29,12 @@ public class MixinBakedQuad implements ModelQuadView {
     protected int colorIndex;
 
     private int cachedFlags;
+    private int facing;
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void init(int[] vertexData, int colorIndex, Direction face, Sprite sprite, boolean shade, CallbackInfo ci) {
         this.cachedFlags = ModelQuadFlags.getQuadFlags((BakedQuad) (Object) this);
+        this.facing = face.getId();
     }
 
     @Override
@@ -81,8 +83,8 @@ public class MixinBakedQuad implements ModelQuadView {
     }
 
     @Override
-    public int getNormal(int idx) {
-        return this.vertexData[vertexOffset(idx) + NORMAL_INDEX];
+    public byte getNormal() {
+        return (byte) facing;
     }
 
     @Override

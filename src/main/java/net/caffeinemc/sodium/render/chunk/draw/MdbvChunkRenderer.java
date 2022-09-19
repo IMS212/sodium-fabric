@@ -71,6 +71,11 @@ public class MdbvChunkRenderer extends AbstractMdChunkRenderer<MdbvChunkRenderer
         constants.add("MAX_BATCH_SIZE", String.valueOf(RenderRegion.REGION_SIZE * ChunkMeshFace.COUNT));
         return constants;
     }
+
+    @Override
+    public int getMaxBatchSize() {
+        return RenderRegion.REGION_SIZE * ChunkMeshFace.COUNT;
+    }
     
     @Override
     public void createRenderLists(SortedTerrainLists lists, int frameIndex) {

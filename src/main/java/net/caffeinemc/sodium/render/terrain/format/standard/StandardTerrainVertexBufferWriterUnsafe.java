@@ -13,7 +13,7 @@ public class StandardTerrainVertexBufferWriterUnsafe extends VertexBufferWriterU
     }
 
     @Override
-    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, int light) {
+    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, byte normal, int light) {
         long i = this.writePointer;
 
         MemoryUtil.memPutFloat(i + 0, posX);
@@ -26,6 +26,8 @@ public class StandardTerrainVertexBufferWriterUnsafe extends VertexBufferWriterU
         MemoryUtil.memPutFloat(i + 20, v);
 
         MemoryUtil.memPutInt(i + 24, light);
+
+        MemoryUtil.memPutByte(i + 28, normal);
 
         this.advance();
     }

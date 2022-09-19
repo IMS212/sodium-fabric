@@ -14,10 +14,10 @@ public interface TerrainVertexSink extends VertexSink {
      * @param v The y-texture of the vertex
      * @param light The packed light-map coordinates of the vertex
      */
-    void writeVertex(float posX, float posY, float posZ, int color, float u, float v, int light);
+    void writeVertex(float posX, float posY, float posZ, int color, float u, float v, byte normal, int light);
 
-    default void writeVertex(Vec3i offset, float posX, float posY, float posZ, int color, float u, float v, int light) {
-        this.writeVertex(offset.getX() + posX, offset.getY() + posY, offset.getZ() + posZ, color, u, v, light);
+    default void writeVertex(Vec3i offset, float posX, float posY, float posZ, int color, float u, float v, byte normal, int light) {
+        this.writeVertex(offset.getX() + posX, offset.getY() + posY, offset.getZ() + posZ, color, u, v, normal, light);
     }
 
 }

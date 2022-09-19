@@ -58,10 +58,9 @@ public class FluidRenderer {
     private final int[] quadColors = new int[4];
 
     public FluidRenderer(LightPipelineProvider lighters, ColorBlender colorBlender) {
-        int normal = Normal3b.pack(0.0f, 1.0f, 0.0f);
 
         for (int i = 0; i < 4; i++) {
-            this.quad.setNormal(i, normal);
+            this.quad.setNormal((byte) 1);
         }
 
         this.lighters = lighters;
@@ -423,8 +422,9 @@ public class FluidRenderer {
             float v = quad.getTexV(i);
 
             int light = this.quadLightData.lm[vertexIdx];
+            byte normal = quad.getNormal();
 
-            sink.writeVertex(offset, x, y, z, color, u, v, light);
+            sink.writeVertex(offset, x, y, z, color, u, v, normal, light);
             vertexIdx += lightOrder;
         }
 

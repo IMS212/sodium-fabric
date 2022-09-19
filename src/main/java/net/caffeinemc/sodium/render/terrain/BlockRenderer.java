@@ -133,10 +133,11 @@ public class BlockRenderer {
 
             float u = src.getTexU(j);
             float v = src.getTexV(j);
+            byte normal = src.getNormal();
 
             int lm = light.lm[j];
 
-            vertices.writeVertex(origin, x, y, z, color, u, v, lm);
+            vertices.writeVertex(origin, x, y, z, color, u, v, normal, lm);
         }
 
         Sprite sprite = src.getSprite();

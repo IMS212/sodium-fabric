@@ -13,12 +13,13 @@ public class CompactTerrainVertexBufferWriterUnsafe extends VertexBufferWriterUn
     }
 
     @Override
-    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, int light) {
+    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, byte normal, int light) {
         long i = this.writePointer;
 
         MemoryUtil.memPutShort(i + 0, CompactTerrainVertexType.encodePosition(posX));
         MemoryUtil.memPutShort(i + 2, CompactTerrainVertexType.encodePosition(posY));
         MemoryUtil.memPutShort(i + 4, CompactTerrainVertexType.encodePosition(posZ));
+        MemoryUtil.memPutShort(i + 6, normal);
 
         MemoryUtil.memPutInt(i + 8, color);
 

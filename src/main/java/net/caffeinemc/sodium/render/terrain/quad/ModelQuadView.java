@@ -48,9 +48,9 @@ public interface ModelQuadView {
     int getLight(int idx);
 
     /**
-     * @return The integer-encoded normal vector for the vertex at index {@param idx}
+     * @return The byte-encoded normal vector for the vertex at index {@param idx}
      */
-    int getNormal(int idx);
+    byte getNormal();
 
     /**
      * @return The color index of this quad.
