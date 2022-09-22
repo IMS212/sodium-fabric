@@ -60,6 +60,9 @@ public class ChunkRenderPassManager {
         mapper.addMapping(RenderLayer.getCutout(), CUTOUT);
         mapper.addMapping(RenderLayer.getTranslucent(), TRANSLUCENT);
         mapper.addMapping(RenderLayer.getTripwire(), TRIPWIRE);
+
+        // This needs to be duplicate, so don't run it through the normal addMappings.
+        mapper.layerMappings.put(RenderLayer.getCutoutMipped(), CUTOUT);
         
         return mapper;
     }

@@ -49,9 +49,6 @@ public class MixinRenderLayers {
              if (renderLayer != RenderLayer.getCutout()) {
                  MippedBlocks.add(block);
              }
-             if (renderLayer == RenderLayer.getCutoutMipped()) {
-                 BLOCKS.replace(block, RenderLayer.getCutout());
-             }
          });
     }
 
@@ -59,7 +56,7 @@ public class MixinRenderLayers {
     private static void redirectLeavesGraphics(BlockState state, CallbackInfoReturnable<RenderLayer> cir) {
         if (state.getBlock() instanceof LeavesBlock) {
             boolean fancyLeaves = SodiumClientMod.options().quality.leavesQuality.isFancy(MinecraftClient.getInstance().options.getGraphicsMode().getValue());
-            cir.setReturnValue(fancyLeaves ? RenderLayer.getCutout() : RenderLayer.getSolid());
+            cir.setReturnValue(fancyLeaves ? RenderLayer.getCutoutMipped() : RenderLayer.getSolid());
         }
     }
 }
