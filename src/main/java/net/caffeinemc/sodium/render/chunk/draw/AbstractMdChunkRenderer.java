@@ -266,14 +266,9 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
         pipelineState.bindTexture(
                 0,
                 TextureUtil.getBlockAtlasTexture(),
-                this.blockTextureSampler
-        );
-        pipelineState.bindTexture(
-                1,
-                TextureUtil.getBlockAtlasTexture(),
                 this.blockTextureMippedSampler
         );
-        pipelineState.bindTexture(2, TextureUtil.getLightTexture(), this.lightTextureSampler);
+        pipelineState.bindTexture(1, TextureUtil.getLightTexture(), this.lightTextureSampler);
     }
     
     protected void setupUniforms(

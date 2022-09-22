@@ -8,7 +8,12 @@
 in VertexOutput vs_out;
 flat in int frag_block_state;
 void main() {
-    vec4 frag_diffuse = texture(frag_block_state == 0 ? tex_diffuse : tex_diffuse_mipped, vs_out.tex_diffuse_coord);
+    vec4 frag_diffuse;
+    if (frag_block_state == 1) {
+        frag_diffuse = texture(tex_diffuse, vs_out.tex_diffuse_coord);
+    } else {
+        frag_diffuse = textureLod(tex_diffuse, vs_out.tex_diffuse_coord, 0);
+    }
 
 #ifdef ALPHA_CUTOFF
     if (frag_diffuse.a < ALPHA_CUTOFF) {
