@@ -9,6 +9,7 @@
 #import <sodium:terrain/terrain_opaque.glsl>
 
 out VertexOutput vs_out;
+flat out int frag_block_state;
 
 void main() {
     _vert_init();
@@ -27,4 +28,6 @@ void main() {
 
     // The distance of the vertex from the camera is just the view-space coordinate
     vs_out.fog_depth = _get_fog_depth(view_position);
+
+    frag_block_state = _vert_block_state;
 }

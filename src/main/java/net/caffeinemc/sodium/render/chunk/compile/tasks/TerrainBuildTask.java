@@ -1,5 +1,6 @@
 package net.caffeinemc.sodium.render.chunk.compile.tasks;
 
+import net.caffeinemc.sodium.interop.vanilla.pipeline.MippedBlocks;
 import net.caffeinemc.sodium.render.terrain.TerrainBuildContext;
 import net.caffeinemc.sodium.render.chunk.RenderSection;
 import net.caffeinemc.sodium.render.chunk.state.BuiltChunkGeometry;
@@ -85,13 +86,13 @@ public class TerrainBuildTask extends AbstractBuilderTask {
 
                     if (blockState.getRenderType() == BlockRenderType.MODEL) {
                         RenderLayer layer = RenderLayers.getBlockLayer(blockState);
-
+                        boolean isMipped = MippedBlocks.contains(blockState.getBlock());
                         BakedModel model = renderCache.getBlockModels()
                                 .getModel(blockState);
 
                         long seed = blockState.getRenderingSeed(blockPos);
 
-                        if (renderCache.getBlockRenderer().renderModel(slice, blockState, blockPos, offset, model, buffers.get(layer), true, seed)) {
+                        if (renderCache.getBlockRenderer().renderModel(slice, blockState, blockPos, offset, model, buffers.get(layer), true, seed, isMipped)) {
                             rendered = true;
                         }
                     }

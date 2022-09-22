@@ -50,7 +50,7 @@ public class BlockRenderer {
         this.useAmbientOcclusion = MinecraftClient.isAmbientOcclusionEnabled();
     }
 
-    public boolean renderModel(BlockRenderView world, BlockState state, BlockPos pos, BlockPos origin, BakedModel model, ChunkMeshBuilder buffers, boolean cull, long seed) {
+    public boolean renderModel(BlockRenderView world, BlockState state, BlockPos pos, BlockPos origin, BakedModel model, ChunkMeshBuilder buffers, boolean cull, long seed, boolean isMipped) {
         LightPipeline lighter = this.lighters.getLighter(this.getLightingMode(state, model));
         Vec3d offset = state.getModelOffset(world, pos);
 
@@ -66,7 +66,7 @@ public class BlockRenderer {
             }
 
             if (!cull || this.occlusionCache.shouldDrawSide(state, world, pos, dir)) {
-                this.renderQuadList(world, state, pos, origin, lighter, offset, buffers, sided, dir);
+                this.renderQuadList(world, state, pos, origin, lighter, offset, buffers, sided, dir, isMipped);
 
                 rendered = true;
             }
@@ -77,7 +77,7 @@ public class BlockRenderer {
         List<BakedQuad> all = model.getQuads(state, null, this.random);
 
         if (!all.isEmpty()) {
-            this.renderQuadList(world, state, pos, origin, lighter, offset, buffers, all, null);
+            this.renderQuadList(world, state, pos, origin, lighter, offset, buffers, all, null, isMipped);
 
             rendered = true;
         }
@@ -86,7 +86,7 @@ public class BlockRenderer {
     }
 
     private void renderQuadList(BlockRenderView world, BlockState state, BlockPos pos, BlockPos origin, LightPipeline lighter, Vec3d offset,
-                                ChunkMeshBuilder buffers, List<BakedQuad> quads, Direction cullFace) {
+                                ChunkMeshBuilder buffers, List<BakedQuad> quads, Direction cullFace, boolean isMipped) {
         ChunkMeshFace facing = cullFace == null ? ChunkMeshFace.UNASSIGNED : ChunkMeshFace.fromDirection(cullFace);
         ColorSampler<BlockState> colorizer = null;
 
@@ -105,14 +105,14 @@ public class BlockRenderer {
                 colorizer = this.blockColors.getColorProvider(state);
             }
 
-            this.renderQuad(world, state, pos, origin, vertices, offset, colorizer, quad, light, buffers);
+            this.renderQuad(world, state, pos, origin, vertices, offset, colorizer, quad, light, buffers, isMipped);
         }
 
         vertices.flush();
     }
 
     private void renderQuad(BlockRenderView world, BlockState state, BlockPos pos, BlockPos origin, TerrainVertexSink vertices, Vec3d blockOffset,
-                            ColorSampler<BlockState> colorSampler, BakedQuad bakedQuad, QuadLightData light, ChunkMeshBuilder model) {
+                            ColorSampler<BlockState> colorSampler, BakedQuad bakedQuad, QuadLightData light, ChunkMeshBuilder model, boolean isMipped) {
         ModelQuadView src = (ModelQuadView) bakedQuad;
         ModelQuadOrientation orientation = ModelQuadOrientation.orientByBrightness(light.br);
 
@@ -136,7 +136,7 @@ public class BlockRenderer {
 
             int lm = light.lm[j];
 
-            vertices.writeVertex(origin, x, y, z, color, u, v, lm);
+            vertices.writeVertex(origin, x, y, z, color, u, v, lm, (byte) (isMipped ? 1 : 0));
         }
 
         Sprite sprite = src.getSprite();

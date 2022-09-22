@@ -14,7 +14,7 @@ public class CompactTerrainVertexBufferWriterNio extends VertexBufferWriterNio i
     }
 
     @Override
-    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, int light) {
+    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, int light, byte blockState) {
         int i = this.writeOffset;
 
         ByteBuffer buffer = this.byteBuffer;
@@ -28,6 +28,8 @@ public class CompactTerrainVertexBufferWriterNio extends VertexBufferWriterNio i
         buffer.putShort(i + 14, CompactTerrainVertexType.encodeBlockTexture(v));
 
         buffer.putInt(i + 16, light);
+
+        buffer.put(i + 20, blockState);
 
         this.advance();
     }

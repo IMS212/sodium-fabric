@@ -19,6 +19,7 @@ public class StandardTerrainVertexType implements TerrainVertexType {
             .addElement(TerrainMeshAttribute.COLOR, 12, VertexAttributeFormat.UNSIGNED_BYTE, 4, true, false)
             .addElement(TerrainMeshAttribute.BLOCK_TEXTURE, 16, VertexAttributeFormat.FLOAT, 2, false, false)
             .addElement(TerrainMeshAttribute.LIGHT_TEXTURE, 24, VertexAttributeFormat.UNSIGNED_SHORT, 2, false, true)
+            .addElement(TerrainMeshAttribute.BLOCK_SAMPLER, 28, VertexAttributeFormat.BYTE, 1, false, true)
             .build();
 
     @Override

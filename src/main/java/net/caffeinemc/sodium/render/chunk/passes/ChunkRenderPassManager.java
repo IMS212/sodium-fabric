@@ -14,17 +14,10 @@ import net.minecraft.client.render.RenderLayer;
 public class ChunkRenderPassManager {
     private static final ChunkRenderPass SOLID = new ChunkRenderPass(
             RenderPipelineDescription.defaults(),
-            true,
             0.0f
-    );
-    private static final ChunkRenderPass CUTOUT_MIPPED = new ChunkRenderPass(
-            RenderPipelineDescription.defaults(),
-            true,
-            0.5f
     );
     private static final ChunkRenderPass CUTOUT = new ChunkRenderPass(
             RenderPipelineDescription.defaults(),
-            false,
             0.1f
     );
     private static final ChunkRenderPass TRANSLUCENT = new ChunkRenderPass(
@@ -36,7 +29,6 @@ public class ChunkRenderPassManager {
                                        BlendFunc.DstFactor.ONE_MINUS_SRC_ALPHA
                                ))
                                      .build(),
-            true,
             0.0f
     );
     private static final ChunkRenderPass TRIPWIRE = new ChunkRenderPass(
@@ -48,7 +40,6 @@ public class ChunkRenderPassManager {
                                        BlendFunc.DstFactor.ONE_MINUS_SRC_ALPHA
                                ))
                                      .build(),
-            true,
             0.1f
     );
     
@@ -66,7 +57,6 @@ public class ChunkRenderPassManager {
     public static ChunkRenderPassManager createDefaultMappings() {
         ChunkRenderPassManager mapper = new ChunkRenderPassManager();
         mapper.addMapping(RenderLayer.getSolid(), SOLID);
-        mapper.addMapping(RenderLayer.getCutoutMipped(), CUTOUT_MIPPED);
         mapper.addMapping(RenderLayer.getCutout(), CUTOUT);
         mapper.addMapping(RenderLayer.getTranslucent(), TRANSLUCENT);
         mapper.addMapping(RenderLayer.getTripwire(), TRIPWIRE);

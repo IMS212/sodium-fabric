@@ -424,7 +424,7 @@ public class FluidRenderer {
 
             int light = this.quadLightData.lm[vertexIdx];
 
-            sink.writeVertex(offset, x, y, z, color, u, v, light);
+            sink.writeVertex(offset, x, y, z, color, u, v, light, (byte) 1);
             vertexIdx += lightOrder;
         }
 

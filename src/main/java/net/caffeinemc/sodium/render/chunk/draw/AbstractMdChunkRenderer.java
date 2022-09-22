@@ -94,6 +94,11 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
                                         ChunkShaderBindingPoints.ATTRIBUTE_LIGHT_TEXTURE,
                                         vertexFormat.getAttribute(
                                                 TerrainMeshAttribute.LIGHT_TEXTURE)
+                                ),
+                                new VertexAttributeBinding(
+                                        ChunkShaderBindingPoints.ATTRIBUTE_BLOCK_SAMPLER,
+                                        vertexFormat.getAttribute(
+                                                TerrainMeshAttribute.BLOCK_SAMPLER)
                                 )
                         }
                 ))
@@ -261,9 +266,14 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
         pipelineState.bindTexture(
                 0,
                 TextureUtil.getBlockAtlasTexture(),
-                pass.isMipped() ? this.blockTextureMippedSampler : this.blockTextureSampler
+                this.blockTextureSampler
         );
-        pipelineState.bindTexture(1, TextureUtil.getLightTexture(), this.lightTextureSampler);
+        pipelineState.bindTexture(
+                1,
+                TextureUtil.getBlockAtlasTexture(),
+                this.blockTextureMippedSampler
+        );
+        pipelineState.bindTexture(2, TextureUtil.getLightTexture(), this.lightTextureSampler);
     }
     
     protected void setupUniforms(

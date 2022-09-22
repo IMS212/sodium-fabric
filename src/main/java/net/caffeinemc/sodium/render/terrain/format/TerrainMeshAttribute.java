@@ -4,5 +4,6 @@ public enum TerrainMeshAttribute {
     POSITION,
     COLOR,
     BLOCK_TEXTURE,
-    LIGHT_TEXTURE
+    LIGHT_TEXTURE,
+    BLOCK_SAMPLER
 }
