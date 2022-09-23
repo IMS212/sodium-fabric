@@ -15,6 +15,9 @@ import net.caffeinemc.gfx.api.device.RenderDevice;
 import net.caffeinemc.gfx.api.device.commands.RenderCommandList;
 import net.caffeinemc.gfx.api.pipeline.PipelineState;
 import net.caffeinemc.gfx.api.pipeline.RenderPipeline;
+import net.caffeinemc.gfx.api.pipeline.RenderPipelineDescription;
+import net.caffeinemc.gfx.api.pipeline.state.DepthFunc;
+import net.caffeinemc.gfx.api.pipeline.state.WriteMask;
 import net.caffeinemc.gfx.api.shader.Program;
 import net.caffeinemc.gfx.api.shader.ShaderDescription;
 import net.caffeinemc.gfx.api.shader.ShaderType;
@@ -47,7 +50,8 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
     
     protected final ChunkRenderPassManager renderPassManager;
     protected final RenderPipeline<ChunkShaderInterface, BufferTarget>[] renderPipelines;
-    
+    protected final RenderPipeline<ChunkShaderInterface, BufferTarget> prepassPipeline;
+
     protected final StreamingBuffer uniformBufferCameraMatrices;
     protected final StreamingBuffer uniformBufferChunkTransforms;
     protected final StreamingBuffer uniformBufferFogParameters;
@@ -132,6 +136,31 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
         
             this.renderPipelines[renderPass.getId()] = renderPipeline;
         }
+
+        var constants = this.addAdditionalShaderConstants(getBaseShaderConstants(ChunkRenderPassManager.CUTOUT, vertexType)).build();
+
+        var vertShader = ShaderParser.parseSodiumShader(
+                ShaderLoader.MINECRAFT_ASSETS,
+                new Identifier("sodium", "prepass/terrain_opaque.vert"),
+                constants
+        );
+        var fragShader = ShaderParser.parseSodiumShader(
+                ShaderLoader.MINECRAFT_ASSETS,
+                new Identifier("sodium", "prepass/terrain_opaque.frag"),
+                constants
+        );
+
+        var desc = ShaderDescription.builder()
+                .addShaderSource(ShaderType.VERTEX, vertShader)
+                .addShaderSource(ShaderType.FRAGMENT, fragShader)
+                .build();
+
+        Program<ChunkShaderInterface> program = this.device.createProgram(desc, ChunkShaderInterface::new);
+        prepassPipeline = this.device.createRenderPipeline(
+                RenderPipelineDescription.builder().setDepthFunc(DepthFunc.LESS).setWriteMask(new WriteMask(false, true)).build(),
+                program,
+                vertexArray
+        );
         
         // Set up buffers
         int maxInFlightFrames = SodiumClientMod.options().advanced.cpuRenderAheadLimit + 1;
@@ -197,6 +226,21 @@ public abstract class AbstractMdChunkRenderer<B extends AbstractMdChunkRenderer.
         var renderList = this.renderLists[passId];
         if (renderList == null) {
             return;
+        }
+
+        if (!renderPass.isTranslucent()) {
+            this.device.useRenderPipeline(prepassPipeline, (commandList, programInterface, pipelineState) -> {
+                this.setupPerRenderList(renderPass, matrices, frameIndex,
+                        prepassPipeline, commandList, programInterface, pipelineState);
+
+                for (B batch : renderList) {
+                    this.setupPerBatch(renderPass, matrices, frameIndex,
+                            prepassPipeline, commandList, programInterface, pipelineState, batch);
+
+                    this.issueDraw(renderPass, matrices, frameIndex,
+                            prepassPipeline, commandList, programInterface, pipelineState, batch);
+                }
+            });
         }
         
         // if the render list exists, the pipeline probably exists (unless a new render pass was added without a reload)

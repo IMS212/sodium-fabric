@@ -5,6 +5,8 @@
 #import <sodium:include/terrain_textures.glsl>
 #import <sodium:terrain/terrain_opaque.glsl>
 
+layout(early_fragment_tests) in;
+
 in VertexOutput vs_out;
 flat in int frag_block_state;
 void main() {

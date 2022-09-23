@@ -210,7 +210,7 @@ public class SodiumWorldRenderer {
      * Performs a render pass for the given {@link RenderLayer} and draws all visible chunks for it.
      */
     public void drawChunkLayer(RenderLayer renderLayer, MatrixStack matrixStack) {
-        if (renderLayer == RenderLayer.getCutoutMipped()) {
+        if (renderLayer == RenderLayer.getCutoutMipped() || renderLayer == RenderLayer.getSolid()) {
             return;
         }
         ChunkRenderPass renderPass = this.renderPassManager.getRenderPassForLayer(renderLayer);

@@ -4,6 +4,8 @@ import it.unimi.dsi.fastutil.objects.Reference2ReferenceLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceSortedMap;
 import net.caffeinemc.gfx.api.pipeline.RenderPipelineDescription;
 import net.caffeinemc.gfx.api.pipeline.state.BlendFunc;
+import net.caffeinemc.gfx.api.pipeline.state.DepthFunc;
+import net.caffeinemc.gfx.api.pipeline.state.WriteMask;
 import net.caffeinemc.sodium.SodiumClientMod;
 import net.minecraft.client.render.RenderLayer;
 
@@ -12,12 +14,8 @@ import net.minecraft.client.render.RenderLayer;
  * already used by the base game.
  */
 public class ChunkRenderPassManager {
-    private static final ChunkRenderPass SOLID = new ChunkRenderPass(
-            RenderPipelineDescription.defaults(),
-            0.0f
-    );
-    private static final ChunkRenderPass CUTOUT = new ChunkRenderPass(
-            RenderPipelineDescription.defaults(),
+    public static final ChunkRenderPass CUTOUT = new ChunkRenderPass(
+            RenderPipelineDescription.builder().setDepthFunc(DepthFunc.EQUAL).setWriteMask(new WriteMask(true, false)).build(),
             0.1f
     );
     private static final ChunkRenderPass TRANSLUCENT = new ChunkRenderPass(
@@ -56,14 +54,14 @@ public class ChunkRenderPassManager {
      */
     public static ChunkRenderPassManager createDefaultMappings() {
         ChunkRenderPassManager mapper = new ChunkRenderPassManager();
-        mapper.addMapping(RenderLayer.getSolid(), SOLID);
         mapper.addMapping(RenderLayer.getCutout(), CUTOUT);
         mapper.addMapping(RenderLayer.getTranslucent(), TRANSLUCENT);
         mapper.addMapping(RenderLayer.getTripwire(), TRIPWIRE);
 
         // This needs to be duplicate, so don't run it through the normal addMappings.
+        mapper.layerMappings.put(RenderLayer.getSolid(), CUTOUT);
         mapper.layerMappings.put(RenderLayer.getCutoutMipped(), CUTOUT);
-        
+
         return mapper;
     }
     
