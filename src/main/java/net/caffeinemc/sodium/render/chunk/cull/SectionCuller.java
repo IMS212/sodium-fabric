@@ -110,7 +110,7 @@ public class SectionCuller {
             
             // still need to do this to maintain ordering between sections, even if useOcclusionCulling is false
             this.occlusionCull(
-                    useOcclusionCulling,
+                    false,
                     sectionZStart,
                     sectionXStart,
                     sectionZEnd,

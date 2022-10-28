@@ -1,5 +1,6 @@
 package net.caffeinemc.sodium.render.chunk.draw;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import me.cortex.vulkanitelib.VVkDevice;
@@ -334,11 +335,20 @@ public class VulkanChunkRenderer implements ChunkRenderer {
             mvpMatrix.mul(crm.modelView());
             mvpMatrix.getToAddress(ucdb + 128);
             uniformCameraData[frameIndex].unmap();
-
-
-
         }
 
+        var ucdb2 = MemoryUtil.memAddress(uniformFogData[frameIndex].map());
+        float[] paramFogColor = RenderSystem.getShaderFogColor();
+
+        MemoryUtil.memPutFloat(ucdb2 + 0, paramFogColor[0]);
+        MemoryUtil.memPutFloat(ucdb2 + 4, paramFogColor[1]);
+        MemoryUtil.memPutFloat(ucdb2 + 8, paramFogColor[2]);
+        MemoryUtil.memPutFloat(ucdb2 + 12, paramFogColor[3]);
+        MemoryUtil.memPutFloat(ucdb2 + 16, RenderSystem.getShaderFogStart());
+        MemoryUtil.memPutFloat(ucdb2 + 20, RenderSystem.getShaderFogEnd());
+        MemoryUtil.memPutInt(  ucdb2 + 24, RenderSystem.getShaderFogShape().getId());
+
+        uniformFogData[frameIndex].unmap();
 
         var ucdb = uniformChunkData[frameIndex].map().asFloatBuffer();
         int segCount = 0;
