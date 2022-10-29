@@ -63,6 +63,8 @@ import static org.lwjgl.util.vma.Vma.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIA
 import static org.lwjgl.vulkan.VK10.*;
 
 public class VulkanChunkRenderer implements ChunkRenderer {
+    private final VVkRenderPass renderPass;
+
     public static class IndexBuffer {
         public VVkBuffer indexBuffer;
         public IndexBuffer(int quadCount) {
@@ -119,7 +121,6 @@ public class VulkanChunkRenderer implements ChunkRenderer {
     protected final VGlVkSemaphore[][] signalSemaphores;
 
     protected final VVkQueue queue;
-    VGlVkImage colourBuf;
     protected VVkFramebuffer theFrameBuffer;
     protected final int glFb;
 
@@ -168,7 +169,7 @@ public class VulkanChunkRenderer implements ChunkRenderer {
 
 
         renderPipelines = new VVkPipeline[renderPassManager.getRenderPassCount()];
-        VVkRenderPass renderPass = device.build(new RenderPassBuilder()
+        this.renderPass = device.build(new RenderPassBuilder()
                 .attachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD)//FIXME: the ops are probably wrong, like LOAD CLEAR is not what we want, as each differnt pass will render
                 .attachment(VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_LOAD)//FIXME: the ops are probably wrong, like LOAD CLEAR is not what we want
                 .subpass(VK_PIPELINE_BIND_POINT_GRAPHICS, 1,0));
@@ -220,13 +221,14 @@ public class VulkanChunkRenderer implements ChunkRenderer {
 
 
 
-        VVkSampler sampler = device.createSampler();
+        VVkSampler sampler1 = device.createSampler(blockTexture.mipLayers);
+        VVkSampler sampler2 = device.createSampler();
         DescriptorUpdateBuilder dub = new DescriptorUpdateBuilder(uniformLayout)
                 .buffer(0, uniformCameraData)
                 .buffer(1, uniformChunkData)
                 .buffer(2, uniformFogData)
-                .image(3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sampler, blockTexture.createView(VK_IMAGE_ASPECT_COLOR_BIT))
-                .image(4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sampler, lightTexture.createView(VK_IMAGE_ASPECT_COLOR_BIT));
+                .image(3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sampler1, blockTexture.createView(VK_IMAGE_ASPECT_COLOR_BIT))
+                .image(4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sampler2, lightTexture.createView(VK_IMAGE_ASPECT_COLOR_BIT));
 
         descriptorSets = uniformLayout.createDescriptorSetsAndPool(maxInFlightFrames);
 
@@ -235,10 +237,10 @@ public class VulkanChunkRenderer implements ChunkRenderer {
         GraphicsPipelineBuilder pipelineBuilder = new GraphicsPipelineBuilder()
                 //Doing compact format
                 .addVertexInput(0, vertexType.getBufferVertexFormat().stride(), input->
-                    input.attribute(VK_FORMAT_R16G16B16_SNORM,0)//POSITION
-                            .attribute(VK_FORMAT_R8G8B8A8_UNORM, 8)//COLOR
-                            .attribute(VK_FORMAT_R16G16_UNORM, 12)//BLOCK_TEXTURE
-                            .attribute(VK_FORMAT_R16G16_SINT,16)//LIGHT_TEXTURE
+                        input.attribute(VK_FORMAT_R16G16B16_SNORM,0)//POSITION
+                                .attribute(VK_FORMAT_R8G8B8A8_UNORM, 8)//COLOR
+                                .attribute(VK_FORMAT_R16G16_UNORM, 12)//BLOCK_TEXTURE
+                                .attribute(VK_FORMAT_R16G16_SINT,16)//LIGHT_TEXTURE
                 )
                 .set(renderPass)
                 .add(uniformLayout)
@@ -281,12 +283,10 @@ public class VulkanChunkRenderer implements ChunkRenderer {
 
 
 
-        VGlVkImage gc = device.exportedAllocator.createShared2DImage(2560,1377, 1, VK_FORMAT_R8G8B8A8_UNORM, GL_RGBA8, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT|VK_IMAGE_USAGE_TRANSFER_SRC_BIT|VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        VGlVkImage gd = device.exportedAllocator.createShared2DImage(2560,1377, 1, VK_FORMAT_D24_UNORM_S8_UINT, GL_DEPTH24_STENCIL8, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT|VK_IMAGE_USAGE_TRANSFER_SRC_BIT , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        theFrameBuffer = device.createFramebuffer(renderPass, gc.createView(VK_IMAGE_ASPECT_COLOR_BIT), gd.createView(VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT));
+
         glFb = glCreateFramebuffers();
-        glNamedFramebufferTexture(glFb, GL_COLOR_ATTACHMENT0, gc.glId, 0);
-        colourBuf = gc;
+        glNamedFramebufferTexture(glFb, GL_COLOR_ATTACHMENT0, VulkanContext.colorTex.glId, 0);
+        glNamedFramebufferTexture(glFb, GL_DEPTH_ATTACHMENT, VulkanContext.depthTex.glId, 0);
     }
 
     protected static ShaderConstants.Builder getBaseShaderConstants(ChunkRenderPass pass, TerrainVertexType vertexType) {
@@ -317,6 +317,9 @@ public class VulkanChunkRenderer implements ChunkRenderer {
     @Override
     public void createRenderLists(SortedTerrainLists lists, int frameIndex) {
 
+        if (theFrameBuffer == null) {
+            theFrameBuffer = device.createFramebuffer(renderPass, VulkanContext.colorTex.createView(VK_IMAGE_ASPECT_COLOR_BIT), VulkanContext.depthTex.createView(VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT));
+        }
         BlockPos cameraBlockPos = this.cameraContext.getBlockPos();
         float cameraDeltaX = this.cameraContext.getDeltaX();
         float cameraDeltaY = this.cameraContext.getDeltaY();
@@ -335,7 +338,6 @@ public class VulkanChunkRenderer implements ChunkRenderer {
             mvpMatrix.mul(crm.modelView());
             mvpMatrix.getToAddress(ucdb + 128);
             uniformCameraData[frameIndex].unmap();
-        }
 
         var ucdb2 = MemoryUtil.memAddress(uniformFogData[frameIndex].map());
         float[] paramFogColor = RenderSystem.getShaderFogColor();
@@ -347,8 +349,10 @@ public class VulkanChunkRenderer implements ChunkRenderer {
         MemoryUtil.memPutFloat(ucdb2 + 16, RenderSystem.getShaderFogStart());
         MemoryUtil.memPutFloat(ucdb2 + 20, RenderSystem.getShaderFogEnd());
         MemoryUtil.memPutInt(  ucdb2 + 24, RenderSystem.getShaderFogShape().getId());
-
         uniformFogData[frameIndex].unmap();
+
+        }
+
 
         var ucdb = uniformChunkData[frameIndex].map().asFloatBuffer();
         int segCount = 0;
@@ -365,8 +369,8 @@ public class VulkanChunkRenderer implements ChunkRenderer {
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 // Update dynamic viewport state
                 VkViewport.Buffer viewport = VkViewport.calloc(1, stack)
-                        .height(1377)
-                        .width(2560)
+                        .width(MinecraftClient.getInstance().getFramebuffer().viewportWidth)
+                        .height(MinecraftClient.getInstance().getFramebuffer().viewportHeight)
                         .minDepth(0.0f)
                         .maxDepth(1.0f);
                 vkCmdSetViewport(cmd.buffer, 0, viewport);
@@ -382,13 +386,13 @@ public class VulkanChunkRenderer implements ChunkRenderer {
             }
             if (renderPass.getId() == 0) {
                 try (MemoryStack stack = MemoryStack.stackPush()) {
-                    VkClearAttachment.Buffer clearAttachments = VkClearAttachment.calloc(2, stack);
-                    clearAttachments.get(0).aspectMask(VK_IMAGE_ASPECT_COLOR_BIT).clearValue().color().float32(0, 1).float32(1, 1).float32(2, 1).float32(3, 1);
-                    clearAttachments.get(1).aspectMask(VK_IMAGE_ASPECT_DEPTH_BIT).clearValue().depthStencil().depth(1);
-                    VkClearRect.Buffer clearRects = VkClearRect.calloc(2, stack);
-                    clearRects.get(0).layerCount(1).rect().extent().set(2560, 1377);
-                    clearRects.get(1).layerCount(1).rect().extent().set(2560, 1377);
-                    vkCmdClearAttachments(cmd.buffer, clearAttachments, clearRects);
+                    //VkClearAttachment.Buffer clearAttachments = VkClearAttachment.calloc(2, stack);
+                  //  clearAttachments.get(0).aspectMask(VK_IMAGE_ASPECT_COLOR_BIT).clearValue().color().float32(0, 1).float32(1, 0).float32(2, 1).float32(3, 1);
+                  //  clearAttachments.get(1).aspectMask(VK_IMAGE_ASPECT_DEPTH_BIT).clearValue().depthStencil().depth(1);
+                   // VkClearRect.Buffer clearRects = VkClearRect.calloc(2, stack);
+                  //  clearRects.get(0).layerCount(1).rect().extent().set(2560, 1377);
+                  //  clearRects.get(1).layerCount(1).rect().extent().set(2560, 1377);
+                  //  vkCmdClearAttachments(cmd.buffer, clearAttachments, clearRects);
                 }
             }
 
@@ -509,22 +513,24 @@ public class VulkanChunkRenderer implements ChunkRenderer {
         VGlVkSemaphore signalSem = signalSemaphores[frameIndex][renderPass.getId()];
 
         //glFinish();
-        waitSem.glSignal(new int[]{},new int[]{colourBuf.glId},new int[]{GL_LAYOUT_SHADER_READ_ONLY_EXT});//TODO: provide the framebuffer depth and colour texture
+        waitSem.glSignal(new int[]{},new int[]{VulkanContext.colorTex.glId},new int[]{GL_LAYOUT_GENERAL_EXT});//TODO: provide the framebuffer depth and colour texture
         queue.submit(terrainCommandBuffers[frameIndex][renderPass.getId()], waitSem, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, signalSem, null);//TODO: need to basicly submit all the layers at once with correct ordering, that way it can work on multiple render passes at the same time
         //queue.submit(terrainCommandBuffers[frameIndex][renderPass.getId()]);
-        waitSem.glSignal(new int[]{},new int[]{colourBuf.glId},new int[]{GL_LAYOUT_COLOR_ATTACHMENT_EXT});//TODO: provide the framebuffer depth and colour texture
+        signalSem.glWait(new int[]{},new int[]{VulkanContext.colorTex.glId},new int[]{GL_LAYOUT_GENERAL_EXT});//TODO: provide the framebuffer depth and colour texture
 
-        if (renderPass.isTranslucent()){
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, glFb);
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, MinecraftClient.getInstance().getFramebuffer().fbo);
-            glBlitFramebuffer(0, 0, 2560, 1377,
-                    0, 0, 2560, 1377,
-                    GL_COLOR_BUFFER_BIT,
-                    GL_LINEAR);
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        }
+
         //vkQueueWaitIdle(queue.queue);
+        if (renderPass.getId() == 4){
+       //     glBindFramebuffer(GL_READ_FRAMEBUFFER, glFb);
+       //     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, MinecraftClient.getInstance().getFramebuffer().fbo);
+       //     glBlitFramebuffer(0, 0, 2560, 1377,
+         //           0, 0, 2560, 1377,
+         //           GL_COLOR_BUFFER_BIT,
+         //           GL_LINEAR);
+        //    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+         //   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        }
+        //
     }
 
     @Override

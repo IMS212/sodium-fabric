@@ -47,15 +47,12 @@ public class VVkCommandBuffer extends VVkObject {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             VkClearValue.Buffer vkClearValues = VkClearValue.calloc(framebuffer.renderPass.attachments, stack);//TODO: THIS  do like , float depthClear, float[]... colourClear
             // and have the renderPass have the index of the depth attachment
-            vkClearValues.get(0).color().float32(stack.floats(1.0f,0.5f,0.4f,1f));
-            vkClearValues.get(1).depthStencil().depth(1.0f).stencil(0);
 
             vkClearValues.rewind();
             VkRenderPassBeginInfo beginInfo = VkRenderPassBeginInfo.calloc(stack)
                     .sType$Default()
                     .framebuffer(framebuffer.framebuffer)
-                    .renderPass(framebuffer.renderPass.renderpass)
-                    .pClearValues(vkClearValues);
+                    .renderPass(framebuffer.renderPass.renderpass);
 
             beginInfo.renderArea().offset().set(0, 0);
             beginInfo.renderArea().extent().set(framebuffer.width, framebuffer.height);
