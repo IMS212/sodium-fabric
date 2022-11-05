@@ -7,11 +7,9 @@ import static org.lwjgl.opengl.EXTSemaphore.*;
 
 public class VGlVkSemaphore extends VVkSemaphore {
     private final int glSemaphore;
-    private final long handle;
-    public VGlVkSemaphore(VVkDevice device, int glSemaphore, long handle, long vkSemaphore) {
+    public VGlVkSemaphore(VVkDevice device, int glSemaphore, long vkSemaphore) {
         super(device, vkSemaphore);
         this.glSemaphore = glSemaphore;
-        this.handle = handle;
     }
 
     public VGlVkSemaphore glWait() {

@@ -22,14 +22,18 @@ import static me.cortex.vulkanitelib.utils.VVkUtils._CHECK_;
 import static org.lwjgl.opengl.ARBDirectStateAccess.*;
 import static org.lwjgl.opengl.ARBInternalformatQuery2.GL_TEXTURE_2D;
 import static org.lwjgl.opengl.EXTMemoryObject.*;
+import static org.lwjgl.opengl.EXTMemoryObjectFD.GL_HANDLE_TYPE_OPAQUE_FD_EXT;
+import static org.lwjgl.opengl.EXTMemoryObjectFD.glImportMemoryFdEXT;
 import static org.lwjgl.opengl.EXTMemoryObjectWin32.glImportMemoryWin32HandleEXT;
 import static org.lwjgl.opengl.EXTSemaphoreWin32.GL_HANDLE_TYPE_OPAQUE_WIN32_EXT;
 import static org.lwjgl.opengl.GL11C.*;
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.util.vma.Vma.*;
+import static org.lwjgl.vulkan.KHRExternalMemoryFd.vkGetMemoryFdKHR;
 import static org.lwjgl.vulkan.KHRExternalMemoryWin32.vkGetMemoryWin32HandleKHR;
 import static org.lwjgl.vulkan.VK10.*;
 import static org.lwjgl.vulkan.VK10.VK_SHARING_MODE_CONCURRENT;
+import static org.lwjgl.vulkan.VK11.VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 import static org.lwjgl.vulkan.VK11.VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
 public class VVkExportedAllocator extends VVkAllocator {
@@ -52,7 +56,7 @@ public class VVkExportedAllocator extends VVkAllocator {
 
             IntBuffer handleTypes = MemoryUtil.memAllocInt(memoryProperties.memoryTypeCount());
             for (int i = 0; i < handleTypes.capacity(); i++) {
-                handleTypes.put(i, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+                handleTypes.put(i, false ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
             }
             allocatorCreateInfo.pTypeExternalMemoryHandleTypes(handleTypes);
 
@@ -81,7 +85,7 @@ public class VVkExportedAllocator extends VVkAllocator {
             VmaAllocationInfo ai = VmaAllocationInfo.calloc(stack);
             VkExternalMemoryBufferCreateInfo extra = VkExternalMemoryBufferCreateInfo.calloc(stack)
                     .sType$Default()
-                    .handleTypes(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+                    .handleTypes(false ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
             _CHECK_(vmaCreateBuffer(allocator,
                             VkBufferCreateInfo
                                     .calloc(stack)
@@ -101,27 +105,48 @@ public class VVkExportedAllocator extends VVkAllocator {
                     "Failed to allocate buffer");
 
 
+            int memoryObject;
 
-            VkMemoryGetWin32HandleInfoKHR info = VkMemoryGetWin32HandleInfoKHR.calloc(stack)
-                    .sType$Default()
-                    .memory(ai.deviceMemory())
-                    .handleType(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+            if (false) {
+                VkMemoryGetWin32HandleInfoKHR info = VkMemoryGetWin32HandleInfoKHR.calloc(stack)
+                        .sType$Default()
+                        .memory(ai.deviceMemory())
+                        .handleType(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
 
-            PointerBuffer pb = stack.callocPointer(1);
-            _CHECK_(vkGetMemoryWin32HandleKHR(device.device, info, pb));
-            long handle = pb.get(0);
-            if (handle == 0)
-                throw new IllegalStateException();
+                PointerBuffer pb = stack.callocPointer(1);
+                _CHECK_(vkGetMemoryWin32HandleKHR(device.device, info, pb));
+                long handle = pb.get(0);
+                if (handle == 0)
+                    throw new IllegalStateException();
 
-            int memoryObject = glCreateMemoryObjectsEXT();
+                memoryObject = glCreateMemoryObjectsEXT();
 
-            VkMemoryRequirements req = VkMemoryRequirements.calloc();
-            vkGetBufferMemoryRequirements(device.device, pBuffer.get(0), req);
-            glImportMemoryWin32HandleEXT(memoryObject, req.size()+ai.offset(), GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, handle);
+                VkMemoryRequirements req = VkMemoryRequirements.calloc();
+                vkGetBufferMemoryRequirements(device.device, pBuffer.get(0), req);
+                glImportMemoryWin32HandleEXT(memoryObject, req.size()+ai.offset(), GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, handle);
+
+            } else {
+                VkMemoryGetFdInfoKHR info = VkMemoryGetFdInfoKHR.calloc(stack)
+                        .sType$Default()
+                        .memory(ai.deviceMemory())
+                        .handleType(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+
+                IntBuffer pb = stack.callocInt(1);
+                _CHECK_(vkGetMemoryFdKHR(device.device, info, pb));
+                int handle = pb.get(0);
+                if (handle == 0)
+                    throw new IllegalStateException();
+
+                memoryObject = glCreateMemoryObjectsEXT();
+
+                VkMemoryRequirements req = VkMemoryRequirements.calloc();
+                vkGetBufferMemoryRequirements(device.device, pBuffer.get(0), req);
+                glImportMemoryFdEXT(memoryObject, req.size()+ai.offset(), GL_HANDLE_TYPE_OPAQUE_FD_EXT, handle);
+            }
 
             glNamedBufferStorageMemEXT(glId, size, memoryObject, ai.offset());//vkBuffer.memHandle.offset
 
-            return new VGlVkBuffer(new VVkMemory(this, pAllocation.get(0), ai), glId, memoryObject, handle, pBuffer.get(0), size);
+            return new VGlVkBuffer(new VVkMemory(this, pAllocation.get(0), ai), glId, memoryObject, pBuffer.get(0), size);
         }
     }
 
@@ -140,7 +165,7 @@ public class VVkExportedAllocator extends VVkAllocator {
 
                 VkExternalMemoryImageCreateInfo extra = VkExternalMemoryImageCreateInfo.calloc(stack)
                         .sType$Default()
-                        .handleTypes(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+                        .handleTypes(false ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
 
                 VkImageCreateInfo imageInfo = VkImageCreateInfo.calloc(stack)
                         .sType$Default()
@@ -173,23 +198,45 @@ public class VVkExportedAllocator extends VVkAllocator {
             }
 
 
-            VkMemoryGetWin32HandleInfoKHR info = VkMemoryGetWin32HandleInfoKHR.calloc(stack)
-                    .sType$Default()
-                    .memory(ai.deviceMemory())
-                    .handleType(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
-
-            PointerBuffer pb = stack.callocPointer(1);
-            _CHECK_(vkGetMemoryWin32HandleKHR(device.device, info, pb));
-            long handle = pb.get(0);
-            if (handle == 0)
-                throw new IllegalStateException();
-
-
-            VkMemoryRequirements req = VkMemoryRequirements.calloc();
-            vkGetImageMemoryRequirements(device.device, pImage.get(0), req);
-
             int memoryObject = glCreateMemoryObjectsEXT();
-            glImportMemoryWin32HandleEXT(memoryObject, req.size() + ai.offset(), GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, handle);
+
+            if (false) {
+                VkMemoryGetWin32HandleInfoKHR info = VkMemoryGetWin32HandleInfoKHR.calloc(stack)
+                        .sType$Default()
+                        .memory(ai.deviceMemory())
+                        .handleType(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+
+                PointerBuffer pb = stack.callocPointer(1);
+                _CHECK_(vkGetMemoryWin32HandleKHR(device.device, info, pb));
+                long handle = pb.get(0);
+                if (handle == 0)
+                    throw new IllegalStateException();
+
+
+                VkMemoryRequirements req = VkMemoryRequirements.calloc();
+                vkGetImageMemoryRequirements(device.device, pImage.get(0), req);
+
+                glImportMemoryWin32HandleEXT(memoryObject, req.size() + ai.offset(), GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, handle);
+            } else {
+                VkMemoryGetFdInfoKHR info = VkMemoryGetFdInfoKHR.calloc(stack)
+                        .sType$Default()
+                        .memory(ai.deviceMemory())
+                        .handleType(VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+
+                IntBuffer pb = stack.callocInt(1);
+                _CHECK_(vkGetMemoryFdKHR(device.device, info, pb));
+                int handle = pb.get(0);
+                if (handle == 0)
+                    throw new IllegalStateException();
+
+
+                VkMemoryRequirements req = VkMemoryRequirements.calloc();
+                vkGetImageMemoryRequirements(device.device, pImage.get(0), req);
+
+                glImportMemoryFdEXT(memoryObject, req.size() + ai.offset(), GL_HANDLE_TYPE_OPAQUE_FD_EXT, handle);
+
+            }
+
             if (!glIsMemoryObjectEXT(memoryObject))
                 throw new IllegalStateException();
             glTextureStorageMem2DEXT(glId, mipLevels, glFormat, width, height, memoryObject, ai.offset());
@@ -198,7 +245,7 @@ public class VVkExportedAllocator extends VVkAllocator {
             glTextureParameteri(glId, GL_TEXTURE_WRAP_S, GL_REPEAT);
             glTextureParameteri(glId, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-            return new VGlVkImage(glId, memoryObject, handle, width, height, 1, mipLevels, 1, VK_IMAGE_TYPE_2D, format, VK_IMAGE_LAYOUT_UNDEFINED, pImage.get(0),
+            return new VGlVkImage(glId, memoryObject, width, height, 1, mipLevels, 1, VK_IMAGE_TYPE_2D, format, VK_IMAGE_LAYOUT_UNDEFINED, pImage.get(0),
                     new VVkMemory(this, pAllocation.get(0), ai));
         }
     }

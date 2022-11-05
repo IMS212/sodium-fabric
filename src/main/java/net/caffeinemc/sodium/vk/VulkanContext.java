@@ -6,10 +6,12 @@ import me.cortex.vulkanitelib.VVkContext;
 import me.cortex.vulkanitelib.VVkDevice;
 import me.cortex.vulkanitelib.memory.image.VGlVkImage;
 import me.cortex.vulkanitelib.other.VVkCommandPool;
+import org.lwjgl.system.Platform;
 import org.lwjgl.vulkan.VkPhysicalDeviceAccelerationStructureFeaturesKHR;
 import org.lwjgl.vulkan.VkPhysicalDeviceBufferDeviceAddressFeaturesKHR;
 import org.lwjgl.vulkan.VkPhysicalDeviceRayQueryFeaturesKHR;
 
+import static me.cortex.vulkanitelib.VVkDevice.IS_WINDOWS;
 import static org.lwjgl.opengl.GL11C.GL_RENDERER;
 import static org.lwjgl.opengl.GL11C.glGetString;
 import static org.lwjgl.vulkan.EXTDescriptorIndexing.VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;
@@ -17,12 +19,15 @@ import static org.lwjgl.vulkan.KHRAccelerationStructure.VK_KHR_ACCELERATION_STRU
 import static org.lwjgl.vulkan.KHRBufferDeviceAddress.VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRDeferredHostOperations.VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRExternalFenceCapabilities.VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME;
+import static org.lwjgl.vulkan.KHRExternalFenceFd.VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRExternalFenceWin32.VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRExternalMemory.VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRExternalMemoryCapabilities.VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME;
+import static org.lwjgl.vulkan.KHRExternalMemoryFd.VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRExternalMemoryWin32.VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRExternalSemaphore.VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRExternalSemaphoreCapabilities.VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME;
+import static org.lwjgl.vulkan.KHRExternalSemaphoreFd.VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRExternalSemaphoreWin32.VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRGetMemoryRequirements2.VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 import static org.lwjgl.vulkan.KHRGetPhysicalDeviceProperties2.VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
@@ -47,9 +52,9 @@ public class VulkanContext {
                         VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME,
                         VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME)
                 .addDeviceExtensions(
-                        VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,
-                        VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME,
-                        VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME,
+                        IS_WINDOWS ? VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME : VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
+                        IS_WINDOWS ? VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME : VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
+                        IS_WINDOWS ? VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME : VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,
                         VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
                         VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
                         VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,

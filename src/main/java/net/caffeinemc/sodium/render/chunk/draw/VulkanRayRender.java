@@ -1,5 +1,6 @@
 package net.caffeinemc.sodium.render.chunk.draw;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import me.cortex.vulkanitelib.VVkDevice;
 import me.cortex.vulkanitelib.descriptors.VVkDescriptorSetLayout;
 import me.cortex.vulkanitelib.descriptors.VVkDescriptorSetsPooled;
@@ -19,7 +20,10 @@ import net.caffeinemc.sodium.render.shader.ShaderConstants;
 import net.caffeinemc.sodium.render.shader.ShaderLoader;
 import net.caffeinemc.sodium.render.shader.ShaderParser;
 import net.caffeinemc.sodium.vk.VulkanContext;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3f;
+import net.minecraft.util.math.Vector4f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryStack;
@@ -28,6 +32,9 @@ import org.lwjgl.vulkan.VkClearRect;
 import org.lwjgl.vulkan.VkRect2D;
 import org.lwjgl.vulkan.VkViewport;
 
+import java.nio.FloatBuffer;
+
+import static org.lwjgl.opengl.GL11C.glFinish;
 import static org.lwjgl.vulkan.KHRAccelerationStructure.VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 import static org.lwjgl.vulkan.VK10.*;
 
@@ -85,10 +92,10 @@ public class VulkanRayRender {
                             //output the position of each vertex
                             //const array of positions for the triangle
                             const vec3 positions[4] = vec3[4](
-                                vec3(0.f,0.f, 0.0f),
-                                vec3(0.f,1.f, 0.0f),
-                                vec3(1.f,1.f, 0.0f),
-                                vec3(1.f,0.f, 0.0f)
+                                vec3(-1,-1, 0.0f),
+                                vec3(-1,1, 0.0f),
+                                vec3(1,1, 0.0f),
+                                vec3(1,-1, 0.0f)
                             );
                             pos = (positions[gl_VertexIndex]+1)/2;
                             //output the position of each vertex
@@ -164,5 +171,8 @@ public class VulkanRayRender {
             vkCmdDraw(cmd.buffer, 4, 1, 0, 0);
             cmd.endRenderPass();
             }, ()->{});
+        vkDeviceWaitIdle(VulkanContext.device.device);
+        vkQueueWaitIdle(VulkanContext.device.fetchQueue().queue);
+        glFinish();
     }
 }

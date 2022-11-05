@@ -19,11 +19,14 @@ import me.cortex.vulkanitelib.sync.VGlVkSemaphore;
 import me.cortex.vulkanitelib.sync.VVkFence;
 import me.cortex.vulkanitelib.sync.VVkSemaphore;
 import me.cortex.vulkanitelib.utils.ShaderUtils;
+import net.caffeinemc.sodium.vk.VulkanContext;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.Platform;
 import org.lwjgl.vulkan.*;
 
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.*;
 import java.util.function.Consumer;
@@ -31,13 +34,17 @@ import java.util.function.Consumer;
 import static me.cortex.vulkanitelib.utils.VVkUtils._CHECK_;
 import static org.lwjgl.opengl.EXTSemaphore.glGenSemaphoresEXT;
 import static org.lwjgl.opengl.EXTSemaphore.glIsSemaphoreEXT;
+import static org.lwjgl.opengl.EXTSemaphoreFD.GL_HANDLE_TYPE_OPAQUE_FD_EXT;
+import static org.lwjgl.opengl.EXTSemaphoreFD.glImportSemaphoreFdEXT;
 import static org.lwjgl.opengl.EXTSemaphoreWin32.GL_HANDLE_TYPE_OPAQUE_WIN32_EXT;
 import static org.lwjgl.opengl.EXTSemaphoreWin32.glImportSemaphoreWin32HandleEXT;
 import static org.lwjgl.opengl.GL11C.glGetError;
 import static org.lwjgl.opengl.KHRRobustness.GL_NO_ERROR;
 import static org.lwjgl.util.vma.Vma.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+import static org.lwjgl.vulkan.KHRExternalSemaphoreFd.vkGetSemaphoreFdKHR;
 import static org.lwjgl.vulkan.KHRExternalSemaphoreWin32.vkGetSemaphoreWin32HandleKHR;
 import static org.lwjgl.vulkan.VK10.*;
+import static org.lwjgl.vulkan.VK11.VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
 import static org.lwjgl.vulkan.VK11.VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
 public class VVkDevice {
@@ -46,8 +53,13 @@ public class VVkDevice {
     public VVkAllocator allocator;
     public VVkExportedAllocator exportedAllocator;//TODO: FIX THIS ENTIRE MESS OF A SYSTEM FOR THE LOVE OF GOD
     public final VVkCommandPool transientPool;
+    public static final boolean IS_WINDOWS;
 
     public VAccelerationMethods accelerator;
+
+    static {
+        IS_WINDOWS = Platform.get() == Platform.WINDOWS;
+    }
 
     public VVkDevice(VkDevice device, VVkContext vVkContext) {
         this.device = device;
@@ -183,32 +195,68 @@ public class VVkDevice {
     public VGlVkSemaphore createSharedSemaphore() {
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            VkExportSemaphoreCreateInfo esci = VkExportSemaphoreCreateInfo.calloc(stack)
-                    .sType$Default()
-                    .handleTypes(VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
-            VkSemaphoreCreateInfo sci = VkSemaphoreCreateInfo.calloc(stack)
-                    .sType$Default()
-                    .pNext(esci);
-            long[] out = new long[1];
-            _CHECK_(vkCreateSemaphore(device, sci, null, out));
-            PointerBuffer pb = stack.callocPointer(1);
-            VkSemaphoreGetWin32HandleInfoKHR sgwhi = VkSemaphoreGetWin32HandleInfoKHR.calloc(stack)
-                    .sType$Default()
-                    .semaphore(out[0])
-                    .handleType(VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
-            _CHECK_(vkGetSemaphoreWin32HandleKHR(device, sgwhi, pb));
-            if (pb.get(0)== 0) {
-                throw new IllegalStateException();
+            if (VVkDevice.IS_WINDOWS) {
+                return createSharedSemaphoreWindows(stack);
+            } else {
+                return createSharedSemaphoreFd(stack);
             }
-            int glSemaphore = glGenSemaphoresEXT();
-            glImportSemaphoreWin32HandleEXT(glSemaphore, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, pb.get(0));
-            if (!glIsSemaphoreEXT(glSemaphore))
-                throw new IllegalStateException();
-            if (glGetError() != GL_NO_ERROR)
-                throw new IllegalStateException();
-
-            return new VGlVkSemaphore(this, glSemaphore, pb.get(0), out[0]);
         }
+    }
+
+    private VGlVkSemaphore createSharedSemaphoreFd(MemoryStack stack) {
+        VkExportSemaphoreCreateInfo esci = VkExportSemaphoreCreateInfo.calloc(stack)
+                .sType$Default()
+                .handleTypes(VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);
+        VkSemaphoreCreateInfo sci = VkSemaphoreCreateInfo.calloc(stack)
+                .sType$Default()
+                .pNext(esci);
+        long[] out = new long[1];
+        _CHECK_(vkCreateSemaphore(device, sci, null, out));
+        IntBuffer pb = stack.callocInt(1);
+        VkSemaphoreGetFdInfoKHR sgwhi = VkSemaphoreGetFdInfoKHR.calloc(stack)
+                .sType$Default()
+                .semaphore(out[0])
+                .handleType(VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);
+        _CHECK_(vkGetSemaphoreFdKHR(device, sgwhi, pb));
+        if (pb.get(0)== 0) {
+            throw new IllegalStateException();
+        }
+        int glSemaphore = glGenSemaphoresEXT();
+        glImportSemaphoreFdEXT(glSemaphore, GL_HANDLE_TYPE_OPAQUE_FD_EXT, pb.get(0));
+        if (!glIsSemaphoreEXT(glSemaphore))
+            throw new IllegalStateException();
+        if (glGetError() != GL_NO_ERROR)
+            throw new IllegalStateException();
+
+        return new VGlVkSemaphore(this, glSemaphore, out[0]);
+    }
+
+    private VGlVkSemaphore createSharedSemaphoreWindows(MemoryStack stack) {
+        VkExportSemaphoreCreateInfo esci = VkExportSemaphoreCreateInfo.calloc(stack)
+                .sType$Default()
+                .handleTypes(VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+        VkSemaphoreCreateInfo sci = VkSemaphoreCreateInfo.calloc(stack)
+                .sType$Default()
+                .pNext(esci);
+        long[] out = new long[1];
+        _CHECK_(vkCreateSemaphore(device, sci, null, out));
+        PointerBuffer pb = stack.callocPointer(1);
+        VkSemaphoreGetWin32HandleInfoKHR sgwhi = VkSemaphoreGetWin32HandleInfoKHR.calloc(stack)
+                .sType$Default()
+                .semaphore(out[0])
+                .handleType(VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+        _CHECK_(vkGetSemaphoreWin32HandleKHR(device, sgwhi, pb));
+        if (pb.get(0)== 0) {
+            throw new IllegalStateException();
+        }
+        int glSemaphore = glGenSemaphoresEXT();
+        glImportSemaphoreWin32HandleEXT(glSemaphore, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, pb.get(0));
+        if (!glIsSemaphoreEXT(glSemaphore))
+            throw new IllegalStateException();
+        if (glGetError() != GL_NO_ERROR)
+            throw new IllegalStateException();
+
+        return new VGlVkSemaphore(this, glSemaphore, out[0]);
     }
 
     public VVkSampler createSampler() {

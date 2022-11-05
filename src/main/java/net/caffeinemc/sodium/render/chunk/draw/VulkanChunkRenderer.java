@@ -60,6 +60,7 @@ import static org.lwjgl.opengl.ARBDirectStateAccess.glCreateFramebuffers;
 import static org.lwjgl.opengl.ARBDirectStateAccess.glNamedFramebufferTexture;
 import static org.lwjgl.opengl.EXTSemaphore.*;
 import static org.lwjgl.opengl.GL11.GL_RGBA8;
+import static org.lwjgl.opengl.GL11C.glFinish;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL42C.GL_ALL_BARRIER_BITS;
 import static org.lwjgl.opengl.GL42C.glMemoryBarrier;
@@ -375,7 +376,7 @@ public class VulkanChunkRenderer implements ChunkRenderer {
                     VkClearRect.Buffer clearRects = VkClearRect.calloc(2, stack);
                     clearRects.get(0).layerCount(1).rect().extent().set(theFrameBuffer.width, theFrameBuffer.height);
                     clearRects.get(1).layerCount(1).rect().extent().set(theFrameBuffer.width, theFrameBuffer.height);
-                    vkCmdClearAttachments(cmd.buffer, clearAttachments, clearRects);
+                    //vkCmdClearAttachments(cmd.buffer, clearAttachments, clearRects);
                 }
             }
 

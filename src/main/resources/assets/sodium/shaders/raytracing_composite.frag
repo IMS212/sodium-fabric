@@ -70,8 +70,8 @@ void trace2(in rayQueryEXT rayQuery, vec3 origin, vec3 dir, float max) {
         max);
     while(rayQueryProceedEXT(rayQuery));
 }
-
-void trace(in rayQueryEXT rayQuery, vec3 origin, vec3 dir, float max, out float distance, out vec4 colour, out Quad quad) {
+float random(vec2 p){return fract(cos(dot(p,vec2(23.14069263277926,2.665144142690225)))*12345.6789);}
+void trace(in rayQueryEXT rayQuery, vec3 origin, vec3 dir, float max, out float distance, out vec4 colour, out Quad quad, inout bool hitWater) {
     float currentAlpha = 1.0;
     while (true) {
         rayQueryInitializeEXT(rayQuery,
@@ -83,15 +83,29 @@ void trace(in rayQueryEXT rayQuery, vec3 origin, vec3 dir, float max, out float 
             dir,
             max);
         while (rayQueryProceedEXT(rayQuery));
-        float dist = rayQueryGetIntersectionTEXT(rayQuery, true);
-        if (dist > max-0.001) {
+        distance = rayQueryGetIntersectionTEXT(rayQuery, true);
+        if (distance > max-0.001) {
+            if (hitWater) {
+                colour = vec4(0, 0, 1, 1);
+            }
+            colour = vec4(0, 0.5, 1, 0);
             return;
         }
-        origin = dir*dist + origin;
-        max -= dist;
+        origin = dir*distance + origin;
+        max -= distance;
         quad = getRayQuad(rayQuery);
         vec4 hitColour = textureLod(blockTex, ray2uvCoQu(rayQuery, quad), 0);
         origin += dir * 0.00001;
+
+
+        dir.x += (random(dir.xy) / 100);
+        dir.y += (random(dir.xy) / 100);
+        dir.z += (random(dir.xy) / 100);
+        if (quad.normal.w > 0.5) {
+            hitWater = true;
+            dir = reflect(dir, quad.normal.xyz);
+            continue;
+        }
         if (hitColour.w < 0.01) {
             continue;
         }
@@ -151,10 +165,15 @@ void main(void) {
     state ^= floatBitsToUint(p.y);
     rand();
 
+    bool hitWater;
     rayQueryEXT rayQuery;
     float d;
     Quad quad;
-    trace(rayQuery, origin, direction.xyz, 1024.0, d, color, quad);
+    trace(rayQuery, origin, direction.xyz, 1024.0, d, color, quad, hitWater);
+
+    if (color.a < 0.1) {
+        discard;
+    }
 
 
     state ^= floatBitsToUint(d);
@@ -165,20 +184,24 @@ void main(void) {
     Quad dump2;
     vec4 dump;
     rayQueryEXT rayQuery2;
-    trace(rayQuery2, hitPos+vec3(0.0,0.01,0), vec3(0.7,0.5,0.1), 1024.0, d, dump, dump2);
+    bool unused;
+    trace(rayQuery2, hitPos+vec3(0.0,0.01,0), vec3(0.7,0.5,0.1), 1024.0, d, dump, dump2, unused);
 
-    if (d<1000) {
+    gl_FragDepth = 1.0 / d;
+    if (d<1000 && !hitWater) {
         color*=0.5;
     }
 
 
     float ao = 1;
-    for (int i = 0; i < 32; i++) {
+
+    // BROKEN AO
+    for (int i = 0; i < 4; i++) {
         state ^= i<<4;
         rand();
         rayQueryEXT rayQuery3;
         float dist;
-        trace(rayQuery3, hitPos, randomDirection(quad.normal.xyz), 1, dist, dump, dump2);
+        trace(rayQuery3, hitPos, randomDirection(quad.normal.xyz), 1, dist, dump, dump2, unused);
         if (dist<0.49) {
             ao += (1-dist)*2.5/32.0;
         }

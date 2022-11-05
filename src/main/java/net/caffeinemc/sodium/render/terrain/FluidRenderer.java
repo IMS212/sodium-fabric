@@ -449,7 +449,7 @@ public class FluidRenderer {
 
         if (sink instanceof AccelerationSink ac) {
             ac.writeMeta(cross.x, cross.y);
-            ac.writeMeta(cross.z, 0);
+            ac.writeMeta(cross.z, 1);
         }
 
         sink.flush();
