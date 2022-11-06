@@ -20,7 +20,9 @@ import net.caffeinemc.sodium.render.shader.ShaderConstants;
 import net.caffeinemc.sodium.render.shader.ShaderLoader;
 import net.caffeinemc.sodium.render.shader.ShaderParser;
 import net.caffeinemc.sodium.vk.VulkanContext;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3f;
 import org.joml.Quaternionf;
@@ -33,7 +35,9 @@ import org.lwjgl.vulkan.VkClearRect;
 import org.lwjgl.vulkan.VkRect2D;
 import org.lwjgl.vulkan.VkViewport;
 
+import java.io.IOException;
 import java.nio.FloatBuffer;
+import java.nio.file.Files;
 
 import static org.lwjgl.opengl.GL11C.glFinish;
 import static org.lwjgl.vulkan.KHRAccelerationStructure.VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
@@ -47,8 +51,11 @@ public class VulkanRayRender {
     private final VVkCommandPool commandPool;
     private final int inflightFrames;
     protected final VVkDescriptorSetsPooled descriptorSets;
-    final VVkGraphicsPipeline compositePipeline;
+    private final VVkDescriptorSetLayout layout;
+    VVkGraphicsPipeline compositePipeline;
     final VVkFramebuffer theFramebuffer;
+    private boolean failed;
+
     public VulkanRayRender(VVkDevice device, int inflightFrames, VVkImageView destImage, VVkImageView destDepth, VVkSampler sampler1, VVkImageView blockAtlasView) {
         this.device = device;
         this.inflightFrames = inflightFrames;
@@ -59,7 +66,7 @@ public class VulkanRayRender {
                 .subpass(VK_PIPELINE_BIND_POINT_GRAPHICS, -1,0));
 
         this.buffers = commandPool.createCommandBuffers(inflightFrames, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        VVkDescriptorSetLayout layout = device.build(new DescriptorSetLayoutBuilder()
+        this.layout = device.build(new DescriptorSetLayoutBuilder()
                 .binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)//camera data
                 .binding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_FRAGMENT_BIT)//funni acceleration buffer
                 .binding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)//funni buffer buffer
@@ -67,45 +74,8 @@ public class VulkanRayRender {
         );
         descriptorSets = layout.createDescriptorSetsAndPool(inflightFrames);
 
-        var constants = ShaderConstants.builder().build();
 
-        var vertShader = ShaderParser.parseSodiumShader(
-                ShaderLoader.MINECRAFT_ASSETS,
-                new Identifier("sodium", "raytracing_composite.frag"),
-                constants
-        );
-
-        GraphicsPipelineBuilder pipelineBuilder = new GraphicsPipelineBuilder()
-                .set(renderPass)
-                .add(layout)
-                .addDynamicStates(VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR)
-                .rasterization(false, false, VK_CULL_MODE_NONE)
-                .inputAssembly(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN)
-                .multisampling()
-                .addViewport()
-                .addScissor()
-                .depthStencil()//TODO: DISABLE DEPTH TEST AND DEPTH WRITE
-                .colourBlending().attachment().end()
-                .add(device.compileShader("""
-                        #version 420 core
-                        layout(location = 0) out vec3 pos;
-                        void main(void) {
-                            //output the position of each vertex
-                            //const array of positions for the triangle
-                            const vec3 positions[4] = vec3[4](
-                                vec3(-1,-1, 0.0f),
-                                vec3(-1,1, 0.0f),
-                                vec3(1,1, 0.0f),
-                                vec3(1,-1, 0.0f)
-                            );
-                            pos = (positions[gl_VertexIndex]+1)/2;
-                            //output the position of each vertex
-                            gl_Position = vec4(positions[gl_VertexIndex], 1.0f);
-                        }
-                        """, VK_SHADER_STAGE_VERTEX_BIT))
-                .add(device.compileShader(vertShader, VK_SHADER_STAGE_FRAGMENT_BIT));
-
-        compositePipeline = device.build(pipelineBuilder);
+        makePipeline();
 
         for (int i = 0; i < inflightFrames; i++) {
             cameraData[i] = device.allocator.createBuffer(1024, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -117,9 +87,65 @@ public class VulkanRayRender {
 
         theFramebuffer = device.createFramebuffer(renderPass, destImage, destDepth);
     }
+
+    public void makePipeline() {
+        failed = false;
+        var constants = ShaderConstants.builder().build();
+
+        String vertShader = null;
+        try {
+            vertShader = Files.readString(FabricLoader.getInstance().getGameDir().resolve("raytracing.fsh"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            GraphicsPipelineBuilder pipelineBuilder = new GraphicsPipelineBuilder()
+                    .set(renderPass)
+                    .add(layout)
+                    .addDynamicStates(VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR)
+                    .rasterization(false, false, VK_CULL_MODE_NONE)
+                    .inputAssembly(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN)
+                    .multisampling()
+                    .addViewport()
+                    .addScissor()
+                    .depthStencil()//TODO: DISABLE DEPTH TEST AND DEPTH WRITE
+                    .colourBlending().attachment().end()
+                    .add(device.compileShader("""
+                            #version 420 core
+                            layout(location = 0) out vec3 pos;
+                            void main(void) {
+                                //output the position of each vertex
+                                //const array of positions for the triangle
+                                const vec3 positions[4] = vec3[4](
+                                    vec3(-1,-1, 0.0f),
+                                    vec3(-1,1, 0.0f),
+                                    vec3(1,1, 0.0f),
+                                    vec3(1,-1, 0.0f)
+                                );
+                                pos = (positions[gl_VertexIndex]+1)/2;
+                                //output the position of each vertex
+                                gl_Position = vec4(positions[gl_VertexIndex], 1.0f);
+                            }
+                            """, VK_SHADER_STAGE_VERTEX_BIT))
+                    .add(device.compileShader(vertShader, VK_SHADER_STAGE_FRAGMENT_BIT));
+
+            compositePipeline = device.build(pipelineBuilder);
+
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            failed = true;
+            if (MinecraftClient.getInstance().player != null) {
+                MinecraftClient.getInstance().player.sendMessage(Text.of("Failed to create shader!" + e.getMessage()));
+            }
+        }
+    }
+
     boolean ready;
     public void render(int frameId, ChunkRenderMatrices crm, Vector3f cameraOffset) {
-
+        if (failed) {
+            return;
+        }
         if (VulkanContext.acceleration.tick()) {
             ready = true;
             System.out.println("acceleration update");

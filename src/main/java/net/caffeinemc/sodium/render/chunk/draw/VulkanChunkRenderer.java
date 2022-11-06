@@ -331,6 +331,9 @@ public class VulkanChunkRenderer implements ChunkRenderer {
     public void createRenderLists(SortedTerrainLists lists, int frameIndex) {
         frameIndex %= terrainCommandBuffers.length;
 
+        if (MinecraftClient.getInstance().options.socialInteractionsKey.wasPressed()) {
+            composite.makePipeline();
+        }
 
 
         BlockPos cameraBlockPos = this.cameraContext.getBlockPos();
