@@ -56,7 +56,7 @@ public class VVkExportedAllocator extends VVkAllocator {
 
             IntBuffer handleTypes = MemoryUtil.memAllocInt(memoryProperties.memoryTypeCount());
             for (int i = 0; i < handleTypes.capacity(); i++) {
-                handleTypes.put(i, false ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+                handleTypes.put(i, VVkDevice.IS_WINDOWS ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
             }
             allocatorCreateInfo.pTypeExternalMemoryHandleTypes(handleTypes);
 
@@ -85,7 +85,7 @@ public class VVkExportedAllocator extends VVkAllocator {
             VmaAllocationInfo ai = VmaAllocationInfo.calloc(stack);
             VkExternalMemoryBufferCreateInfo extra = VkExternalMemoryBufferCreateInfo.calloc(stack)
                     .sType$Default()
-                    .handleTypes(false ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+                    .handleTypes(VVkDevice.IS_WINDOWS ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
             _CHECK_(vmaCreateBuffer(allocator,
                             VkBufferCreateInfo
                                     .calloc(stack)
@@ -107,7 +107,7 @@ public class VVkExportedAllocator extends VVkAllocator {
 
             int memoryObject;
 
-            if (false) {
+            if (VVkDevice.IS_WINDOWS) {
                 VkMemoryGetWin32HandleInfoKHR info = VkMemoryGetWin32HandleInfoKHR.calloc(stack)
                         .sType$Default()
                         .memory(ai.deviceMemory())
@@ -165,7 +165,7 @@ public class VVkExportedAllocator extends VVkAllocator {
 
                 VkExternalMemoryImageCreateInfo extra = VkExternalMemoryImageCreateInfo.calloc(stack)
                         .sType$Default()
-                        .handleTypes(false ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+                        .handleTypes(VVkDevice.IS_WINDOWS ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
 
                 VkImageCreateInfo imageInfo = VkImageCreateInfo.calloc(stack)
                         .sType$Default()
@@ -200,7 +200,7 @@ public class VVkExportedAllocator extends VVkAllocator {
 
             int memoryObject = glCreateMemoryObjectsEXT();
 
-            if (false) {
+            if (VVkDevice.IS_WINDOWS) {
                 VkMemoryGetWin32HandleInfoKHR info = VkMemoryGetWin32HandleInfoKHR.calloc(stack)
                         .sType$Default()
                         .memory(ai.deviceMemory())
@@ -237,8 +237,7 @@ public class VVkExportedAllocator extends VVkAllocator {
 
             }
 
-            if (!glIsMemoryObjectEXT(memoryObject))
-                throw new IllegalStateException();
+
             glTextureStorageMem2DEXT(glId, mipLevels, glFormat, width, height, memoryObject, ai.offset());
             glTextureParameteri(glId, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTextureParameteri(glId, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

@@ -143,7 +143,7 @@ public class VulkanRayRender {
         invProjMatrix.transformProject(+1, +1, 0, 1, tmpv3).get(12*Float.BYTES, mapped);
         invViewMatrix.get(Float.BYTES * 16, mapped);
 
-        net.minecraft.util.math.Vector4f position = new net.minecraft.util.math.Vector4f(0.0F, 100, 0.0F, 0.0F);
+        net.minecraft.util.math.Vector4f position = new net.minecraft.util.math.Vector4f(0.0F, isDay() ? 100 : -100, 0.0F, 0.0F);
 
         // TODO: Deduplicate / remove this function.
         net.minecraft.util.math.Matrix4f celestial = new net.minecraft.util.math.Matrix4f();
@@ -193,5 +193,19 @@ public class VulkanRayRender {
         vkDeviceWaitIdle(VulkanContext.device.device);
         vkQueueWaitIdle(VulkanContext.device.fetchQueue().queue);
         glFinish();
+    }
+
+    private boolean isDay() {
+        return getSunAngle() <= 0.5;
+    }
+
+    public static float getSunAngle() {
+        float skyAngle = MinecraftClient.getInstance().world.getSkyAngleRadians(MinecraftClient.getInstance().getTickDelta());
+
+        if (skyAngle < 0.75F) {
+            return skyAngle + 0.25F;
+        } else {
+            return skyAngle - 0.75F;
+        }
     }
 }
