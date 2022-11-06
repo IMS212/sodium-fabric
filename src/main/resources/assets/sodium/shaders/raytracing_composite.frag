@@ -7,6 +7,7 @@ layout(location = 0) in vec3 pos;
 layout(std140, binding = 0) uniform CameraInfo {
     vec3 corners[4];
     mat4 viewInverse;
+    vec3 sunAngle;
 } cam;
 
 
@@ -202,7 +203,7 @@ void main(void) {
     vec4 dump;
     rayQueryEXT rayQuery2;
     bool unused;
-    trace(rayQuery2, hitPos+vec3(0.0,0.01,0), vec3(0.7,0.5,0.1), 1024.0, d, dump, dump2, unused);
+    trace(rayQuery2, hitPos+vec3(0.0,0.01,0), cam.sunAngle.xyz, 1024.0, d, dump, dump2, unused);
 
     if (d<1000) {
         color*=0.5;

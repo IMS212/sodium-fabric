@@ -23,7 +23,8 @@ import net.caffeinemc.sodium.vk.VulkanContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3f;
-import net.minecraft.util.math.Vector4f;
+import org.joml.Quaternionf;
+import org.joml.Vector4f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryStack;
@@ -141,6 +142,24 @@ public class VulkanRayRender {
         invProjMatrix.transformProject(-1, +1, 0, 1, tmpv3).get(8*Float.BYTES, mapped);
         invProjMatrix.transformProject(+1, +1, 0, 1, tmpv3).get(12*Float.BYTES, mapped);
         invViewMatrix.get(Float.BYTES * 16, mapped);
+
+        net.minecraft.util.math.Vector4f position = new net.minecraft.util.math.Vector4f(0.0F, 100, 0.0F, 0.0F);
+
+        // TODO: Deduplicate / remove this function.
+        net.minecraft.util.math.Matrix4f celestial = new net.minecraft.util.math.Matrix4f();
+        celestial.loadIdentity();
+
+        // This is the same transformation applied by renderSky, however, it's been moved to here.
+        // This is because we need the result of it before it's actually performed in vanilla.
+        celestial.multiply(Vec3f.POSITIVE_Y.getDegreesQuaternion(-90.0F));
+        celestial.multiply(Vec3f.POSITIVE_X.getDegreesQuaternion(MinecraftClient.getInstance().world.getSkyAngle(MinecraftClient.getInstance().getTickDelta()) * 360.0F));
+
+        position.transform(celestial);
+
+        Vector3f vec3 = new Vector3f(position.getX(), position.getY(), position.getZ());
+        vec3.normalize();
+        vec3.get(Float.BYTES * 32, mapped);
+
         cameraData[frameId].unmap();
 
         device.singleTimeCommand(cmd->{//TODO: not use single time commands
