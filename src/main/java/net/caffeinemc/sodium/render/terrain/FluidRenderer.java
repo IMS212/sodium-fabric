@@ -401,13 +401,15 @@ public class FluidRenderer {
     }
 
     private void flushQuad(ChunkMeshBuilder meshBuilder, BlockPos offset, ModelQuadView quad, ChunkMeshFace facing, boolean flip) {
-        int vertexIdx, lightOrder;
+        int vertexIdx, vertexIdx2, lightOrder;
 
         if (flip) {
             vertexIdx = 3;
+            vertexIdx2 = 3;
             lightOrder = -1;
         } else {
             vertexIdx = 0;
+            vertexIdx2 = 0;
             lightOrder = 1;
         }
 
@@ -443,6 +445,14 @@ public class FluidRenderer {
             float y = quad.getY(i);
             float z = quad.getZ(i);
             vecs[i] = new Vector3f(offset.getX() + x, offset.getY() + y, offset.getZ() + z);
+
+            if (sink instanceof AccelerationSink ac) {
+                int color = this.quadColors[vertexIdx2];
+                ac.writeMeta(ColorABGR.unpackRed(color), ColorABGR.unpackGreen(color));
+                ac.writeMeta(ColorABGR.unpackBlue(color), ColorABGR.unpackAlpha(color));
+            }
+
+            vertexIdx2 += lightOrder;
         }
 
         Vector3f cross = (vecs[0].sub(vecs[1])).cross(vecs[2].sub(vecs[1]));

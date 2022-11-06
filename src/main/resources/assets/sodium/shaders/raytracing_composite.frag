@@ -11,7 +11,8 @@ layout(std140, binding = 0) uniform CameraInfo {
 
 
 struct Quad {
-    vec2 uvs[4];
+    vec2 uv[4];
+    vec4 color[4];
     vec4 normal;
 };
 
@@ -44,13 +45,26 @@ vec2 ray2uvCoQu(rayQueryEXT ray, Quad quad) {
     bool isSideA = (rayQueryGetIntersectionPrimitiveIndexEXT(ray, true)&1)==0;
     vec2 barry = rayQueryGetIntersectionBarycentricsEXT(ray, true);
 
-    vec2 t0 = quad.uvs[0];
-    vec2 t2 = isSideA?quad.uvs[2]:quad.uvs[3];
-    vec2 t1 = isSideA?quad.uvs[1]:quad.uvs[2];
+    vec2 t0 = quad.uv[0];
+    vec2 t2 = isSideA?quad.uv[2]:quad.uv[3];
+    vec2 t1 = isSideA?quad.uv[1]:quad.uv[2];
 
     vec3 barys = vec3(1.0f - barry.x - barry.y, barry.x, barry.y);
     vec2 texCoords = t0 * barys.x + t1 * barys.y + t2 * barys.z;
     return texCoords;
+}
+
+vec4 ray2colorCoQu(rayQueryEXT ray, Quad quad) {
+    bool isSideA = (rayQueryGetIntersectionPrimitiveIndexEXT(ray, true)&1)==0;
+    vec2 barry = rayQueryGetIntersectionBarycentricsEXT(ray, true);
+
+    vec4 t0 = quad.color[0];
+    vec4 t2 = isSideA?quad.color[2]:quad.color[3];
+    vec4 t1 = isSideA?quad.color[1]:quad.color[2];
+
+    vec3 barys = vec3(1.0f - barry.x - barry.y, barry.x, barry.y);
+    vec4 texCoords = t0 * barys.x + t1 * barys.y + t2 * barys.z;
+    return vec4(texCoords.rgb / 255, texCoords.a);
 }
 
 Quad getRayQuad(rayQueryEXT ray) {
@@ -72,6 +86,7 @@ void trace2(in rayQueryEXT rayQuery, vec3 origin, vec3 dir, float max) {
 }
 float random(vec2 p){return fract(cos(dot(p,vec2(23.14069263277926,2.665144142690225)))*12345.6789);}
 void trace(in rayQueryEXT rayQuery, vec3 origin, vec3 dir, float max, out float distance, out vec4 colour, out Quad quad, inout bool hitWater) {
+    distance = 0;
     float currentAlpha = 1.0;
     while (true) {
         rayQueryInitializeEXT(rayQuery,
@@ -83,7 +98,8 @@ void trace(in rayQueryEXT rayQuery, vec3 origin, vec3 dir, float max, out float 
             dir,
             max);
         while (rayQueryProceedEXT(rayQuery));
-        distance = rayQueryGetIntersectionTEXT(rayQuery, true);
+        float dist = rayQueryGetIntersectionTEXT(rayQuery, true);
+        distance += dist;
         if (distance > max-0.001) {
             if (hitWater) {
                 colour = vec4(0, 0, 1, 1);
@@ -91,10 +107,11 @@ void trace(in rayQueryEXT rayQuery, vec3 origin, vec3 dir, float max, out float 
             colour = vec4(0, 0.5, 1, 0);
             return;
         }
-        origin = dir*distance + origin;
-        max -= distance;
+        origin = dir*dist + origin;
+        max -= dist;
         quad = getRayQuad(rayQuery);
         vec4 hitColour = textureLod(blockTex, ray2uvCoQu(rayQuery, quad), 0);
+        hitColour.rgb *= ray2colorCoQu(rayQuery, quad).rgb;
         origin += dir * 0.00001;
 
 
@@ -187,8 +204,7 @@ void main(void) {
     bool unused;
     trace(rayQuery2, hitPos+vec3(0.0,0.01,0), vec3(0.7,0.5,0.1), 1024.0, d, dump, dump2, unused);
 
-    gl_FragDepth = 1.0 / d;
-    if (d<1000 && !hitWater) {
+    if (d<1000) {
         color*=0.5;
     }
 

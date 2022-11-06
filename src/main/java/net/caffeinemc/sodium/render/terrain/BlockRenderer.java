@@ -153,6 +153,12 @@ public class BlockRenderer {
             float y = src.getY(j) + (float) blockOffset.getY();
             float z = src.getZ(j) + (float) blockOffset.getZ();
             vecs[i] = new Vector3f(origin.getX() + x, origin.getY() + y, origin.getZ() + z);
+
+            if (vertices instanceof AccelerationSink ac) {
+                int color = ColorABGR.repack(colors != null ? colors[j] : 0xFFFFFFFF, light.br[j]);
+                ac.writeMeta(ColorABGR.unpackRed(color), ColorABGR.unpackGreen(color));
+                ac.writeMeta(ColorABGR.unpackBlue(color), ColorABGR.unpackAlpha(color));
+            }
         }
 
         Vector3f cross = (vecs[1].sub(vecs[0]).normalize()).cross(vecs[3].sub(vecs[0]).normalize()).normalize();

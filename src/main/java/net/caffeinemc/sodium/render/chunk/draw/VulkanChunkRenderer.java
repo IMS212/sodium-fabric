@@ -299,7 +299,7 @@ public class VulkanChunkRenderer implements ChunkRenderer {
 
         theFrameBuffer = device.createFramebuffer(renderPass, VulkanContext.gl2vk_textures.get(MinecraftClient.getInstance().getFramebuffer().getColorAttachment()).createView(VK_IMAGE_ASPECT_COLOR_BIT), VulkanContext.gl2vk_textures.get(MinecraftClient.getInstance().getFramebuffer().getDepthAttachment()).createView(VK_IMAGE_ASPECT_DEPTH_BIT|VK_IMAGE_ASPECT_STENCIL_BIT));
 
-        composite = new VulkanRayRender(device, maxInFlightFrames, theFrameBuffer.attachments[0], sampler1, blockAtlasView);
+        composite = new VulkanRayRender(device, maxInFlightFrames, theFrameBuffer.attachments[0], theFrameBuffer.attachments[1], sampler1, blockAtlasView);
     }
 
     protected static ShaderConstants.Builder getBaseShaderConstants(ChunkRenderPass pass, TerrainVertexType vertexType) {

@@ -48,7 +48,7 @@ public class VulkanRayRender {
     protected final VVkDescriptorSetsPooled descriptorSets;
     final VVkGraphicsPipeline compositePipeline;
     final VVkFramebuffer theFramebuffer;
-    public VulkanRayRender(VVkDevice device, int inflightFrames, VVkImageView destImage, VVkSampler sampler1, VVkImageView blockAtlasView) {
+    public VulkanRayRender(VVkDevice device, int inflightFrames, VVkImageView destImage, VVkImageView destDepth, VVkSampler sampler1, VVkImageView blockAtlasView) {
         this.device = device;
         this.inflightFrames = inflightFrames;
         this.cameraData = new VVkBuffer[inflightFrames];
@@ -114,7 +114,7 @@ public class VulkanRayRender {
                 .image(3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, sampler1, blockAtlasView);
         descriptorSets.update(dub);
 
-        theFramebuffer = device.createFramebuffer(renderPass, destImage);
+        theFramebuffer = device.createFramebuffer(renderPass, destImage, destDepth);
     }
     boolean ready;
     public void render(int frameId, ChunkRenderMatrices crm, Vector3f cameraOffset) {
