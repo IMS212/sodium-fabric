@@ -6,6 +6,3 @@ accessible class net/minecraft/client/texture/Sprite$Interpolation
 
 accessible method net/minecraft/client/texture/Sprite$Interpolation method_24128 ()V
 accessible method net/minecraft/client/render/Frustum isVisible (DDDDDD)Z
-
-accessible field net/minecraft/world/chunk/PalettedContainer data Lnet/minecraft/util/PackedIntegerArray;
-accessible field net/minecraft/world/chunk/PalettedContainer palette Lnet/minecraft/world/chunk/Palette;

@@ -9,7 +9,9 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import me.jellysquid.mods.sodium.client.SodiumClientMod;
-import me.jellysquid.mods.sodium.client.gl.util.GlFogHelper;
+import me.jellysquid.mods.sodium.client.gl.device.CommandList;
+import me.jellysquid.mods.sodium.client.gl.device.RenderDevice;
+import me.jellysquid.mods.sodium.client.gl.compat.LegacyFogHelper;
 import me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.ChunkBuildResult;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.ChunkBuilder;
@@ -70,6 +72,7 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
 
     private final ObjectArrayFIFOQueue<ChunkRenderContainer<T>> importantRebuildQueue = new ObjectArrayFIFOQueue<>();
     private final ObjectArrayFIFOQueue<ChunkRenderContainer<T>> rebuildQueue = new ObjectArrayFIFOQueue<>();
+    private final ObjectArrayFIFOQueue<ChunkRenderContainer<T>> unloadQueue = new ObjectArrayFIFOQueue<>();
 
     @SuppressWarnings("unchecked")
     private final ChunkRenderList<T>[] chunkRenderLists = new ChunkRenderList[BlockRenderPass.COUNT];
@@ -81,7 +84,7 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
     private final ClientWorld world;
 
     private final ChunkCuller culler;
-    private final boolean useChunkFaceCulling;
+    private final boolean useBlockFaceCulling;
 
     private float cameraX, cameraY, cameraZ;
     private Vector3f cameraVector;
@@ -108,11 +111,12 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         }
 
         this.culler = new ChunkGraphCuller(world, renderDistance);
-        this.useChunkFaceCulling = SodiumClientMod.options().advanced.useChunkFaceCulling;
+        this.useBlockFaceCulling = SodiumClientMod.options().advanced.useBlockFaceCulling;
     }
 
     public void update(Camera camera, FrustumExtended frustum, int frame, boolean spectator) {
         this.reset();
+        this.unloadPending();
 
         this.setup(camera);
         this.iterateChunks(camera, frustum, frame, spectator);
@@ -132,7 +136,7 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         this.useFogCulling = false;
 
         if (SodiumClientMod.options().advanced.useFogOcclusion) {
-            float dist = GlFogHelper.getFogCutoff() + FOG_PLANE_OFFSET;
+            float dist = LegacyFogHelper.getFogCutoff() + FOG_PLANE_OFFSET;
 
             if (dist != 0.0f) {
                 this.useFogCulling = true;
@@ -212,7 +216,7 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
 
     private int computeVisibleFaces(ChunkRenderContainer<T> render) {
         // If chunk face culling is disabled, render all faces
-        if (!this.useChunkFaceCulling) {
+        if (!this.useBlockFaceCulling) {
             return ChunkFaceFlags.ALL;
         }
 
@@ -281,19 +285,24 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         this.visibleChunkCount = 0;
     }
 
+    private void unloadPending() {
+        while (!this.unloadQueue.isEmpty()) {
+            this.unloadQueue.dequeue()
+                    .delete();
+        }
+    }
+
     public Collection<BlockEntity> getVisibleBlockEntities() {
         return this.visibleBlockEntities;
     }
 
     @Override
     public void onChunkAdded(int x, int z) {
-        this.builder.onChunkStatusChanged(x, z);
         this.loadChunk(x, z);
     }
 
     @Override
     public void onChunkRemoved(int x, int z) {
-        this.builder.onChunkStatusChanged(x, z);
         this.unloadChunk(x, z);
     }
 
@@ -344,8 +353,7 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
             ChunkRenderContainer<T> render = column.getRender(y);
 
             if (render != null) {
-                render.delete();
-
+                this.unloadQueue.enqueue(render);
                 this.renders.remove(render.getId());
             }
 
@@ -403,9 +411,14 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         ChunkRenderList<T> chunkRenderList = this.chunkRenderLists[pass.ordinal()];
         ChunkRenderListIterator<T> iterator = chunkRenderList.iterator(pass.isTranslucent());
 
+        RenderDevice device = RenderDevice.INSTANCE;
+        CommandList commandList = device.createCommandList();
+
         this.backend.begin(matrixStack);
-        this.backend.render(iterator, new ChunkCameraContext(x, y, z));
+        this.backend.render(commandList, iterator, new ChunkCameraContext(x, y, z));
         this.backend.end(matrixStack);
+
+        commandList.flush();
     }
 
     public void tickVisibleRenders() {
@@ -451,7 +464,7 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         this.dirty |= this.builder.performPendingUploads();
 
         if (!futures.isEmpty()) {
-            this.backend.upload(new FutureDequeDrain<>(futures));
+            this.backend.upload(RenderDevice.INSTANCE.createCommandList(), new FutureDequeDrain<>(futures));
         }
     }
 
@@ -477,10 +490,6 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         return this.builder.isBuildQueueEmpty();
     }
 
-    public void setCameraPosition(double x, double y, double z) {
-        this.builder.setCameraPosition(x, y, z);
-    }
-
     public void destroy() {
         this.reset();
 
@@ -498,24 +507,28 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
     }
 
     public void scheduleRebuild(int x, int y, int z, boolean important) {
-        if (y < 0 || y >= 16) {
-            return;
-        }
-
         ChunkRenderContainer<T> render = this.getRender(x, y, z);
 
         if (render != null) {
             // Nearby chunks are always rendered immediately
             important = important || this.isChunkPrioritized(render);
 
-            // Only enqueue chunks for updates during the next frame if it is visible and wasn't already dirty
-            if (render.scheduleRebuild(important) && this.culler.isSectionVisible(x, y, z)) {
+            // Only enqueue chunks for updates if they aren't already enqueued for an update
+            //
+            // We should avoid rebuilding chunks that aren't visible by using data from the occlusion culler, however
+            // that is not currently feasible because occlusion culling data is only ever updated when chunks are
+            // rebuilt. Computation of occlusion data needs to be isolated from chunk rebuilds for that to be feasible.
+            //
+            // TODO: Avoid rebuilding chunks that aren't visible to the player
+            if (render.scheduleRebuild(important)) {
                 (render.needsImportantRebuild() ? this.importantRebuildQueue : this.rebuildQueue)
                         .enqueue(render);
             }
 
             this.dirty = true;
         }
+
+        this.builder.onChunkDataChanged(x, y, z);
     }
 
     public boolean isChunkPrioritized(ChunkRenderContainer<T> render) {

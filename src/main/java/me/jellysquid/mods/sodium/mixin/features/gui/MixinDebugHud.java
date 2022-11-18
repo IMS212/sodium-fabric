@@ -9,7 +9,7 @@ import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.Matrix4f;
 import net.minecraft.client.util.math.Rotation3;
 import org.apache.commons.lang3.Validate;
-import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL20C;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -95,7 +95,7 @@ public abstract class MixinDebugHud {
         float k = (float) (color & 255) / 255.0F;
 
         BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
-        bufferBuilder.begin(GL11.GL_QUADS, VertexFormats.POSITION_COLOR);
+        bufferBuilder.begin(GL20C.GL_QUADS, VertexFormats.POSITION_COLOR);
 
         for (int i = 0; i < list.size(); ++i) {
             String string = list.get(i);
