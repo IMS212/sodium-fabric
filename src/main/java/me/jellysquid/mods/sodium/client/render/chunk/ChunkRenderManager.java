@@ -140,9 +140,6 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
 
             if (dist != 0.0f) {
                 this.useFogCulling = true;
-                if (SodiumClientMod.options().unofficial.usePlanarFog) {
-                    this.usePlanarFog = true;
-                }
                 this.fogRenderCutoff = Math.max(FOG_PLANE_MIN_DISTANCE, dist * dist);
             }
         }

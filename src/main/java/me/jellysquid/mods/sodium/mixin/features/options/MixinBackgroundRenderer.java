@@ -9,12 +9,4 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(BackgroundRenderer.class)
 public abstract class MixinBackgroundRenderer {
-    @Redirect(method = "applyFog", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;setupNvFogDistance()V"))
-    private static void redirectSetupNvFogDistance() {
-        if (SodiumClientMod.options().unofficial.usePlanarFog) {
-            return;
-        } else {
-            RenderSystem.setupNvFogDistance();
-        }
-    }
 }

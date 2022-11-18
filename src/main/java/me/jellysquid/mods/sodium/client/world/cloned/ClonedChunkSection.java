@@ -1,7 +1,6 @@
 package me.jellysquid.mods.sodium.client.world.cloned;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import me.jellysquid.mods.sodium.client.world.ClientWorldExtended;
 import me.jellysquid.mods.sodium.client.world.WorldSlice;
 import me.jellysquid.mods.sodium.client.world.biome.BiomeCache;
 import me.jellysquid.mods.sodium.client.world.cloned.palette.ClonedPalette;
@@ -10,7 +9,7 @@ import me.jellysquid.mods.sodium.client.world.cloned.palette.ClonedPalleteArray;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.util.collection.PackedIntegerArray;
+import net.minecraft.util.PackedIntegerArray;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
@@ -71,7 +70,7 @@ public class ClonedChunkSection {
         for (LightType type : LIGHT_TYPES) {
             this.lightDataArrays[type.ordinal()] = world.getLightingProvider()
                     .get(type)
-                    .getLightSection(pos);
+                    .getLightArray(pos);
         }
 
         this.biomeData = chunk.getBiomeArray();
@@ -153,7 +152,7 @@ public class ClonedChunkSection {
     private static ChunkSection getChunkSection(Chunk chunk, ChunkSectionPos pos) {
         ChunkSection section = null;
 
-        if (!World.isOutOfBuildLimitVertically(ChunkSectionPos.getBlockCoord(pos.getY()))) {
+        if (!World.isHeightInvalid(ChunkSectionPos.getWorldCoord(pos.getY()))) {
             section = chunk.getSectionArray()[pos.getY()];
         }
 

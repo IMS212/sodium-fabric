@@ -3,7 +3,6 @@ package me.jellysquid.mods.sodium.client.gl.compat;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkFogMode;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Matrix4f;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.system.MemoryStack;

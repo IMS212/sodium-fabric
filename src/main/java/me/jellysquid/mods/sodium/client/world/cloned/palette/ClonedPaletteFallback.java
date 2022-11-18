@@ -1,6 +1,6 @@
 package me.jellysquid.mods.sodium.client.world.cloned.palette;
 
-import net.minecraft.util.collection.IdList;
+import net.minecraft.util.IdList;
 
 public class ClonedPaletteFallback<K> implements ClonedPalette<K> {
     private final IdList<K> idList;

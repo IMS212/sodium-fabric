@@ -11,7 +11,7 @@ import me.jellysquid.mods.sodium.client.world.cloned.palette.ClonedPalette;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.fluid.FluidState;
-import net.minecraft.util.collection.PackedIntegerArray;
+import net.minecraft.util.PackedIntegerArray;
 import net.minecraft.util.math.*;
 import net.minecraft.world.BlockRenderView;
 import net.minecraft.world.LightType;
@@ -176,11 +176,7 @@ public class WorldSlice implements BlockRenderView, BiomeAccess.Storage {
     }
 
     private void unpackBlockData(BlockState[] states, ClonedChunkSection section, BlockBox box) {
-        if (this.origin.equals(section.getPosition()))  {
-            this.unpackBlockDataZ(states, section);
-        } else {
             this.unpackBlockDataR(states, section, box);
-        }
     }
 
     private void unpackBlockDataR(BlockState[] states, ClonedChunkSection section, BlockBox box) {
@@ -238,11 +234,6 @@ public class WorldSlice implements BlockRenderView, BiomeAccess.Storage {
     public FluidState getFluidState(BlockPos pos) {
         return this.getBlockState(pos)
                 .getFluidState();
-    }
-
-    @Override
-    public float getBrightness(Direction direction, boolean shaded) {
-        return this.world.getBrightness(direction, shaded);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package me.jellysquid.mods.sodium.mixin.features.chunk_rendering;
 
 import me.jellysquid.mods.sodium.client.world.cloned.PalettedContainerExtended;
-import net.minecraft.util.collection.PackedIntegerArray;
+import net.minecraft.util.PackedIntegerArray;
 import net.minecraft.world.chunk.Palette;
 import net.minecraft.world.chunk.PalettedContainer;
 import org.spongepowered.asm.mixin.Final;
@@ -21,7 +21,7 @@ public class MixinPalettedContainer<T> implements PalettedContainerExtended<T> {
 
     @Shadow
     @Final
-    private T defaultValue;
+    private T field_12935;
 
     @Override
     public PackedIntegerArray getDataArray() {
@@ -35,7 +35,7 @@ public class MixinPalettedContainer<T> implements PalettedContainerExtended<T> {
 
     @Override
     public T getDefaultValue() {
-        return this.defaultValue;
+        return this.field_12935;
     }
 
     @Override

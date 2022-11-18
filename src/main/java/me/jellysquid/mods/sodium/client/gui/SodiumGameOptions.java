@@ -6,7 +6,6 @@ import com.google.gson.GsonBuilder;
 import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import me.jellysquid.mods.sodium.client.gui.options.TextProvider;
 import me.jellysquid.mods.sodium.client.render.chunk.backends.multidraw.MultidrawChunkRenderBackend;
-import net.minecraft.client.options.GraphicsMode;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -21,7 +20,6 @@ public class SodiumGameOptions {
     public final QualitySettings quality = new QualitySettings();
     public final AdvancedSettings advanced = new AdvancedSettings();
     public final NotificationSettings notifications = new NotificationSettings();
-    public final UnofficialSettings unofficial = new UnofficialSettings();
 
     private Path configPath;
 
