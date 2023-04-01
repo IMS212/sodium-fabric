@@ -22,7 +22,7 @@ public class MixinBackgroundRenderer {
         return FastCubicSampler.sampleColor(pos,
                 (x, y, z) -> {
                     RegistryEntry<Biome> biome = world.getBiomeAccess().getBiomeForNoiseGen(x, y, z);
-                    return biome.value().getSkyColor(biome);
+                    return biome.value().getFogColor(biome);
                 },
                 (v) -> world.getDimensionEffects().adjustFogColor(v, u));
     }
