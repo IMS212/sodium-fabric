@@ -88,7 +88,7 @@ public class BlockColorCache {
         for (int x = 0; x < this.sizeHorizontal; x++) {
             for (int z = 0; z < this.sizeHorizontal; z++) {
                 int index = this.indexXZ(x, z);
-                colorData[index] = resolver.getColor(biomeData[index].value(),
+                colorData[index] = resolver.getColor(biomeData[index],
                         x + this.baseX, z + this.baseZ);
             }
         }

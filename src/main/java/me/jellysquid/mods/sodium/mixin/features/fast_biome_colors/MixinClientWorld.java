@@ -10,6 +10,7 @@ import net.minecraft.util.CubicSampler;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.dimension.DimensionType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -35,7 +36,10 @@ public class MixinClientWorld implements BiomeSeedProvider {
     private Vec3d redirectSampleColor(Vec3d pos, CubicSampler.RgbFetcher rgbFetcher) {
         World world = (World) (Object) this;
 
-        return FastCubicSampler.sampleColor(pos, (x, y, z) -> world.getBiomeForNoiseGen(x, y, z).value().getSkyColor(), Function.identity());
+        return FastCubicSampler.sampleColor(pos, (x, y, z) -> {
+            RegistryEntry<Biome> biome = world.getBiomeAccess().getBiomeForNoiseGen(x, y, z);
+            return biome.value().getSkyColor(biome);
+        }, Function.identity());
     }
 
     @Override

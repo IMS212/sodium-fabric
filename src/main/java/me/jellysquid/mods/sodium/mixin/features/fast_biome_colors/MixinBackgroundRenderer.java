@@ -4,9 +4,11 @@ import me.jellysquid.mods.sodium.client.util.color.FastCubicSampler;
 import net.minecraft.client.render.BackgroundRenderer;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.CubicSampler;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.biome.Biome;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -18,7 +20,10 @@ public class MixinBackgroundRenderer {
         float u = MathHelper.clamp(MathHelper.cos(world.getSkyAngle(tickDelta) * 6.2831855F) * 2.0F + 0.5F, 0.0F, 1.0F);
 
         return FastCubicSampler.sampleColor(pos,
-                (x, y, z) -> world.getBiomeAccess().getBiomeForNoiseGen(x, y, z).value().getFogColor(),
+                (x, y, z) -> {
+                    RegistryEntry<Biome> biome = world.getBiomeAccess().getBiomeForNoiseGen(x, y, z);
+                    return biome.value().getSkyColor(biome);
+                },
                 (v) -> world.getDimensionEffects().adjustFogColor(v, u));
     }
 }
