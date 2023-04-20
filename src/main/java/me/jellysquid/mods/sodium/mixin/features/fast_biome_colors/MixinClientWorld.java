@@ -38,7 +38,7 @@ public class MixinClientWorld implements BiomeSeedProvider {
 
         return FastCubicSampler.sampleColor(pos, (x, y, z) -> {
             RegistryEntry<Biome> biome = world.getBiomeAccess().getBiomeForNoiseGen(x, y, z);
-            return biome.value().getSkyColor(biome);
+            return biome.value().getSkyColor();
         }, Function.identity());
     }
 

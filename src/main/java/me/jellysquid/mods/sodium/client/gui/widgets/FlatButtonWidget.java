@@ -2,6 +2,7 @@ package me.jellysquid.mods.sodium.client.gui.widgets;
 
 import me.jellysquid.mods.sodium.client.util.Dim2i;
 import net.minecraft.client.gui.Drawable;
+import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.gui.navigation.GuiNavigation;
 import net.minecraft.client.gui.navigation.GuiNavigationPath;
@@ -27,7 +28,7 @@ public class FlatButtonWidget extends AbstractWidget implements Drawable {
     }
 
     @Override
-    public void render(MatrixStack matrixStack, int mouseX, int mouseY, float delta) {
+    public void render(DrawableHelper matrixStack, int mouseX, int mouseY, float delta) {
         if (!this.visible) {
             return;
         }

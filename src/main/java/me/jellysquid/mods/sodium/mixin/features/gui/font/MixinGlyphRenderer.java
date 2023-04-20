@@ -54,7 +54,7 @@ public class MixinGlyphRenderer {
      * @author JellySquid
      */
     @Overwrite
-    public void draw(boolean reversed, boolean italic, float x, float y, Matrix4f matrix, VertexConsumer vertexConsumer, float red, float green, float blue, float alpha, int light) {
+    public void draw(boolean italic, float x, float y, Matrix4f matrix, VertexConsumer vertexConsumer, float red, float green, float blue, float alpha, int light) {
         float x1 = x + this.minX;
         float x2 = x + this.maxX;
         float y1 = this.minY - 3.0F;
@@ -72,16 +72,16 @@ public class MixinGlyphRenderer {
             long buffer = stack.nmalloc(4 * GlyphVertex.STRIDE);
             long ptr = buffer;
 
-            write(ptr, matrix, x1 + w1, h1, 0.0F, color, (reversed ? this.maxU : this.minU), this.minV, light);
+            write(ptr, matrix, x1 + w1, h1, 0.0F, color, (this.minU), this.minV, light);
             ptr += GlyphVertex.STRIDE;
 
-            write(ptr, matrix, x1 + w2, h2, 0.0F, color, (reversed ? this.maxU : this.minU), this.maxV, light);
+            write(ptr, matrix, x1 + w2, h2, 0.0F, color, (this.minU), this.maxV, light);
             ptr += GlyphVertex.STRIDE;
 
-            write(ptr, matrix, x2 + w2, h2, 0.0F, color, (reversed ? this.minU : this.maxU), this.maxV, light);
+            write(ptr, matrix, x2 + w2, h2, 0.0F, color, (this.maxU), this.maxV, light);
             ptr += GlyphVertex.STRIDE;
 
-            write(ptr, matrix, x2 + w1, h1, 0.0F, color, (reversed ? this.minU : this.maxU), this.minV, light);
+            write(ptr, matrix, x2 + w1, h1, 0.0F, color, (this.maxU), this.minV, light);
             ptr += GlyphVertex.STRIDE;
 
             writer.push(stack, buffer, 4, GlyphVertex.FORMAT);
