@@ -2,7 +2,7 @@ package me.jellysquid.mods.sodium.client.gui.screen;
 
 import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.util.math.MatrixStack;
@@ -56,7 +56,7 @@ public class ConfigCorruptedScreen extends Screen {
     }
 
     @Override
-    public void render(DrawableHelper matrices, int mouseX, int mouseY, float delta) {
+    public void render(DrawContext matrices, int mouseX, int mouseY, float delta) {
         this.renderBackground(matrices);
 
         super.render(matrices, mouseX, mouseY, delta);

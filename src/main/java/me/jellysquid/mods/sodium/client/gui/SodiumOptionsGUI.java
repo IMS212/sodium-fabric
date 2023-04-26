@@ -8,7 +8,7 @@ import me.jellysquid.mods.sodium.client.gui.options.storage.OptionStorage;
 import me.jellysquid.mods.sodium.client.gui.widgets.FlatButtonWidget;
 import me.jellysquid.mods.sodium.client.util.Dim2i;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.option.VideoOptionsScreen;
 import net.minecraft.client.util.math.MatrixStack;
@@ -157,7 +157,7 @@ public class SodiumOptionsGUI extends Screen {
     }
 
     @Override
-    public void render(DrawableHelper matrixStack, int mouseX, int mouseY, float delta) {
+    public void render(DrawContext matrixStack, int mouseX, int mouseY, float delta) {
         super.renderBackground(matrixStack);
 
         this.updateControls();
@@ -206,7 +206,7 @@ public class SodiumOptionsGUI extends Screen {
         return this.controls.stream();
     }
 
-    private void renderOptionTooltip(DrawableHelper matrixStack, ControlElement<?> element) {
+    private void renderOptionTooltip(DrawContext matrixStack, ControlElement<?> element) {
         Dim2i dim = element.getDimensions();
 
         int textPadding = 3;

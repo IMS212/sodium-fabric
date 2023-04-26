@@ -3,7 +3,7 @@ package me.jellysquid.mods.sodium.client.gui.options.control;
 import me.jellysquid.mods.sodium.client.gui.options.Option;
 import me.jellysquid.mods.sodium.client.gui.widgets.AbstractWidget;
 import me.jellysquid.mods.sodium.client.util.Dim2i;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.gui.navigation.GuiNavigation;
 import net.minecraft.client.gui.navigation.GuiNavigationPath;
@@ -28,7 +28,7 @@ public class ControlElement<T> extends AbstractWidget {
     }
 
     @Override
-    public void render(DrawableHelper matrixStack, int mouseX, int mouseY, float delta) {
+    public void render(DrawContext matrixStack, int mouseX, int mouseY, float delta) {
         String name = this.option.getName().getString();
         String label;
 

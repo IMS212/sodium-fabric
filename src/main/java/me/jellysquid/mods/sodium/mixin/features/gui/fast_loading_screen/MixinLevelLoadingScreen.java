@@ -8,7 +8,7 @@ import me.jellysquid.mods.sodium.client.render.vertex.formats.ColorVertex;
 import me.jellysquid.mods.sodium.client.render.vertex.VertexBufferWriter;
 import me.jellysquid.mods.sodium.client.util.color.ColorABGR;
 import me.jellysquid.mods.sodium.client.util.color.ColorARGB;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.WorldGenerationProgressTracker;
 import net.minecraft.client.gui.screen.LevelLoadingScreen;
 import net.minecraft.client.render.*;
@@ -45,7 +45,7 @@ public class MixinLevelLoadingScreen {
      * @author JellySquid
      */
     @Overwrite
-    public static void drawChunkMap(DrawableHelper matrixStack, WorldGenerationProgressTracker tracker, int mapX, int mapY, int mapScale, int mapPadding) {
+    public static void drawChunkMap(DrawContext matrixStack, WorldGenerationProgressTracker tracker, int mapX, int mapY, int mapScale, int mapPadding) {
         if (STATUS_TO_COLOR_FAST == null) {
             STATUS_TO_COLOR_FAST = new Reference2IntOpenHashMap<>(STATUS_TO_COLOR.size());
             STATUS_TO_COLOR_FAST.put(null, NULL_STATUS_COLOR);
@@ -55,7 +55,7 @@ public class MixinLevelLoadingScreen {
 
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
-        Matrix4f matrix = matrixStack.method_51448().peek().getPositionMatrix();
+        Matrix4f matrix = matrixStack.getMatrices().peek().getPositionMatrix();
 
         Tessellator tessellator = Tessellator.getInstance();
 

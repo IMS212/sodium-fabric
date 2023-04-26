@@ -4,7 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Drawable;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.navigation.GuiNavigation;
@@ -30,11 +30,11 @@ public abstract class AbstractWidget implements Drawable, Element, Selectable {
         this.font = MinecraftClient.getInstance().textRenderer;
     }
 
-    protected void drawString(DrawableHelper matrixStack, String str, int x, int y, int color) {
+    protected void drawString(DrawContext matrixStack, String str, int x, int y, int color) {
         matrixStack.drawTextWithShadow(font, str, x, y, color);
     }
 
-    protected void drawString(DrawableHelper matrixStack, Text text, int x, int y, int color) {
+    protected void drawString(DrawContext matrixStack, Text text, int x, int y, int color) {
         matrixStack.drawTextWithShadow(font, text, x, y, color);
     }
 
