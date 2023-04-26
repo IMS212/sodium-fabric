@@ -471,10 +471,9 @@ public class FluidRenderer {
                 return fluidState.getHeight();
             }
         }
-        // TODO 1.20 FIX
-        //if (!blockState.isSideSolid()) {
-        //    return 0.0f;
-        //}
+        if (!blockState.isOpaque()) {
+            return 0.0f;
+        }
         return -1.0f;
     }
 

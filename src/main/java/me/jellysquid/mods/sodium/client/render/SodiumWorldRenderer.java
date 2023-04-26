@@ -292,7 +292,6 @@ public class SodiumWorldRenderer {
     public void onChunkAdded(int x, int z) {
         if (this.chunkTracker.loadChunk(x, z)) {
             this.renderSectionManager.onChunkAdded(x, z);
-            onChunkLightAdded(x, z);
         }
     }
 
