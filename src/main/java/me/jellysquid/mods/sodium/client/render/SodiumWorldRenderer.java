@@ -188,7 +188,7 @@ public class SodiumWorldRenderer {
         this.chunkTracker.update();
         this.renderSectionManager.updateChunks();
 
-        if (this.renderSectionManager.isGraphDirty()) {
+        if (this.renderSectionManager.isGraphDirty() || true) {
             profiler.swap("chunk_graph_rebuild");
 
             this.renderSectionManager.update(camera, frustum, frame, spectator);

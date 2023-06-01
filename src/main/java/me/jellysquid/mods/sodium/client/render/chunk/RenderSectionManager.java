@@ -574,18 +574,18 @@ public class RenderSectionManager {
     private void bfsEnqueue(ChunkRenderListBuilder list, RenderSection parent, RenderSection render, Direction flow, short parentalData) {
         ChunkGraphInfo info = render.getGraphInfo();
 
-        info.updateCullingState(flow);
         if (info.getLastVisibleFrame() == this.currentFrame) {
+            info.updateCullingState(flow, parentalData);
             return;
         }
+        info.setLastVisibleFrame(this.currentFrame);
 
         if (info.isCulledByFrustum(this.frustum)) {
             return;
         }
 
-        info.setLastVisibleFrame(this.currentFrame);
         info.setCullingState(parentalData);
-        info.updateCullingState(flow);
+        info.updateCullingState(flow, parentalData);
 
         this.addVisible(list, render);
     }
