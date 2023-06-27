@@ -180,7 +180,7 @@ public class BlockRendererFRAPI implements IBlockRenderer {
         if (colorIndex != -1) {
             ColorSampler<BlockState> colorizer = this.colorSampler;
 
-            if (this.colorSampler == null) {
+            if (colorizer == null) {
                 this.colorSampler = colorizer = this.blockColors.getColorProvider(ctx.state());
             }
 
