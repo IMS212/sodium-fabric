@@ -41,7 +41,7 @@ public class FlatLightPipelineFRAPI implements LightPipelineFRAPI {
             int flags = quad.geometryFlags();
             // If the face is aligned, use the light data above it
             // To match vanilla behavior, also treat the face as aligned if it is parallel and the block state is a full cube
-            if ((flags & GeometryHelper.LIGHT_FACE_FLAG) != 0 || ((flags & GeometryHelper.AXIS_ALIGNED_FLAG) != 0 && LightDataAccess.unpackFC(this.lightCache.get(pos)))) {
+            if ((flags & ModelQuadFlags.IS_ALIGNED) != 0 || ((flags & ModelQuadFlags.IS_PARALLEL) != 0 && LightDataAccess.unpackFC(this.lightCache.get(pos)))) {
                 lightmap = getOffsetLightmap(pos, lightFace);
             } else {
                 lightmap = LightDataAccess.unpackLM(this.lightCache.get(pos));

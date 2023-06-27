@@ -79,14 +79,13 @@ public class SmoothLightPipelineFRAPI implements LightPipelineFRAPI {
         // map the corner values onto this quad's vertices. This covers most situations during rendering and provides
         // a modest speed-up.
         // To match vanilla behavior, also treat the face as aligned if it is parallel and the block state is a full cube
-        if ((flags & GeometryHelper.LIGHT_FACE_FLAG) != 0 || ((flags & GeometryHelper.AXIS_ALIGNED_FLAG) != 0 && LightDataAccess.unpackFC(this.lightCache.get(pos)))) {
-            // TODO: IS_PARTIAL is not in Indigo's flags, fix this!
+        if ((flags & ModelQuadFlags.IS_ALIGNED) != 0 || ((flags & ModelQuadFlags.IS_PARALLEL) != 0 && LightDataAccess.unpackFC(this.lightCache.get(pos)))) {
             if ((flags & ModelQuadFlags.IS_PARTIAL) == 0) {
                 this.applyAlignedFullFace(neighborInfo, pos, lightFace, out);
             } else {
                 this.applyAlignedPartialFace(neighborInfo, quad, pos, lightFace, out);
             }
-        } else if ((flags & GeometryHelper.AXIS_ALIGNED_FLAG) != 0) {
+        } else if ((flags & ModelQuadFlags.IS_PARALLEL) != 0) {
             this.applyParallelFace(neighborInfo, quad, pos, lightFace, out);
         } else {
             this.applyNonParallelFace(neighborInfo, quad, pos, lightFace, out);

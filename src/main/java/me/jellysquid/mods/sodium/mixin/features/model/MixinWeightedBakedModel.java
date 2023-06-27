@@ -1,5 +1,6 @@
 package me.jellysquid.mods.sodium.mixin.features.model;
 
+import me.jellysquid.mods.sodium.client.model.NestedModelAccessor;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
@@ -16,7 +17,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import java.util.*;
 
 @Mixin(WeightedBakedModel.class)
-public class MixinWeightedBakedModel {
+public class MixinWeightedBakedModel implements NestedModelAccessor {
     @Shadow
     @Final
     private List<Weighted.Present<BakedModel>> models;
@@ -57,5 +58,16 @@ public class MixinWeightedBakedModel {
         } while (totalWeight >= 0);
 
         return weighted;
+    }
+
+    @Override
+    public BakedModel sodium_getNestedModel(@Nullable BlockState state, Random random) {
+        Weighted.Present<BakedModel> quad = getAt(this.models, Math.abs((int) random.nextLong()) % this.totalWeight);
+
+        if (quad != null) {
+            return quad.getData();
+        } else {
+            return (BakedModel) this;
+        }
     }
 }

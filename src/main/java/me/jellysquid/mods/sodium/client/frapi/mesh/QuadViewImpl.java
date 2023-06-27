@@ -16,6 +16,7 @@
 
 package me.jellysquid.mods.sodium.client.frapi.mesh;
 
+import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadFlags;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
 import me.jellysquid.mods.sodium.client.frapi.helper.ColorHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.GeometryHelper;
@@ -67,11 +68,11 @@ public class QuadViewImpl implements QuadView {
 			data[baseIndex + HEADER_BITS] = EncodingFormat.lightFace(data[baseIndex + HEADER_BITS], GeometryHelper.lightFace(this));
 
 			// depends on light face
-			data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(data[baseIndex + HEADER_BITS], GeometryHelper.computeShapeFlags(this));
+			data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(data[baseIndex + HEADER_BITS], ModelQuadFlags.getQuadFlagsFRAPI(this, lightFace()));
 		}
 	}
 
-	/** gets flags used for lighting - lazily computed via {@link GeometryHelper#computeShapeFlags(QuadView)}. */
+	/** gets flags used for lighting - lazily computed via {@link ModelQuadFlags#getQuadFlagsFRAPI(QuadView, Direction)}. */
 	public int geometryFlags() {
 		computeGeometry();
 		return EncodingFormat.geometryFlags(data[baseIndex + HEADER_BITS]);

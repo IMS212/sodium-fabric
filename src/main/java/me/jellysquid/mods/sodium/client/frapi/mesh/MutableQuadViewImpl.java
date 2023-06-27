@@ -16,6 +16,7 @@
 
 package me.jellysquid.mods.sodium.client.frapi.mesh;
 
+import me.jellysquid.mods.sodium.client.model.quad.BakedQuadView;
 import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
@@ -168,8 +169,18 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
 
 	@Override
 	public final MutableQuadViewImpl fromVanilla(int[] quadData, int startIndex) {
+        isGeometryInvalid = true;
+        fromVanillaInternal(quadData, startIndex);
+
+        return this;
+    }
+
+    /**
+     * Does the same work as {@link #fromVanilla(int[], int)}, but does not mark the geometry as invalid.
+     * Only use this if you are also setting the geometry.
+     */
+    private void fromVanillaInternal(int[] quadData, int startIndex) {
 		System.arraycopy(quadData, startIndex, data, baseIndex + HEADER_STRIDE, VANILLA_QUAD_STRIDE);
-		isGeometryInvalid = true;
 
 		int colorIndex = baseIndex + VERTEX_COLOR;
 
@@ -177,8 +188,6 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
 			data[colorIndex] = ColorHelper.fromVanillaColor(data[colorIndex]);
 			colorIndex += VERTEX_STRIDE;
 		}
-
-		return this;
 	}
 
 	@Override
@@ -194,6 +203,16 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
 
 		material(material);
 		tag(0);
+
+        // Copy geometry cached inside the quad
+        BakedQuadView view = (BakedQuadView) quad;
+
+        NormalHelper.unpackNormal(view.getNormal(), faceNormal);
+        data[baseIndex + HEADER_FACE_NORMAL] = view.getNormal();
+        data[baseIndex + HEADER_BITS] = EncodingFormat.lightFace(data[baseIndex + HEADER_BITS], view.getLightFace());
+        data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(data[baseIndex + HEADER_BITS], view.getFlags());
+        isGeometryInvalid = false;
+
 		return this;
 	}
 

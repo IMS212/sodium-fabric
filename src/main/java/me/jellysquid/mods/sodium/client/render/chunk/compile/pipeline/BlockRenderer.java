@@ -1,5 +1,6 @@
 package me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline;
 
+import me.jellysquid.mods.sodium.client.model.NestedModelAccessor;
 import me.jellysquid.mods.sodium.client.model.light.LightMode;
 import me.jellysquid.mods.sodium.client.model.light.LightPipeline;
 import me.jellysquid.mods.sodium.client.model.light.LightPipelineProvider;
@@ -64,26 +65,31 @@ public class BlockRenderer implements IBlockRenderer {
         LightPipeline lighter = this.lighters.getLighter(this.getLightingMode(ctx.state(), ctx.model()));
         Vec3d renderOffset = ctx.state().getModelOffset(ctx.world(), ctx.pos());
 
+        // TODO: this can be moved to a separate PR if the normal Sodium pipeline is kept
+        BakedModel modelForQuads = ctx.model();
+        if (modelForQuads instanceof NestedModelAccessor nestedModelAccessor) {
+            modelForQuads = nestedModelAccessor.sodium_getNestedModel(ctx.state(), this.prepareRandom(ctx));
+        }
+
         for (Direction face : DirectionUtil.ALL_DIRECTIONS) {
-            List<BakedQuad> quads = this.getGeometry(ctx, face);
+            List<BakedQuad> quads = modelForQuads.getQuads(ctx.state(), face, this.prepareRandom(ctx));
 
             if (!quads.isEmpty() && this.isFaceVisible(ctx, face)) {
                 this.renderQuadList(ctx, material, lighter, renderOffset, meshBuilder, quads, face, bounds);
             }
         }
 
-        List<BakedQuad> all = this.getGeometry(ctx, null);
+        List<BakedQuad> all = modelForQuads.getQuads(ctx.state(), null, this.prepareRandom(ctx));
 
         if (!all.isEmpty()) {
             this.renderQuadList(ctx, material, lighter, renderOffset, meshBuilder, all, null, bounds);
         }
     }
 
-    private List<BakedQuad> getGeometry(BlockRenderContext ctx, Direction face) {
+    private Random prepareRandom(BlockRenderContext ctx) {
         var random = this.random;
         random.setSeed(ctx.seed());
-
-        return ctx.model().getQuads(ctx.state(), face, random);
+        return random;
     }
 
     private boolean isFaceVisible(BlockRenderContext ctx, Direction face) {

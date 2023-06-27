@@ -110,17 +110,17 @@ public class BlockRendererFRAPI implements IBlockRenderer {
 
         final int mask = 1 << face.getId();
 
-        if ((cullCompletionFlags & mask) == 0) {
-            cullCompletionFlags |= mask;
+        if ((this.cullCompletionFlags & mask) == 0) {
+            this.cullCompletionFlags |= mask;
 
             if (this.occlusionCache.shouldDrawSide(ctx.state(), ctx.world(), ctx.pos(), face)) {
-                cullResultFlags |= mask;
+                this.cullResultFlags |= mask;
                 return true;
             } else {
                 return false;
             }
         } else {
-            return (cullResultFlags & mask) != 0;
+            return (this.cullResultFlags & mask) != 0;
         }
     }
 
@@ -130,6 +130,101 @@ public class BlockRendererFRAPI implements IBlockRenderer {
         } else {
             return LightMode.FLAT;
         }
+    }
+
+    /**
+     * Process quad, after quad transforms and the culling check have been applied.
+     */
+    private void processQuad(MutableQuadViewImpl quad) {
+        final RenderMaterial mat = quad.material();
+        final int colorIndex = mat.disableColorIndex() ? -1 : quad.colorIndex();
+        final TriState aoMode = mat.ambientOcclusion();
+        final LightMode lightMode;
+        if (aoMode == TriState.DEFAULT) {
+            lightMode = this.defaultLightMode;
+        } else {
+            lightMode = this.useAmbientOcclusion && aoMode.get() ? LightMode.SMOOTH : LightMode.FLAT;
+        }
+        final boolean emissive = mat.emissive();
+        final BlendMode blendMode = mat.blendMode();
+        final Material material;
+        if (blendMode == BlendMode.DEFAULT) {
+            material = this.defaultMaterial;
+        } else {
+            material = DefaultMaterials.forRenderLayer(blendMode.blockRenderLayer);
+        }
+
+        BlockRenderContext ctx = this.ctx;
+
+        colorizeQuad(ctx, quad, colorIndex);
+        QuadLightData lightData = this.cachedQuadLightData;
+        shadeQuad(ctx, quad, lightMode, emissive, lightData);
+        bufferQuad(ctx, quad, lightData.br, material);
+    }
+
+    private void colorizeQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, int colorIndex) {
+        if (colorIndex != -1) {
+            ColorSampler<BlockState> colorizer = this.colorSampler;
+
+            if (this.colorSampler == null) {
+                this.colorSampler = colorizer = this.blockColors.getColorProvider(ctx.state());
+            }
+
+            int[] colors = this.biomeColorBlender.getColors(ctx.world(), ctx.pos(), quad, colorizer, ctx.state());
+
+            for (int i = 0; i < 4; i++) {
+                quad.color(i, ColorHelper.multiplyColor(colors[i], quad.color(i)));
+            }
+        }
+    }
+
+    private void shadeQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, QuadLightData lightData) {
+        LightPipelineFRAPI lighter = this.lighters.getLighter(lightMode);
+        lighter.calculate(quad, ctx.pos(), lightData, quad.cullFace(), quad.lightFace(), quad.hasShade());
+
+        // routines below have a bit of copy-paste code reuse to avoid conditional execution inside a hot loop
+        if (emissive) {
+            for (int i = 0; i < 4; i++) {
+                quad.lightmap(i, LightmapTextureManager.MAX_LIGHT_COORDINATE);
+            }
+        } else {
+            for (int i = 0; i < 4; i++) {
+                quad.lightmap(i, lightData.lm[i]);
+            }
+        }
+    }
+
+    private void bufferQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, float[] brightness, Material material) {
+        ModelQuadOrientation orientation = ModelQuadOrientation.orientByBrightness(brightness);
+        ChunkVertexEncoder.Vertex[] vertices = this.vertices;
+
+        // TODO: this should be precomputed and stored in the QuadViewImpl
+        ModelQuadFacing normalFace = ModelQuadUtil.findNormalFace(quad.packedFaceNormal());
+        Vec3d offset = this.renderOffset;
+        ChunkRenderBounds.Builder bounds = this.bounds;
+
+        for (int dstIndex = 0; dstIndex < 4; dstIndex++) {
+            int srcIndex = orientation.getVertexIndex(dstIndex);
+
+            var out = vertices[dstIndex];
+            out.x = ctx.origin().x() + quad.x(srcIndex) + (float) offset.getX();
+            out.y = ctx.origin().y() + quad.y(srcIndex) + (float) offset.getY();
+            out.z = ctx.origin().z() + quad.z(srcIndex) + (float) offset.getZ();
+
+            // TODO: alpha from quad is ignored entirely
+            // TODO: do we need endianness changes to color? (seems ok from tests)
+            out.color = ColorABGR.withAlpha(quad.color(srcIndex), brightness[srcIndex]);
+
+            out.u = quad.u(srcIndex);
+            out.v = quad.v(srcIndex);
+
+            out.light = quad.lightmap(srcIndex);
+
+            bounds.add(out.x, out.y, out.z, normalFace);
+        }
+
+        var vertexBuffer = buffers.get(material).getVertexBuffer(normalFace);
+        vertexBuffer.push(vertices, material);
     }
 
     private class Context extends AbstractRenderContext {
@@ -142,90 +237,7 @@ public class BlockRendererFRAPI implements IBlockRenderer {
                 return;
             }
 
-            final RenderMaterial mat = quad.material();
-            final int colorIndex = mat.disableColorIndex() ? -1 : quad.colorIndex();
-            final TriState aoMode = mat.ambientOcclusion();
-            final LightMode lightMode;
-            if (aoMode == TriState.DEFAULT) {
-                lightMode = defaultLightMode;
-            } else {
-                lightMode = useAmbientOcclusion && aoMode.get() ? LightMode.SMOOTH : LightMode.FLAT;
-            }
-            final boolean emissive = mat.emissive();
-            final BlendMode blendMode = mat.blendMode();
-            final Material material;
-            if (blendMode == BlendMode.DEFAULT) {
-                material = defaultMaterial;
-            } else {
-                material = DefaultMaterials.forRenderLayer(blendMode.blockRenderLayer);
-            }
-
-            colorizeQuad(quad, colorIndex);
-            QuadLightData lightData = cachedQuadLightData;
-            shadeQuad(quad, lightMode, emissive, lightData);
-            bufferQuad(quad, lightData.br, material);
-        }
-
-        private void colorizeQuad(MutableQuadViewImpl quad, int colorIndex) {
-            if (colorIndex != -1) {
-                ColorSampler<BlockState> colorizer = colorSampler;
-
-                if (colorSampler == null) {
-                    colorSampler = colorizer = blockColors.getColorProvider(ctx.state());
-                }
-
-                int[] colors = biomeColorBlender.getColors(ctx.world(), ctx.pos(), quad, colorizer, ctx.state());
-
-                for (int i = 0; i < 4; i++) {
-                    quad.color(i, ColorHelper.multiplyColor(colors[i], quad.color(i)));
-                }
-            }
-        }
-
-        private void shadeQuad(MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, QuadLightData lightData) {
-            LightPipelineFRAPI lighter = lighters.getLighter(lightMode);
-            lighter.calculate(quad, ctx.pos(), lightData, quad.cullFace(), quad.lightFace(), quad.hasShade());
-
-            // routines below have a bit of copy-paste code reuse to avoid conditional execution inside a hot loop
-            if (emissive) {
-                for (int i = 0; i < 4; i++) {
-                    quad.lightmap(i, LightmapTextureManager.MAX_LIGHT_COORDINATE);
-                }
-            } else {
-                for (int i = 0; i < 4; i++) {
-                    quad.lightmap(i, lightData.lm[i]);
-                }
-            }
-        }
-
-        private void bufferQuad(MutableQuadViewImpl quad, float[] brightness, Material material) {
-            ModelQuadOrientation orientation = ModelQuadOrientation.orientByBrightness(brightness);
-
-            // TODO: this should be precomputed
-            ModelQuadFacing normalFace = ModelQuadUtil.findNormalFace(ModelQuadUtil.calculateNormal(quad));
-            Vec3d offset = renderOffset;
-
-            for (int dstIndex = 0; dstIndex < 4; dstIndex++) {
-                int srcIndex = orientation.getVertexIndex(dstIndex);
-
-                var out = vertices[dstIndex];
-                out.x = ctx.origin().x() + quad.x(srcIndex) + (float) offset.getX();
-                out.y = ctx.origin().y() + quad.y(srcIndex) + (float) offset.getY();
-                out.z = ctx.origin().z() + quad.z(srcIndex) + (float) offset.getZ();
-
-                // TODO: alpha from quad is ignored entirely
-                out.color = ColorABGR.withAlpha(quad.color(srcIndex), brightness[srcIndex]);
-
-                out.u = quad.u(srcIndex);
-                out.v = quad.v(srcIndex);
-
-                out.light = quad.lightmap(srcIndex);
-
-                bounds.add(out.x, out.y, out.z, normalFace);
-            }
-
-            var vertexBuffer = buffers.get(material).getVertexBuffer(normalFace);
-            vertexBuffer.push(vertices, material);
+            processQuad(quad);
         }
 
         private final MutableQuadViewImpl editorQuad = new MutableQuadViewImpl() {
@@ -275,19 +287,43 @@ public class BlockRendererFRAPI implements IBlockRenderer {
 
             @Override
             public void accept(BakedModel model, @Nullable BlockState state) {
+                BlockRenderContext ctx = BlockRendererFRAPI.this.ctx;
+
                 MutableQuadViewImpl editorQuad = this.editorQuad;
                 final RenderMaterial defaultMaterial = model.useAmbientOcclusion() ? MATERIAL_SHADED : MATERIAL_FLAT;
+
+                // If there is no transform, we can check the culling face once for all the quads,
+                // and we don't need to check for transforms per-quad.
+                boolean noTransform = !Context.this.hasTransform();
 
                 for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
                     final Direction cullFace = ModelHelper.faceFromIndex(i);
                     final List<BakedQuad> quads = model.getQuads(state, cullFace, ctx.randomSupplier.get());
+
+                    if (quads.isEmpty()) {
+                        continue;
+                    }
+
                     final int count = quads.size();
 
-                    for (int j = 0; j < count; j++) {
-                        final BakedQuad q = quads.get(j);
-                        editorQuad.fromVanilla(q, defaultMaterial, cullFace);
-                        // Call renderQuad directly instead of emit for efficiency
-                        renderQuad(editorQuad);
+                    if (noTransform) {
+                        if (!isFaceVisible(ctx, cullFace)) {
+                            continue;
+                        }
+
+                        for (int j = 0; j < count; j++) {
+                            final BakedQuad q = quads.get(j);
+                            editorQuad.fromVanilla(q, defaultMaterial, cullFace);
+                            // Call processQuad directly for efficiency
+                            processQuad(editorQuad);
+                        }
+                    } else {
+                        for (int j = 0; j < count; j++) {
+                            final BakedQuad q = quads.get(j);
+                            editorQuad.fromVanilla(q, defaultMaterial, cullFace);
+                            // Call renderQuad directly instead of emit for efficiency
+                            renderQuad(editorQuad);
+                        }
                     }
                 }
 
