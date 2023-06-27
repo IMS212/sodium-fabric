@@ -27,52 +27,52 @@ import java.util.function.Consumer;
  * The way we encode meshes makes it very simple.
  */
 public class MeshImpl implements Mesh {
-	/** Used to satisfy external calls to {@link #forEach(Consumer)}. */
-	private final ThreadLocal<QuadViewImpl> cursorPool = ThreadLocal.withInitial(QuadViewImpl::new);
+    /** Used to satisfy external calls to {@link #forEach(Consumer)}. */
+    private final ThreadLocal<QuadViewImpl> cursorPool = ThreadLocal.withInitial(QuadViewImpl::new);
 
-	final int[] data;
+    final int[] data;
 
-	MeshImpl(int[] data) {
-		this.data = data;
-	}
+    MeshImpl(int[] data) {
+        this.data = data;
+    }
 
-	@Override
-	public void forEach(Consumer<QuadView> consumer) {
-		forEach(consumer, cursorPool.get());
-	}
+    @Override
+    public void forEach(Consumer<QuadView> consumer) {
+        forEach(consumer, cursorPool.get());
+    }
 
-	/**
-	 * The renderer can call this with its own cursor
-	 * to avoid the performance hit of a thread-local lookup.
-	 * Also means renderer can hold final references to quad buffers.
-	 */
-	void forEach(Consumer<QuadView> consumer, QuadViewImpl cursor) {
-		final int limit = data.length;
-		int index = 0;
-		cursor.data = this.data;
+    /**
+     * The renderer can call this with its own cursor
+     * to avoid the performance hit of a thread-local lookup.
+     * Also means renderer can hold final references to quad buffers.
+     */
+    void forEach(Consumer<QuadView> consumer, QuadViewImpl cursor) {
+        final int limit = data.length;
+        int index = 0;
+        cursor.data = this.data;
 
-		while (index < limit) {
-			cursor.baseIndex = index;
-			cursor.load();
-			consumer.accept(cursor);
-			index += EncodingFormat.TOTAL_STRIDE;
-		}
-	}
+        while (index < limit) {
+            cursor.baseIndex = index;
+            cursor.load();
+            consumer.accept(cursor);
+            index += EncodingFormat.TOTAL_STRIDE;
+        }
+    }
 
-	@Override
-	public void outputTo(QuadEmitter emitter) {
-		MutableQuadViewImpl e = (MutableQuadViewImpl) emitter;
-		final int[] data = this.data;
-		final int limit = data.length;
-		int index = 0;
+    @Override
+    public void outputTo(QuadEmitter emitter) {
+        MutableQuadViewImpl e = (MutableQuadViewImpl) emitter;
+        final int[] data = this.data;
+        final int limit = data.length;
+        int index = 0;
 
-		while (index < limit) {
-			System.arraycopy(data, index, e.data, e.baseIndex, EncodingFormat.TOTAL_STRIDE);
-			e.load();
-			e.emitDirectly();
-			index += EncodingFormat.TOTAL_STRIDE;
-		}
+        while (index < limit) {
+            System.arraycopy(data, index, e.data, e.baseIndex, EncodingFormat.TOTAL_STRIDE);
+            e.load();
+            e.emitDirectly();
+            index += EncodingFormat.TOTAL_STRIDE;
+        }
 
-		e.clear();
-	}
+        e.clear();
+    }
 }

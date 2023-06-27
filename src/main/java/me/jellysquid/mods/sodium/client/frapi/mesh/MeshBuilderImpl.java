@@ -28,57 +28,57 @@ import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
  * The one interesting bit is in {@link Maker#emitDirectly()}.
  */
 public class MeshBuilderImpl implements MeshBuilder {
-	private int[] data = new int[256];
-	private int index = 0;
-	private int limit = data.length;
-	private final Maker maker = new Maker();
+    private int[] data = new int[256];
+    private int index = 0;
+    private int limit = data.length;
+    private final Maker maker = new Maker();
 
-	public MeshBuilderImpl() {
-		ensureCapacity(EncodingFormat.TOTAL_STRIDE);
-		maker.data = data;
-		maker.baseIndex = index;
-		maker.clear();
-	}
+    public MeshBuilderImpl() {
+        ensureCapacity(EncodingFormat.TOTAL_STRIDE);
+        maker.data = data;
+        maker.baseIndex = index;
+        maker.clear();
+    }
 
-	protected void ensureCapacity(int stride) {
-		if (stride > limit - index) {
-			limit *= 2;
-			final int[] bigger = new int[limit];
-			System.arraycopy(data, 0, bigger, 0, index);
-			data = bigger;
-			maker.data = data;
-		}
-	}
+    protected void ensureCapacity(int stride) {
+        if (stride > limit - index) {
+            limit *= 2;
+            final int[] bigger = new int[limit];
+            System.arraycopy(data, 0, bigger, 0, index);
+            data = bigger;
+            maker.data = data;
+        }
+    }
 
-	@Override
-	public QuadEmitter getEmitter() {
-		maker.clear();
-		return maker;
-	}
+    @Override
+    public QuadEmitter getEmitter() {
+        maker.clear();
+        return maker;
+    }
 
-	@Override
-	public Mesh build() {
-		final int[] packed = new int[index];
-		System.arraycopy(data, 0, packed, 0, index);
-		index = 0;
-		maker.baseIndex = index;
-		maker.clear();
-		return new MeshImpl(packed);
-	}
+    @Override
+    public Mesh build() {
+        final int[] packed = new int[index];
+        System.arraycopy(data, 0, packed, 0, index);
+        index = 0;
+        maker.baseIndex = index;
+        maker.clear();
+        return new MeshImpl(packed);
+    }
 
-	/**
-	 * Our base classes are used differently so we define final
-	 * encoding steps in subtypes. This will be a static mesh used
-	 * at render time so we want to capture all geometry now and
-	 * apply non-location-dependent lighting.
-	 */
-	private class Maker extends MutableQuadViewImpl {
-		@Override
-		public void emitDirectly() {
-			computeGeometry();
-			index += EncodingFormat.TOTAL_STRIDE;
-			ensureCapacity(EncodingFormat.TOTAL_STRIDE);
-			baseIndex = index;
-		}
-	}
+    /**
+     * Our base classes are used differently so we define final
+     * encoding steps in subtypes. This will be a static mesh used
+     * at render time so we want to capture all geometry now and
+     * apply non-location-dependent lighting.
+     */
+    private class Maker extends MutableQuadViewImpl {
+        @Override
+        public void emitDirectly() {
+            computeGeometry();
+            index += EncodingFormat.TOTAL_STRIDE;
+            ensureCapacity(EncodingFormat.TOTAL_STRIDE);
+            baseIndex = index;
+        }
+    }
 }

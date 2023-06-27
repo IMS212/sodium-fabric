@@ -32,39 +32,39 @@ import java.util.HashMap;
  * features defined in the API except shaders and offers no special materials.
  */
 public class SodiumRenderer implements Renderer {
-	public static final SodiumRenderer INSTANCE = new SodiumRenderer();
+    public static final SodiumRenderer INSTANCE = new SodiumRenderer();
 
-	public static final RenderMaterial MATERIAL_STANDARD = INSTANCE.materialFinder().find();
+    public static final RenderMaterial MATERIAL_STANDARD = INSTANCE.materialFinder().find();
 
-	static {
-		INSTANCE.registerMaterial(RenderMaterial.MATERIAL_STANDARD, MATERIAL_STANDARD);
-	}
+    static {
+        INSTANCE.registerMaterial(RenderMaterial.MATERIAL_STANDARD, MATERIAL_STANDARD);
+    }
 
-	private final HashMap<Identifier, RenderMaterial> materialMap = new HashMap<>();
+    private final HashMap<Identifier, RenderMaterial> materialMap = new HashMap<>();
 
-	private SodiumRenderer() { }
+    private SodiumRenderer() { }
 
-	@Override
-	public MeshBuilder meshBuilder() {
-		return new MeshBuilderImpl();
-	}
+    @Override
+    public MeshBuilder meshBuilder() {
+        return new MeshBuilderImpl();
+    }
 
-	@Override
-	public MaterialFinder materialFinder() {
-		return new MaterialFinderImpl();
-	}
+    @Override
+    public MaterialFinder materialFinder() {
+        return new MaterialFinderImpl();
+    }
 
-	@Override
-	public RenderMaterial materialById(Identifier id) {
-		return materialMap.get(id);
-	}
+    @Override
+    public RenderMaterial materialById(Identifier id) {
+        return materialMap.get(id);
+    }
 
-	@Override
-	public boolean registerMaterial(Identifier id, RenderMaterial material) {
-		if (materialMap.containsKey(id)) return false;
+    @Override
+    public boolean registerMaterial(Identifier id, RenderMaterial material) {
+        if (materialMap.containsKey(id)) return false;
 
-		// cast to prevent acceptance of impostor implementations
-		materialMap.put(id, (RenderMaterialImpl) material);
-		return true;
-	}
+        // cast to prevent acceptance of impostor implementations
+        materialMap.put(id, (RenderMaterialImpl) material);
+        return true;
+    }
 }
