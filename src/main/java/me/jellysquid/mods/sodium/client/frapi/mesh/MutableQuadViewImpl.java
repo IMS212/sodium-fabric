@@ -44,19 +44,16 @@ import static me.jellysquid.mods.sodium.client.frapi.mesh.EncodingFormat.*;
  * numbers. It also allows for a consistent interface for those transformations.
  */
 public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEmitter {
-	@Nullable
-	private Sprite cachedSprite;
-
 	public void clear() {
 		System.arraycopy(EMPTY, 0, data, baseIndex, EncodingFormat.TOTAL_STRIDE);
 		isGeometryInvalid = true;
 		nominalFace = null;
+		cachedSprite = null;
 		normalFlags(0);
 		tag(0);
 		colorIndex(-1);
 		cullFace(null);
 		material(SodiumRenderer.MATERIAL_STANDARD);
-		cachedSprite = null;
 	}
 
 	@Override
@@ -170,6 +167,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
 		faceNormal.set(q.faceNormal);
 		nominalFace = q.nominalFace;
 		isGeometryInvalid = false;
+		cachedSprite = q.cachedSprite;
 		return this;
 	}
 

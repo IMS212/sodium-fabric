@@ -22,6 +22,7 @@ import me.jellysquid.mods.sodium.client.frapi.helper.ColorHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.GeometryHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.NormalHelper;
 import me.jellysquid.mods.sodium.client.frapi.material.RenderMaterialImpl;
+import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.Direction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -40,6 +41,9 @@ public class QuadViewImpl implements QuadView {
 	/** True when face normal, light face, or geometry flags may not match geometry. */
 	protected boolean isGeometryInvalid = true;
 	protected final Vector3f faceNormal = new Vector3f();
+	/** Cached sprite, used to register animated sprites. */
+	@Nullable
+	protected Sprite cachedSprite;
 
 	/** Size and where it comes from will vary in subtypes. But in all cases quad is fully encoded to array. */
 	protected int[] data;
@@ -55,6 +59,7 @@ public class QuadViewImpl implements QuadView {
 		isGeometryInvalid = false;
 		nominalFace = lightFace();
 		NormalHelper.unpackNormal(packedFaceNormal(), faceNormal);
+		cachedSprite = null;
 	}
 
 	protected void computeGeometry() {
