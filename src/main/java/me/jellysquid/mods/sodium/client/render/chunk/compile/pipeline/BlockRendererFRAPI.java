@@ -41,9 +41,9 @@ import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 public class BlockRendererFRAPI implements IBlockRenderer {
-    // TODO: can be removed as it's now in the BlockRenderContext
     private final Random random = new LocalRandom(42L);
 
     private final BlockColorsExtended blockColors;
@@ -77,6 +77,7 @@ public class BlockRendererFRAPI implements IBlockRenderer {
     @Nullable
     ColorSampler<BlockState> colorSampler;
 
+    private final Supplier<Random> randomSupplier = () -> prepareRandom(this.ctx);
     private final Context renderContext = new Context();
 
     public BlockRendererFRAPI(MinecraftClient client, LightPipelineProviderFRAPI lighters, BiomeColorBlenderFRAPI biomeColorBlender) {
@@ -107,7 +108,13 @@ public class BlockRendererFRAPI implements IBlockRenderer {
         this.defaultMaterial = DefaultMaterials.forBlockState(ctx.state());
 
         // Actually render
-        ctx.model().emitBlockQuads(ctx.world(), ctx.state(), ctx.pos(), ctx.randomSupplier, this.renderContext);
+        ctx.model().emitBlockQuads(ctx.world(), ctx.state(), ctx.pos(), this.randomSupplier, this.renderContext);
+    }
+
+    private Random prepareRandom(BlockRenderContext ctx) {
+        var random = this.random;
+        random.setSeed(ctx.seed());
+        return random;
     }
 
     private boolean isFaceVisible(BlockRenderContext ctx, @Nullable Direction face) {
@@ -309,7 +316,7 @@ public class BlockRendererFRAPI implements IBlockRenderer {
 
                 for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
                     final Direction cullFace = ModelHelper.faceFromIndex(i);
-                    final List<BakedQuad> quads = model.getQuads(state, cullFace, ctx.randomSupplier.get());
+                    final List<BakedQuad> quads = model.getQuads(state, cullFace, prepareRandom(ctx));
 
                     if (quads.isEmpty()) {
                         continue;
