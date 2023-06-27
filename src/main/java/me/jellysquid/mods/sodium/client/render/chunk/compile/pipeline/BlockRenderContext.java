@@ -3,9 +3,13 @@ package me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.random.LocalRandom;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.world.BlockRenderView;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+
+import java.util.function.Supplier;
 
 public class BlockRenderContext {
     private final BlockRenderView world;
@@ -74,4 +78,15 @@ public class BlockRenderContext {
     public long seed() {
         return this.seed;
     }
+
+    // FRAPI support below:
+    private final Random random = new LocalRandom(42);
+
+    public final Supplier<Random> randomSupplier = () -> {
+        // TODO: introduce lazy seed computation from Indigo
+
+        final Random random = this.random;
+        random.setSeed(seed());
+        return random;
+    };
 }

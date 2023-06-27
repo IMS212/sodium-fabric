@@ -1,8 +1,11 @@
 package me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline;
 
+import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import me.jellysquid.mods.sodium.client.model.light.LightPipelineProvider;
+import me.jellysquid.mods.sodium.client.model.light.LightPipelineProviderFRAPI;
 import me.jellysquid.mods.sodium.client.model.light.cache.ArrayLightDataCache;
 import me.jellysquid.mods.sodium.client.model.quad.blender.BiomeColorBlender;
+import me.jellysquid.mods.sodium.client.model.quad.blender.BiomeColorBlenderFRAPI;
 import me.jellysquid.mods.sodium.client.world.WorldSlice;
 import me.jellysquid.mods.sodium.client.world.cloned.ChunkRenderContext;
 import net.minecraft.client.MinecraftClient;
@@ -13,6 +16,7 @@ public class BlockRenderCache {
     private final ArrayLightDataCache lightDataCache;
 
     private final BlockRenderer blockRenderer;
+    private final BlockRendererFRAPI blockRendererFRAPI;
     private final FluidRenderer fluidRenderer;
 
     private final BlockModels blockModels;
@@ -26,6 +30,7 @@ public class BlockRenderCache {
         BiomeColorBlender biomeColorBlender = createBiomeColorBlender();
 
         this.blockRenderer = new BlockRenderer(client, lightPipelineProvider, biomeColorBlender);
+        this.blockRendererFRAPI = new BlockRendererFRAPI(client, new LightPipelineProviderFRAPI(this.lightDataCache), createBiomeColorBlenderFRAPI());
         this.fluidRenderer = new FluidRenderer(lightPipelineProvider, biomeColorBlender);
 
         this.blockModels = client.getBakedModelManager().getBlockModels();
@@ -35,8 +40,8 @@ public class BlockRenderCache {
         return this.blockModels;
     }
 
-    public BlockRenderer getBlockRenderer() {
-        return this.blockRenderer;
+    public IBlockRenderer getBlockRenderer() {
+        return SodiumClientMod.options().performance.useFrapiPipelineForTerrain ? this.blockRendererFRAPI : this.blockRenderer;
     }
 
     public FluidRenderer getFluidRenderer() {
@@ -54,5 +59,9 @@ public class BlockRenderCache {
 
     private static BiomeColorBlender createBiomeColorBlender() {
         return new BiomeColorBlender(MinecraftClient.getInstance().options.getBiomeBlendRadius().getValue());
+    }
+
+    private static BiomeColorBlenderFRAPI createBiomeColorBlenderFRAPI() {
+        return new BiomeColorBlenderFRAPI(MinecraftClient.getInstance().options.getBiomeBlendRadius().getValue());
     }
 }

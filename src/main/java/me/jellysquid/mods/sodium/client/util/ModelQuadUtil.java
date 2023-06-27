@@ -1,9 +1,11 @@
 package me.jellysquid.mods.sodium.client.util;
 
+import me.jellysquid.mods.sodium.client.frapi.mesh.QuadViewImpl;
 import me.jellysquid.mods.sodium.client.model.quad.ModelQuadView;
 import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import me.jellysquid.mods.sodium.common.util.DirectionUtil;
 import net.caffeinemc.mods.sodium.api.util.NormI8;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import org.joml.Vector3f;
@@ -87,6 +89,45 @@ public class ModelQuadUtil {
         final float x3 = quad.getX(3);
         final float y3 = quad.getY(3);
         final float z3 = quad.getZ(3);
+
+        final float dx0 = x2 - x0;
+        final float dy0 = y2 - y0;
+        final float dz0 = z2 - z0;
+        final float dx1 = x3 - x1;
+        final float dy1 = y3 - y1;
+        final float dz1 = z3 - z1;
+
+        float normX = dy0 * dz1 - dz0 * dy1;
+        float normY = dz0 * dx1 - dx0 * dz1;
+        float normZ = dx0 * dy1 - dy0 * dx1;
+
+        float l = (float) Math.sqrt(normX * normX + normY * normY + normZ * normZ);
+
+        if (l != 0) {
+            normX /= l;
+            normY /= l;
+            normZ /= l;
+        }
+
+        return NormI8.pack(normX, normY, normZ);
+    }
+
+    public static int calculateNormal(QuadView quad) {
+        final float x0 = quad.x(0);
+        final float y0 = quad.y(0);
+        final float z0 = quad.z(0);
+
+        final float x1 = quad.x(1);
+        final float y1 = quad.y(1);
+        final float z1 = quad.z(1);
+
+        final float x2 = quad.x(2);
+        final float y2 = quad.y(2);
+        final float z2 = quad.z(2);
+
+        final float x3 = quad.x(3);
+        final float y3 = quad.y(3);
+        final float z3 = quad.z(3);
 
         final float dx0 = x2 - x0;
         final float dy0 = y2 - y0;

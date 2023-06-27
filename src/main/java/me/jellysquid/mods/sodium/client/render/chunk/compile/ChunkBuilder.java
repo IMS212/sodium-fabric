@@ -277,6 +277,12 @@ public class ChunkBuilder {
         ChunkBuildResult result;
 
         try {
+            // For testing, artificially make it 10 times slower
+            for (int i = 0; i < 9; ++i) {
+                result = job.task.performBuild(context, job);
+                result.delete();
+            }
+
             // Perform the build task with this worker's local resources and obtain the result
             result = job.task.performBuild(context, job);
         } catch (Exception e) {

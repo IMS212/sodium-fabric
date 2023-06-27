@@ -32,7 +32,7 @@ import net.minecraft.util.math.random.Random;
 
 import java.util.List;
 
-public class BlockRenderer {
+public class BlockRenderer implements IBlockRenderer {
     private final Random random = new LocalRandom(42L);
 
     private final BlockColorsExtended blockColors;
