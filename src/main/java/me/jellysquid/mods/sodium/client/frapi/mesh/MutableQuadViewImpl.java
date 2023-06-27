@@ -25,6 +25,7 @@ import me.jellysquid.mods.sodium.client.frapi.helper.ColorHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.NormalHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.TextureHelper;
 import me.jellysquid.mods.sodium.client.frapi.material.RenderMaterialImpl;
+import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.minecraft.client.render.model.BakedQuad;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.Direction;
@@ -43,6 +44,9 @@ import static me.jellysquid.mods.sodium.client.frapi.mesh.EncodingFormat.*;
  * numbers. It also allows for a consistent interface for those transformations.
  */
 public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEmitter {
+	@Nullable
+	private Sprite cachedSprite;
+
 	public void clear() {
 		System.arraycopy(EMPTY, 0, data, baseIndex, EncodingFormat.TOTAL_STRIDE);
 		isGeometryInvalid = true;
@@ -52,6 +56,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
 		colorIndex(-1);
 		cullFace(null);
 		material(SodiumRenderer.MATERIAL_STANDARD);
+		cachedSprite = null;
 	}
 
 	@Override
@@ -75,6 +80,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
 		final int i = baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_U;
 		data[i] = Float.floatToRawIntBits(u);
 		data[i + 1] = Float.floatToRawIntBits(v);
+		cachedSprite = null;
 		return this;
 	}
 
@@ -170,6 +176,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
 	@Override
 	public final MutableQuadViewImpl fromVanilla(int[] quadData, int startIndex) {
         isGeometryInvalid = true;
+		cachedSprite = null;
         fromVanillaInternal(quadData, startIndex);
 
         return this;
@@ -213,6 +220,8 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
         data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(data[baseIndex + HEADER_BITS], view.getFlags());
         isGeometryInvalid = false;
 
+		cachedSprite = quad.getSprite();
+
 		return this;
 	}
 
@@ -228,4 +237,15 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements QuadEm
 		clear();
 		return this;
 	}
+
+    public final Sprite getSprite(SpriteFinder finder) {
+        @Nullable
+        Sprite ret = cachedSprite;
+
+        if (ret == null) {
+            cachedSprite = ret = finder.find(this);
+        }
+
+        return ret;
+    }
 }
