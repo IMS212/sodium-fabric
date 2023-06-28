@@ -195,6 +195,9 @@ public class BlockRendererFRAPI implements IBlockRenderer {
     }
 
     private void shadeQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, QuadLightData lightData) {
+        // TODO: do we want normal-based diffuse shading like in Indigo?
+        // TODO: do we want to port enhanced AO from Indigo to the smooth pipeline?
+
         LightPipelineFRAPI lighter = this.lighters.getLighter(lightMode);
         lighter.calculate(quad, ctx.pos(), lightData, quad.cullFace(), quad.lightFace(), quad.hasShade());
 
