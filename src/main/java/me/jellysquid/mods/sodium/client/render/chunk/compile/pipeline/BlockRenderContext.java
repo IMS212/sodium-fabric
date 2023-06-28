@@ -8,7 +8,7 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
 public class BlockRenderContext {
-    private final BlockRenderView world;
+    private BlockRenderView world;
 
     private final BlockPos.Mutable pos = new BlockPos.Mutable();
 
@@ -31,6 +31,10 @@ public class BlockRenderContext {
         this.model = model;
 
         this.seed = seed;
+    }
+
+    public void updateWorld(BlockRenderView world) {
+        this.world = world;
     }
 
     /**

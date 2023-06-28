@@ -10,6 +10,7 @@ import net.minecraft.world.BlockRenderView;
 
 import java.util.Arrays;
 
+// Important: this class provides values as ARGB, the norrmal BiomeColorBlender converts to ABGR!
 public final class BiomeColorBlenderFRAPI {
     private final boolean useSmoothBlending;
 
@@ -47,7 +48,7 @@ public final class BiomeColorBlenderFRAPI {
     }
 
     private <T> void getColorsFlat(BlockRenderView world, BlockPos origin, QuadView quad, ColorSampler<T> sampler, T state, int[] colors) {
-        Arrays.fill(colors, ColorARGB.toABGR(sampler.getColor(state, world, origin, quad.colorIndex())));
+        Arrays.fill(colors, sampler.getColor(state, world, origin, quad.colorIndex()));
     }
 
     private <T> void getColorsLinear(BlockRenderView world, BlockPos origin, QuadView quad, ColorSampler<T> sampler, T state, int[] colors) {
@@ -112,6 +113,6 @@ public final class BiomeColorBlenderFRAPI {
             x0 = z0;
         }
 
-        return ColorARGB.toABGR(x0);
+        return x0;
     }
 }

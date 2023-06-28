@@ -19,10 +19,17 @@ package me.jellysquid.mods.sodium.client.frapi.render;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.fabricmc.fabric.api.renderer.v1.mesh.Mesh;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
+import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.screen.PlayerScreenHandler;
 
 import java.util.function.Consumer;
 
+/**
+ * Base class for all render contexts in Sodium.
+ * Due to the {@link #spriteFinder} field, it is essential that the contexts be recreated when resources reload.
+ */
 public abstract class AbstractRenderContext implements RenderContext {
     private static final QuadTransform NO_TRANSFORM = q -> true;
 
@@ -42,6 +49,9 @@ public abstract class AbstractRenderContext implements RenderContext {
 
     @Deprecated
     private final Consumer<Mesh> meshConsumer = mesh -> mesh.outputTo(getEmitter());
+
+    public final SpriteFinder spriteFinder = SpriteFinder.get(
+            MinecraftClient.getInstance().getBakedModelManager().getAtlas(PlayerScreenHandler.BLOCK_ATLAS_TEXTURE));
 
     protected final boolean transform(MutableQuadView q) {
         return activeTransform.transform(q);

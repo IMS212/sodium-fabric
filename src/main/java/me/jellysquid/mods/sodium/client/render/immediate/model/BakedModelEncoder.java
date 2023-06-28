@@ -1,9 +1,12 @@
 package me.jellysquid.mods.sodium.client.render.immediate.model;
 
+import me.jellysquid.mods.sodium.client.frapi.helper.ColorHelper;
+import me.jellysquid.mods.sodium.client.frapi.mesh.QuadViewImpl;
 import me.jellysquid.mods.sodium.client.model.quad.ModelQuadView;
 import net.caffeinemc.mods.sodium.api.math.MatrixHelper;
 import net.caffeinemc.mods.sodium.api.render.immediate.RenderImmediate;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
+import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.api.util.ColorU8;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
 import net.caffeinemc.mods.sodium.api.vertex.format.common.ModelVertex;
@@ -36,6 +39,36 @@ public class BakedModelEncoder {
                 float zt = MatrixHelper.transformPositionZ(matPosition, x, y, z);
 
                 ModelVertex.write(ptr, xt, yt, zt, color, quad.getTexU(i), quad.getTexV(i), overlay, light, normal);
+                ptr += ModelVertex.STRIDE;
+            }
+
+            writer.push(stack, buffer, 4, ModelVertex.FORMAT);
+        }
+    }
+
+    public static void writeQuadVertices(VertexBufferWriter writer, MatrixStack.Entry matrices, QuadViewImpl quad, int overlay) {
+        Matrix3f matNormal = matrices.getNormalMatrix();
+        Matrix4f matPosition = matrices.getPositionMatrix();
+
+        try (MemoryStack stack = RenderImmediate.VERTEX_DATA.push()) {
+            long buffer = stack.nmalloc(4 * ModelVertex.STRIDE);
+            long ptr = buffer;
+
+            // The packed transformed normal vector
+            var normal = MatrixHelper.transformNormal(matNormal, quad.packedFaceNormal());
+
+            for (int i = 0; i < 4; i++) {
+                // The position vector
+                float x = quad.x(i);
+                float y = quad.y(i);
+                float z = quad.z(i);
+
+                // The transformed position vector
+                float xt = MatrixHelper.transformPositionX(matPosition, x, y, z);
+                float yt = MatrixHelper.transformPositionY(matPosition, x, y, z);
+                float zt = MatrixHelper.transformPositionZ(matPosition, x, y, z);
+
+                ModelVertex.write(ptr, xt, yt, zt, ColorARGB.toABGRKeepAlpha(quad.color(i)), quad.u(i), quad.v(i), overlay, quad.lightmap(i), normal);
                 ptr += ModelVertex.STRIDE;
             }
 

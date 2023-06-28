@@ -71,4 +71,10 @@ public class ColorARGB implements ColorU8 {
     public static int toABGR(int color) {
         return Integer.reverseBytes(color << 8);
     }
+
+    // TODO: better name
+    public static int toABGRKeepAlpha(int color) {
+        // ARGB to ABGR
+        return (color & 0xFF00FF00) | ((color & 0x00FF0000) >>> 16) | ((color & 0x000000FF) << 16);
+    }
 }

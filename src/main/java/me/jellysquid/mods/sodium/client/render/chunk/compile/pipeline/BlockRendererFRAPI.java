@@ -4,7 +4,7 @@ import me.jellysquid.mods.sodium.client.frapi.SodiumRenderer;
 import me.jellysquid.mods.sodium.client.frapi.helper.ColorHelper;
 import me.jellysquid.mods.sodium.client.frapi.mesh.EncodingFormat;
 import me.jellysquid.mods.sodium.client.frapi.mesh.MutableQuadViewImpl;
-import me.jellysquid.mods.sodium.client.frapi.render.AbstractRenderContext;
+import me.jellysquid.mods.sodium.client.frapi.render.AbstractBlockRenderContext;
 import me.jellysquid.mods.sodium.client.model.light.*;
 import me.jellysquid.mods.sodium.client.model.light.data.QuadLightData;
 import me.jellysquid.mods.sodium.client.model.quad.blender.BiomeColorBlenderFRAPI;
@@ -23,47 +23,32 @@ import me.jellysquid.mods.sodium.client.world.biome.BlockColorsExtended;
 import me.jellysquid.mods.sodium.common.util.DirectionUtil;
 import me.jellysquid.mods.sodium.mixin.features.model.BasicBakedModelAccessor;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
+import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.fabricmc.fabric.api.renderer.v1.material.BlendMode;
 import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.model.ModelHelper;
-import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
-import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.LocalRandom;
-import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
-public class BlockRendererFRAPI implements IBlockRenderer {
-    private final Random random = new LocalRandom(42L);
-
+public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IBlockRenderer {
     private final BlockColorsExtended blockColors;
     private final BlockOcclusionCache occlusionCache;
 
-    private final QuadLightData cachedQuadLightData = new QuadLightData();
-
     private final BiomeColorBlenderFRAPI biomeColorBlender;
-    private final LightPipelineProviderFRAPI lighters;
 
     private final ChunkVertexEncoder.Vertex[] vertices = ChunkVertexEncoder.Vertex.uninitializedQuad();
 
-    private final boolean useAmbientOcclusion;
-
-    private final SpriteFinder spriteFinder;
-
     // Holders for state used in FRAPI as we can't pass them via parameters
-    private BlockRenderContext ctx;
     private ChunkBuildBuffers buffers;
     private ChunkRenderBounds.Builder bounds;
     // Offset of model
@@ -79,18 +64,25 @@ public class BlockRendererFRAPI implements IBlockRenderer {
     @Nullable
     ColorSampler<BlockState> colorSampler;
 
-    private final Supplier<Random> randomSupplier = () -> prepareRandom(this.ctx);
-    private final Context renderContext = new Context();
+    private final MutableQuadViewImpl editorQuad = new MutableQuadViewImpl() {
+        {
+            data = new int[EncodingFormat.TOTAL_STRIDE];
+            clear();
+        }
+
+        @Override
+        public void emitDirectly() {
+            renderQuad(this);
+        }
+    };
+    private final BakedModelConsumer bakedModelConsumer = new BakedModelConsumerImpl();
 
     public BlockRendererFRAPI(MinecraftClient client, LightPipelineProviderFRAPI lighters, BiomeColorBlenderFRAPI biomeColorBlender) {
         this.blockColors = (BlockColorsExtended) client.getBlockColors();
         this.biomeColorBlender = biomeColorBlender;
 
-        this.lighters = lighters;
-
+        super.lighters = lighters;
         this.occlusionCache = new BlockOcclusionCache();
-        this.useAmbientOcclusion = MinecraftClient.isAmbientOcclusionEnabled();
-        this.spriteFinder = SpriteFinder.get(MinecraftClient.getInstance().getBakedModelManager().getAtlas(PlayerScreenHandler.BLOCK_ATLAS_TEXTURE));
     }
 
     public void renderModel(BlockRenderContext ctx, ChunkBuildBuffers buffers, ChunkRenderBounds.Builder bounds) {
@@ -110,13 +102,7 @@ public class BlockRendererFRAPI implements IBlockRenderer {
         this.defaultMaterial = DefaultMaterials.forBlockState(ctx.state());
 
         // Actually render
-        ctx.model().emitBlockQuads(ctx.world(), ctx.state(), ctx.pos(), this.randomSupplier, this.renderContext);
-    }
-
-    private Random prepareRandom(BlockRenderContext ctx) {
-        var random = this.random;
-        random.setSeed(ctx.seed());
-        return random;
+        ctx.model().emitBlockQuads(ctx.world(), ctx.state(), ctx.pos(), this.randomSupplier, this);
     }
 
     private boolean isFaceVisible(BlockRenderContext ctx, @Nullable Direction face) {
@@ -137,14 +123,6 @@ public class BlockRendererFRAPI implements IBlockRenderer {
             }
         } else {
             return (this.cullResultFlags & mask) != 0;
-        }
-    }
-
-    private LightMode getLightingMode(BlockState state, BakedModel model) {
-        if (this.useAmbientOcclusion && model.useAmbientOcclusion() && state.getLuminance() == 0) {
-            return LightMode.SMOOTH;
-        } else {
-            return LightMode.FLAT;
         }
     }
 
@@ -174,7 +152,7 @@ public class BlockRendererFRAPI implements IBlockRenderer {
 
         colorizeQuad(ctx, quad, colorIndex);
         QuadLightData lightData = this.cachedQuadLightData;
-        shadeQuad(ctx, quad, lightMode, emissive, lightData);
+        super.shadeQuad(ctx, quad, lightMode, emissive, lightData);
         bufferQuad(ctx, quad, lightData.br, material);
     }
 
@@ -187,28 +165,10 @@ public class BlockRendererFRAPI implements IBlockRenderer {
             }
 
             int[] colors = this.biomeColorBlender.getColors(ctx.world(), ctx.pos(), quad, colorizer, ctx.state());
+            // TODO: do we need to set alpha to 0xFF in case quad transforms inspect the color?
 
             for (int i = 0; i < 4; i++) {
                 quad.color(i, ColorHelper.multiplyColor(colors[i], quad.color(i)));
-            }
-        }
-    }
-
-    private void shadeQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, QuadLightData lightData) {
-        // TODO: do we want normal-based diffuse shading like in Indigo?
-        // TODO: do we want to port enhanced AO from Indigo to the smooth pipeline?
-
-        LightPipelineFRAPI lighter = this.lighters.getLighter(lightMode);
-        lighter.calculate(quad, ctx.pos(), lightData, quad.cullFace(), quad.lightFace(), quad.hasShade());
-
-        // routines below have a bit of copy-paste code reuse to avoid conditional execution inside a hot loop
-        if (emissive) {
-            for (int i = 0; i < 4; i++) {
-                quad.lightmap(i, LightmapTextureManager.MAX_LIGHT_COORDINATE);
-            }
-        } else {
-            for (int i = 0; i < 4; i++) {
-                quad.lightmap(i, lightData.lm[i]);
             }
         }
     }
@@ -232,7 +192,8 @@ public class BlockRendererFRAPI implements IBlockRenderer {
 
             // TODO: alpha from quad is ignored entirely
             // TODO: do we need endianness changes to color? (seems ok from tests)
-            out.color = ColorABGR.withAlpha(quad.color(srcIndex), brightness[srcIndex]);
+            // FRAPI implementation uses ARGB color format, convert to ABGR.
+            out.color = ColorABGR.withAlpha(ColorARGB.toABGR(quad.color(srcIndex)), brightness[srcIndex]);
 
             out.u = quad.u(srcIndex);
             out.v = quad.v(srcIndex);
@@ -250,18 +211,32 @@ public class BlockRendererFRAPI implements IBlockRenderer {
         modelBuilder.addSprite(quad.getSprite(this.spriteFinder));
     }
 
-    private class Context extends AbstractRenderContext {
-        private void renderQuad(MutableQuadViewImpl quad) {
-            if (!transform(quad)) {
-                return;
-            }
-
-            if (!isFaceVisible(ctx, quad.cullFace())) {
-                return;
-            }
-
-            processQuad(quad);
+    private void renderQuad(MutableQuadViewImpl quad) {
+        if (!transform(quad)) {
+            return;
         }
+
+        if (!isFaceVisible(ctx, quad.cullFace())) {
+            return;
+        }
+
+        processQuad(quad);
+    }
+
+    @Override
+    public QuadEmitter getEmitter() {
+        editorQuad.clear();
+        return editorQuad;
+    }
+
+    @Override
+    public BakedModelConsumer bakedModelConsumer() {
+        return bakedModelConsumer;
+    }
+
+    private class BakedModelConsumerImpl implements BakedModelConsumer {
+        private static final RenderMaterial MATERIAL_SHADED = SodiumRenderer.INSTANCE.materialFinder().find();
+        private static final RenderMaterial MATERIAL_FLAT = SodiumRenderer.INSTANCE.materialFinder().ambientOcclusion(TriState.FALSE).find();
 
         private final MutableQuadViewImpl editorQuad = new MutableQuadViewImpl() {
             {
@@ -274,107 +249,78 @@ public class BlockRendererFRAPI implements IBlockRenderer {
                 renderQuad(this);
             }
         };
-        private final BakedModelConsumer bakedModelConsumer = new BakedModelConsumerImpl();
 
         @Override
-        public QuadEmitter getEmitter() {
-            editorQuad.clear();
-            return editorQuad;
+        public void accept(BakedModel model) {
+            accept(model, ctx.state());
         }
 
         @Override
-        public BakedModelConsumer bakedModelConsumer() {
-            return bakedModelConsumer;
-        }
+        public void accept(BakedModel model, @Nullable BlockState state) {
+            BlockRenderContext ctx = BlockRendererFRAPI.this.ctx;
 
-        private class BakedModelConsumerImpl implements BakedModelConsumer {
-            private static final RenderMaterial MATERIAL_SHADED = SodiumRenderer.INSTANCE.materialFinder().find();
-            private static final RenderMaterial MATERIAL_FLAT = SodiumRenderer.INSTANCE.materialFinder().ambientOcclusion(TriState.FALSE).find();
+            MutableQuadViewImpl editorQuad = this.editorQuad;
+            final RenderMaterial defaultMaterial = model.useAmbientOcclusion() ? MATERIAL_SHADED : MATERIAL_FLAT;
 
-            private final MutableQuadViewImpl editorQuad = new MutableQuadViewImpl() {
-                {
-                    data = new int[EncodingFormat.TOTAL_STRIDE];
-                    clear();
-                }
+            // If there is no transform, we can check the culling face once for all the quads,
+            // and we don't need to check for transforms per-quad.
+            boolean noTransform = !hasTransform();
 
-                @Override
-                public void emitDirectly() {
-                    renderQuad(this);
-                }
-            };
+            // TODO: should we be checking for getClass in case some mod creates a subclass of BasicBakedModel?
+            if (model instanceof BasicBakedModelAccessor basicBakedModel) {
+                // In my tests, getQuads for BasicBakedModel accounts for a significant amount of time.
+                // By giving it its own optimized path, we entirely eliminate getQuads from the traces.
+                Map<Direction, List<BakedQuad>> faceQuads = basicBakedModel.getFaceQuads();
 
-            @Override
-            public void accept(BakedModel model) {
-                accept(model, ctx.state());
-            }
-
-            @Override
-            public void accept(BakedModel model, @Nullable BlockState state) {
-                BlockRenderContext ctx = BlockRendererFRAPI.this.ctx;
-
-                MutableQuadViewImpl editorQuad = this.editorQuad;
-                final RenderMaterial defaultMaterial = model.useAmbientOcclusion() ? MATERIAL_SHADED : MATERIAL_FLAT;
-
-                // If there is no transform, we can check the culling face once for all the quads,
-                // and we don't need to check for transforms per-quad.
-                boolean noTransform = !Context.this.hasTransform();
-
-                // TODO: should we be checking for getClass in case some mod creates a subclass of BasicBakedModel?
-                if (model instanceof BasicBakedModelAccessor basicBakedModel) {
-                    // In my tests, getQuads for BasicBakedModel accounts for a significant amount of time.
-                    // By giving it its own optimized path, we entirely eliminate getQuads from the traces.
-                    Map<Direction, List<BakedQuad>> faceQuads = basicBakedModel.getFaceQuads();
-
-                    for (Direction cullFace : DirectionUtil.ALL_DIRECTIONS) {
-                        List<BakedQuad> quads = faceQuads.get(cullFace);
-
-                        if (!quads.isEmpty()) {
-                            renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, cullFace, quads);
-                        }
-                    }
-
-                    List<BakedQuad> quads = basicBakedModel.getQuads();
+                for (Direction cullFace : DirectionUtil.ALL_DIRECTIONS) {
+                    List<BakedQuad> quads = faceQuads.get(cullFace);
 
                     if (!quads.isEmpty()) {
-                        renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, null, quads);
-                    }
-                } else {
-                    for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
-                        final Direction cullFace = ModelHelper.faceFromIndex(i);
-                        final List<BakedQuad> quads = model.getQuads(state, cullFace, prepareRandom(ctx));
-
-                        if (!quads.isEmpty()) {
-                            renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, cullFace, quads);
-                        }
+                        renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, cullFace, quads);
                     }
                 }
 
-                // Do not clear the editorQuad since it is not accessible to API users.
+                List<BakedQuad> quads = basicBakedModel.getQuads();
+
+                if (!quads.isEmpty()) {
+                    renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, null, quads);
+                }
+            } else {
+                for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
+                    final Direction cullFace = ModelHelper.faceFromIndex(i);
+                    final List<BakedQuad> quads = model.getQuads(state, cullFace, prepareRandom(ctx));
+
+                    if (!quads.isEmpty()) {
+                        renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, cullFace, quads);
+                    }
+                }
             }
 
-            private void renderQuadList(BlockRenderContext ctx, MutableQuadViewImpl editorQuad, boolean noTransform, RenderMaterial defaultMaterial, @Nullable Direction cullFace, List<BakedQuad> quads) {
-                if (noTransform) {
-                    if (!isFaceVisible(ctx, cullFace)) {
-                        return;
-                    }
+            // Do not clear the editorQuad since it is not accessible to API users.
+        }
 
-                    int count = quads.size();
+        private void renderQuadList(BlockRenderContext ctx, MutableQuadViewImpl editorQuad, boolean noTransform, RenderMaterial defaultMaterial, @Nullable Direction cullFace, List<BakedQuad> quads) {
+            if (noTransform) {
+                if (!isFaceVisible(ctx, cullFace)) {
+                    return;
+                }
 
-                    for (int j = 0; j < count; j++) {
-                        final BakedQuad q = quads.get(j);
-                        editorQuad.fromVanilla(q, defaultMaterial, cullFace);
-                        // Call processQuad directly for efficiency
-                        processQuad(editorQuad);
-                    }
-                } else {
-                    int count = quads.size();
+                int count = quads.size();
 
-                    for (int j = 0; j < count; j++) {
-                        final BakedQuad q = quads.get(j);
-                        editorQuad.fromVanilla(q, defaultMaterial, cullFace);
-                        // Call renderQuad directly instead of emit for efficiency
-                        renderQuad(editorQuad);
-                    }
+                for (int j = 0; j < count; j++) {
+                    final BakedQuad q = quads.get(j);
+                    editorQuad.fromVanilla(q, defaultMaterial, cullFace);
+                    // Call processQuad directly for efficiency
+                    processQuad(editorQuad);
+                }
+            } else {
+                int count = quads.size();
+
+                for (int j = 0; j < count; j++) {
+                    final BakedQuad q = quads.get(j);
+                    editorQuad.fromVanilla(q, defaultMaterial, cullFace);
+                    // Call renderQuad directly instead of emit for efficiency
+                    renderQuad(editorQuad);
                 }
             }
         }

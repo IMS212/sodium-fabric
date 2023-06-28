@@ -22,6 +22,7 @@ import me.jellysquid.mods.sodium.client.frapi.helper.ColorHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.GeometryHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.NormalHelper;
 import me.jellysquid.mods.sodium.client.frapi.material.RenderMaterialImpl;
+import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.Direction;
 import org.jetbrains.annotations.NotNull;
