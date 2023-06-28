@@ -18,9 +18,10 @@ import me.jellysquid.mods.sodium.client.render.chunk.terrain.material.DefaultMat
 import me.jellysquid.mods.sodium.client.render.chunk.terrain.material.Material;
 import me.jellysquid.mods.sodium.client.render.chunk.vertex.format.ChunkVertexEncoder;
 import me.jellysquid.mods.sodium.client.render.occlusion.BlockOcclusionCache;
-import me.jellysquid.mods.sodium.client.render.texture.SpriteUtil;
 import me.jellysquid.mods.sodium.client.util.ModelQuadUtil;
 import me.jellysquid.mods.sodium.client.world.biome.BlockColorsExtended;
+import me.jellysquid.mods.sodium.common.util.DirectionUtil;
+import me.jellysquid.mods.sodium.mixin.features.model.BasicBakedModelAccessor;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.fabricmc.fabric.api.renderer.v1.material.BlendMode;
 import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial;
@@ -41,6 +42,7 @@ import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 public class BlockRendererFRAPI implements IBlockRenderer {
@@ -314,38 +316,63 @@ public class BlockRendererFRAPI implements IBlockRenderer {
                 // and we don't need to check for transforms per-quad.
                 boolean noTransform = !Context.this.hasTransform();
 
-                for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
-                    final Direction cullFace = ModelHelper.faceFromIndex(i);
-                    final List<BakedQuad> quads = model.getQuads(state, cullFace, prepareRandom(ctx));
+                // TODO: should we be checking for getClass in case some mod creates a subclass of BasicBakedModel?
+                if (model instanceof BasicBakedModelAccessor basicBakedModel) {
+                    // In my tests, getQuads for BasicBakedModel accounts for a significant amount of time.
+                    // By giving it its own optimized path, we entirely eliminate getQuads from the traces.
+                    Map<Direction, List<BakedQuad>> faceQuads = basicBakedModel.getFaceQuads();
 
-                    if (quads.isEmpty()) {
-                        continue;
+                    for (Direction cullFace : DirectionUtil.ALL_DIRECTIONS) {
+                        List<BakedQuad> quads = faceQuads.get(cullFace);
+
+                        if (!quads.isEmpty()) {
+                            renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, cullFace, quads);
+                        }
                     }
 
-                    final int count = quads.size();
+                    List<BakedQuad> quads = basicBakedModel.getQuads();
 
-                    if (noTransform) {
-                        if (!isFaceVisible(ctx, cullFace)) {
-                            continue;
-                        }
+                    if (!quads.isEmpty()) {
+                        renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, null, quads);
+                    }
+                } else {
+                    for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
+                        final Direction cullFace = ModelHelper.faceFromIndex(i);
+                        final List<BakedQuad> quads = model.getQuads(state, cullFace, prepareRandom(ctx));
 
-                        for (int j = 0; j < count; j++) {
-                            final BakedQuad q = quads.get(j);
-                            editorQuad.fromVanilla(q, defaultMaterial, cullFace);
-                            // Call processQuad directly for efficiency
-                            processQuad(editorQuad);
-                        }
-                    } else {
-                        for (int j = 0; j < count; j++) {
-                            final BakedQuad q = quads.get(j);
-                            editorQuad.fromVanilla(q, defaultMaterial, cullFace);
-                            // Call renderQuad directly instead of emit for efficiency
-                            renderQuad(editorQuad);
+                        if (!quads.isEmpty()) {
+                            renderQuadList(ctx, editorQuad, noTransform, defaultMaterial, cullFace, quads);
                         }
                     }
                 }
 
                 // Do not clear the editorQuad since it is not accessible to API users.
+            }
+
+            private void renderQuadList(BlockRenderContext ctx, MutableQuadViewImpl editorQuad, boolean noTransform, RenderMaterial defaultMaterial, @Nullable Direction cullFace, List<BakedQuad> quads) {
+                if (noTransform) {
+                    if (!isFaceVisible(ctx, cullFace)) {
+                        return;
+                    }
+
+                    int count = quads.size();
+
+                    for (int j = 0; j < count; j++) {
+                        final BakedQuad q = quads.get(j);
+                        editorQuad.fromVanilla(q, defaultMaterial, cullFace);
+                        // Call processQuad directly for efficiency
+                        processQuad(editorQuad);
+                    }
+                } else {
+                    int count = quads.size();
+
+                    for (int j = 0; j < count; j++) {
+                        final BakedQuad q = quads.get(j);
+                        editorQuad.fromVanilla(q, defaultMaterial, cullFace);
+                        // Call renderQuad directly instead of emit for efficiency
+                        renderQuad(editorQuad);
+                    }
+                }
             }
         }
     }
