@@ -42,7 +42,6 @@ import java.util.Map;
 
 public class BlockRenderer extends AbstractBlockRenderContext {
     private final BlockColorsExtended blockColors;
-    private final BlockOcclusionCache occlusionCache;
 
     private final BiomeColorBlender biomeColorBlender;
 
@@ -80,7 +79,6 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         this.biomeColorBlender = biomeColorBlender;
 
         super.lighters = lighters;
-        this.occlusionCache = new BlockOcclusionCache();
     }
 
     public void renderModel(BlockRenderContext ctx, ChunkBuildBuffers buffers, ChunkRenderBounds.Builder bounds) {

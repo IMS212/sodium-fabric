@@ -31,7 +31,6 @@ import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.model.ModelHelper;
 import net.fabricmc.fabric.api.util.TriState;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.color.block.BlockColors;
@@ -51,15 +50,12 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
     private final BlockColors blockColorMap = MinecraftClient.getInstance().getBlockColors();
     private final SingleBlockLightDataCache lightDataCache = new SingleBlockLightDataCache();
 
-    // TODO: is this seriously hardcoded for the whole render?
-    // TODO: convert once to VertexBufferWriter
     // Holders for state used in FRAPI as we can't pass them via parameters
     private VertexBufferWriter vertexWriter;
     private MatrixStack.Entry matrixEntry;
     private int overlay;
     // Default AO mode for model (can be overridden by material property)
     private LightMode defaultLightMode;
-    private final BlockPos.Mutable cullSearchPos = new BlockPos.Mutable();
 
 	private final MutableQuadViewImpl editorQuad = new MutableQuadViewImpl() {
 		{
