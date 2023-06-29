@@ -20,7 +20,6 @@ import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
 import net.minecraft.client.render.model.BakedQuad;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Direction.Axis;
-import net.minecraft.util.math.Direction.AxisDirection;
 import org.joml.Vector3f;
 
 import static net.minecraft.util.math.MathHelper.approximatelyEquals;
@@ -32,9 +31,6 @@ import static net.minecraft.util.math.MathHelper.approximatelyEquals;
  */
 public abstract class GeometryHelper {
     private GeometryHelper() { }
-
-    /** how many bits quad header encoding should reserve for encoding geometry flags. */
-    public static final int FLAG_BIT_COUNT = 3;
 
     /**
      * Returns true if quad is parallel to the given face.

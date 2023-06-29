@@ -1,7 +1,6 @@
 package me.jellysquid.mods.sodium.client.model.quad.blender;
 
 import me.jellysquid.mods.sodium.client.model.quad.ModelQuadView;
-import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.api.util.ColorMixer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -46,7 +45,7 @@ public final class BiomeColorBlender {
     }
 
     private <T> void getColorsFlat(BlockRenderView world, BlockPos origin, ModelQuadView quad, ColorSampler<T> sampler, T state, int[] colors) {
-        Arrays.fill(colors, ColorARGB.toABGR(sampler.getColor(state, world, origin, quad.getColorIndex())));
+        Arrays.fill(colors, sampler.getColor(state, world, origin, quad.getColorIndex()));
     }
 
     private <T> void getColorsLinear(BlockRenderView world, BlockPos origin, ModelQuadView quad, ColorSampler<T> sampler, T state, int[] colors) {
@@ -111,6 +110,6 @@ public final class BiomeColorBlender {
             x0 = z0;
         }
 
-        return ColorARGB.toABGR(x0);
+        return x0;
     }
 }

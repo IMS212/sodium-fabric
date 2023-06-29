@@ -18,6 +18,7 @@ import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadWinding;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.ChunkBuildBuffers;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.buffers.ChunkModelBuilder;
 import me.jellysquid.mods.sodium.client.render.chunk.vertex.format.ChunkVertexEncoder;
+import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.api.util.NormI8;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import me.jellysquid.mods.sodium.common.util.DirectionUtil;
@@ -384,7 +385,7 @@ public class FluidRenderer {
         int[] biomeColors = this.biomeColorBlender.getColors(world, pos, quad, colorSampler, fluidState);
 
         for (int i = 0; i < 4; i++) {
-            this.quadColors[i] = ColorABGR.withAlpha(biomeColors != null ? biomeColors[i] : 0xFFFFFFFF, light.br[i] * brightness);
+            this.quadColors[i] = ColorABGR.withAlpha(biomeColors != null ? ColorARGB.toABGR(biomeColors[i]) : 0xFFFFFFFF, light.br[i] * brightness);
         }
     }
 

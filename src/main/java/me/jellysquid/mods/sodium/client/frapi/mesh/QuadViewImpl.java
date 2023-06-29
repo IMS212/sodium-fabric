@@ -16,13 +16,13 @@
 
 package me.jellysquid.mods.sodium.client.frapi.mesh;
 
+import me.jellysquid.mods.sodium.client.model.quad.ModelQuadView;
 import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadFlags;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
 import me.jellysquid.mods.sodium.client.frapi.helper.ColorHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.GeometryHelper;
 import me.jellysquid.mods.sodium.client.frapi.helper.NormalHelper;
 import me.jellysquid.mods.sodium.client.frapi.material.RenderMaterialImpl;
-import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.Direction;
 import org.jetbrains.annotations.NotNull;
@@ -36,7 +36,7 @@ import static me.jellysquid.mods.sodium.client.frapi.mesh.EncodingFormat.*;
  * Base class for all quads / quad makers. Handles the ugly bits
  * of maintaining and encoding the quad state.
  */
-public class QuadViewImpl implements QuadView {
+public class QuadViewImpl implements QuadView, ModelQuadView {
     @Nullable
     protected Direction nominalFace;
     /** True when face normal, light face, or geometry flags may not match geometry. */
@@ -74,11 +74,11 @@ public class QuadViewImpl implements QuadView {
             data[baseIndex + HEADER_BITS] = EncodingFormat.lightFace(data[baseIndex + HEADER_BITS], GeometryHelper.lightFace(this));
 
             // depends on light face
-            data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(data[baseIndex + HEADER_BITS], ModelQuadFlags.getQuadFlagsFRAPI(this, lightFace()));
+            data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(data[baseIndex + HEADER_BITS], ModelQuadFlags.getQuadFlags(this, lightFace()));
         }
     }
 
-    /** gets flags used for lighting - lazily computed via {@link ModelQuadFlags#getQuadFlagsFRAPI(QuadView, Direction)}. */
+    /** gets flags used for lighting - lazily computed via {@link ModelQuadFlags#getQuadFlags(ModelQuadView, Direction)}. */
     public int geometryFlags() {
         computeGeometry();
         return EncodingFormat.geometryFlags(data[baseIndex + HEADER_BITS]);
@@ -257,5 +257,57 @@ public class QuadViewImpl implements QuadView {
             target[colorIndex] = ColorHelper.toVanillaColor(target[colorIndex]);
             colorIndex += VANILLA_VERTEX_STRIDE;
         }
+    }
+
+    /* BakedQuadView implementations below */
+
+    @Override
+    public float getX(int idx) {
+        return x(idx);
+    }
+
+    @Override
+    public float getY(int idx) {
+        return y(idx);
+    }
+
+    @Override
+    public float getZ(int idx) {
+        return z(idx);
+    }
+
+    @Override
+    public int getColor(int idx) {
+        return ColorHelper.toVanillaColor(color(idx));
+    }
+
+    @Override
+    public float getTexU(int idx) {
+        throw new UnsupportedOperationException("Not available for QuadViewImpl.");
+    }
+
+    @Override
+    public float getTexV(int idx) {
+        throw new UnsupportedOperationException("Not available for QuadViewImpl.");
+    }
+
+    @Override
+    public int getFlags() {
+        return geometryFlags();
+    }
+
+    @Override
+    public int getColorIndex() {
+        return colorIndex();
+    }
+
+    @Override
+    public Sprite getSprite() {
+        throw new UnsupportedOperationException("Not available for QuadViewImpl.");
+    }
+
+    @Override
+    public int getNormal() {
+        throw new UnsupportedOperationException("Not available for QuadViewImpl.");
     }
 }

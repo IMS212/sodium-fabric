@@ -17,9 +17,9 @@
 package me.jellysquid.mods.sodium.client.frapi.mesh;
 
 import com.google.common.base.Preconditions;
+import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadFlags;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
 import net.fabricmc.fabric.api.renderer.v1.model.ModelHelper;
-import me.jellysquid.mods.sodium.client.frapi.helper.GeometryHelper;
 import me.jellysquid.mods.sodium.client.frapi.material.RenderMaterialImpl;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
@@ -87,9 +87,9 @@ public abstract class EncodingFormat {
     private static final int NORMALS_MASK = (1 << NORMALS_COUNT) - 1;
     private static final int NORMALS_INVERSE_MASK = ~(NORMALS_MASK << NORMALS_SHIFT);
     private static final int GEOMETRY_SHIFT = NORMALS_SHIFT + NORMALS_COUNT;
-    private static final int GEOMETRY_MASK = (1 << GeometryHelper.FLAG_BIT_COUNT) - 1;
+    private static final int GEOMETRY_MASK = (1 << ModelQuadFlags.FLAG_BIT_COUNT) - 1;
     private static final int GEOMETRY_INVERSE_MASK = ~(GEOMETRY_MASK << GEOMETRY_SHIFT);
-    private static final int MATERIAL_SHIFT = GEOMETRY_SHIFT + GeometryHelper.FLAG_BIT_COUNT;
+    private static final int MATERIAL_SHIFT = GEOMETRY_SHIFT + ModelQuadFlags.FLAG_BIT_COUNT;
     private static final int MATERIAL_MASK = MathHelper.smallestEncompassingPowerOfTwo(RenderMaterialImpl.VALUE_COUNT) - 1;
     private static final int MATERIAL_BIT_COUNT = Integer.bitCount(MATERIAL_MASK);
     private static final int MATERIAL_INVERSE_MASK = ~(MATERIAL_MASK << MATERIAL_SHIFT);

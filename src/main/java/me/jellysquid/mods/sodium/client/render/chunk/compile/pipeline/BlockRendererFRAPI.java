@@ -7,7 +7,7 @@ import me.jellysquid.mods.sodium.client.frapi.mesh.MutableQuadViewImpl;
 import me.jellysquid.mods.sodium.client.frapi.render.AbstractBlockRenderContext;
 import me.jellysquid.mods.sodium.client.model.light.*;
 import me.jellysquid.mods.sodium.client.model.light.data.QuadLightData;
-import me.jellysquid.mods.sodium.client.model.quad.blender.BiomeColorBlenderFRAPI;
+import me.jellysquid.mods.sodium.client.model.quad.blender.BiomeColorBlender;
 import me.jellysquid.mods.sodium.client.model.quad.blender.ColorSampler;
 import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadOrientation;
@@ -44,7 +44,7 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
     private final BlockColorsExtended blockColors;
     private final BlockOcclusionCache occlusionCache;
 
-    private final BiomeColorBlenderFRAPI biomeColorBlender;
+    private final BiomeColorBlender biomeColorBlender;
 
     private final ChunkVertexEncoder.Vertex[] vertices = ChunkVertexEncoder.Vertex.uninitializedQuad();
 
@@ -77,7 +77,7 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
     };
     private final BakedModelConsumer bakedModelConsumer = new BakedModelConsumerImpl();
 
-    public BlockRendererFRAPI(MinecraftClient client, LightPipelineProviderFRAPI lighters, BiomeColorBlenderFRAPI biomeColorBlender) {
+    public BlockRendererFRAPI(MinecraftClient client, LightPipelineProvider lighters, BiomeColorBlender biomeColorBlender) {
         this.blockColors = (BlockColorsExtended) client.getBlockColors();
         this.biomeColorBlender = biomeColorBlender;
 
@@ -165,10 +165,11 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
             }
 
             int[] colors = this.biomeColorBlender.getColors(ctx.world(), ctx.pos(), quad, colorizer, ctx.state());
-            // TODO: do we need to set alpha to 0xFF in case quad transforms inspect the color?
 
             for (int i = 0; i < 4; i++) {
-                quad.color(i, ColorHelper.multiplyColor(colors[i], quad.color(i)));
+                // Set alpha to 0xFF in case a quad transform inspects the color.
+                // We do not support per-vertex alpha, however, so this will get discarded at vertex encoding time.
+                quad.color(i, ColorHelper.multiplyColor(0xFF000000 | colors[i], quad.color(i)));
             }
         }
     }

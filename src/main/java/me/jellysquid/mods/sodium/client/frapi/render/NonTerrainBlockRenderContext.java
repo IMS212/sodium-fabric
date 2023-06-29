@@ -21,7 +21,7 @@ import me.jellysquid.mods.sodium.client.frapi.helper.ColorHelper;
 import me.jellysquid.mods.sodium.client.frapi.mesh.EncodingFormat;
 import me.jellysquid.mods.sodium.client.frapi.mesh.MutableQuadViewImpl;
 import me.jellysquid.mods.sodium.client.model.light.LightMode;
-import me.jellysquid.mods.sodium.client.model.light.LightPipelineProviderFRAPI;
+import me.jellysquid.mods.sodium.client.model.light.LightPipelineProvider;
 import me.jellysquid.mods.sodium.client.model.light.data.QuadLightData;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderContext;
 import me.jellysquid.mods.sodium.client.render.immediate.model.BakedModelEncoder;
@@ -80,7 +80,7 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
 	private final BakedModelConsumerImpl vanillaModelConsumer = new BakedModelConsumerImpl();
 
     public NonTerrainBlockRenderContext() {
-        super.lighters = new LightPipelineProviderFRAPI(this.lightDataCache);
+        super.lighters = new LightPipelineProvider(this.lightDataCache);
     }
 
     public void render(BlockRenderView blockView, BakedModel model, BlockState state, BlockPos pos, MatrixStack matrixStack, VertexConsumer buffer, boolean cull, Random random, long seed, int overlay) {

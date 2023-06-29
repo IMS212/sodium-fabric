@@ -1,9 +1,7 @@
 package me.jellysquid.mods.sodium.client.frapi.render;
 
 import me.jellysquid.mods.sodium.client.frapi.mesh.MutableQuadViewImpl;
-import me.jellysquid.mods.sodium.client.model.light.LightMode;
-import me.jellysquid.mods.sodium.client.model.light.LightPipelineFRAPI;
-import me.jellysquid.mods.sodium.client.model.light.LightPipelineProviderFRAPI;
+import me.jellysquid.mods.sodium.client.model.light.*;
 import me.jellysquid.mods.sodium.client.model.light.data.QuadLightData;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderContext;
 import net.minecraft.block.BlockState;
@@ -26,7 +24,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
 
     protected final boolean useAmbientOcclusion;
 
-    protected LightPipelineProviderFRAPI lighters;
+    protected LightPipelineProvider lighters;
 
     protected BlockRenderContext ctx;
 
@@ -58,7 +56,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
         // TODO: do we want normal-based diffuse shading like in Indigo?
         // TODO: do we want to port enhanced AO from Indigo to the smooth pipeline?
 
-        LightPipelineFRAPI lighter = this.lighters.getLighter(lightMode);
+        LightPipeline lighter = this.lighters.getLighter(lightMode);
         lighter.calculate(quad, ctx.pos(), lightData, quad.cullFace(), quad.lightFace(), quad.hasShade());
 
         // routines below have a bit of copy-paste code reuse to avoid conditional execution inside a hot loop
