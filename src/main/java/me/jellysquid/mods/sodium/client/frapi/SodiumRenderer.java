@@ -28,7 +28,7 @@ import net.minecraft.util.Identifier;
 import java.util.HashMap;
 
 /**
- * The Fabric default renderer implementation. Supports all
+ * The Sodium renderer implementation. Supports all
  * features defined in the API except shaders and offers no special materials.
  */
 public class SodiumRenderer implements Renderer {

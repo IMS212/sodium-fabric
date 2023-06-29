@@ -58,9 +58,6 @@ public class BlockRenderer extends AbstractBlockRenderContext {
     // Default material (can be overridden by blend mode per-quad)
     private Material defaultMaterial;
     private ChunkModelBuilder defaultModelBuilder;
-    // Cull cache (as it's checked per-quad instead of once in vanilla)
-    private int cullCompletionFlags;
-    private int cullResultFlags;
     // Color sampler cache
     @Nullable
     ColorSampler<BlockState> colorSampler;
@@ -76,7 +73,7 @@ public class BlockRenderer extends AbstractBlockRenderContext {
             renderQuad(this);
         }
     };
-    private final BakedModelConsumer bakedModelConsumer = new BakedModelConsumerImpl();
+    private final BakedModelConsumerImpl bakedModelConsumer = new BakedModelConsumerImpl();
 
     public BlockRenderer(MinecraftClient client, LightPipelineProvider lighters, BiomeColorBlender biomeColorBlender) {
         this.blockColors = (BlockColorsExtended) client.getBlockColors();
@@ -93,8 +90,7 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         this.bounds = bounds;
 
         // Clear old state
-        this.cullCompletionFlags = 0;
-        this.cullResultFlags = 0;
+        this.resetCullState(true);
         this.colorSampler = null;
 
         // Prepare
@@ -107,25 +103,16 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         ctx.model().emitBlockQuads(ctx.world(), ctx.state(), ctx.pos(), this.randomSupplier, this);
     }
 
-    private boolean isFaceVisible(BlockRenderContext ctx, @Nullable Direction face) {
-        if (face == null) {
-            return true;
+    private void renderQuad(MutableQuadViewImpl quad) {
+        if (!transform(quad)) {
+            return;
         }
 
-        final int mask = 1 << face.getId();
-
-        if ((this.cullCompletionFlags & mask) == 0) {
-            this.cullCompletionFlags |= mask;
-
-            if (this.occlusionCache.shouldDrawSide(ctx.state(), ctx.world(), ctx.pos(), face)) {
-                this.cullResultFlags |= mask;
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return (this.cullResultFlags & mask) != 0;
+        if (!isFaceVisible(ctx, quad.cullFace())) {
+            return;
         }
+
+        processQuad(quad);
     }
 
     /**
@@ -212,18 +199,6 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         vertexBuffer.push(vertices, material);
 
         modelBuilder.addSprite(quad.getSprite(this.spriteFinder));
-    }
-
-    private void renderQuad(MutableQuadViewImpl quad) {
-        if (!transform(quad)) {
-            return;
-        }
-
-        if (!isFaceVisible(ctx, quad.cullFace())) {
-            return;
-        }
-
-        processQuad(quad);
     }
 
     @Override

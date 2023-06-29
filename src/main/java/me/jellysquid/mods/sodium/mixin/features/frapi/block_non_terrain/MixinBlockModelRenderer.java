@@ -41,7 +41,7 @@ public abstract class MixinBlockModelRenderer implements BlockModelRendererExten
 	private void hookRender(BlockRenderView blockView, BakedModel model, BlockState state, BlockPos pos, MatrixStack matrix, VertexConsumer buffer, boolean cull, Random rand, long seed, int overlay, CallbackInfo ci) {
 		if (!model.isVanillaAdapter()) {
             NonTerrainBlockRenderContext context = sodium_contexts.get();
-			context.render(blockView, model, state, pos, matrix, buffer, cull, rand, seed, overlay);
+			context.renderModel(blockView, model, state, pos, matrix, buffer, cull, rand, seed, overlay);
 			ci.cancel();
 		}
 	}

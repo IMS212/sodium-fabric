@@ -55,26 +55,18 @@ public class ItemRenderContext extends AbstractRenderContext {
 	/** Value vanilla uses for item rendering.  The only sensible choice, of course.  */
 	private static final long ITEM_RANDOM_SEED = 42L;
 
-	private final ItemColors colorMap;
+    /* Random handling */
+    // TODO: shouldn't this be a local random? this is also the case in Indigo, does it deviate fom vanilla?
 	private final Random random = Random.create();
-	private final Supplier<Random> randomSupplier = () -> {
-		random.setSeed(ITEM_RANDOM_SEED);
-		return random;
-	};
+	private final Supplier<Random> randomSupplier = this::prepareRandom;
 
-	private final MutableQuadViewImpl editorQuad = new MutableQuadViewImpl() {
-		{
-			data = new int[EncodingFormat.TOTAL_STRIDE];
-			clear();
-		}
+    protected Random prepareRandom() {
+        var random = this.random;
+        random.setSeed(ITEM_RANDOM_SEED);
+        return random;
+    }
 
-		@Override
-		public void emitDirectly() {
-			renderQuad(this);
-		}
-	};
-
-	private final BakedModelConsumerImpl vanillaModelConsumer = new BakedModelConsumerImpl();
+    private final ItemColors colorMap;
 
 	private ItemStack itemStack;
 	private ModelTransformationMode transformMode;
@@ -95,6 +87,19 @@ public class ItemRenderContext extends AbstractRenderContext {
 	private VertexConsumer cutoutGlintVertexConsumer;
 	private VertexConsumer defaultVertexConsumer;
 
+    private final MutableQuadViewImpl editorQuad = new MutableQuadViewImpl() {
+        {
+            data = new int[EncodingFormat.TOTAL_STRIDE];
+            clear();
+        }
+
+        @Override
+        public void emitDirectly() {
+            renderQuad(this);
+        }
+    };
+    private final BakedModelConsumerImpl bakedModelConsumer = new BakedModelConsumerImpl();
+
 	public ItemRenderContext(ItemColors colorMap) {
 		this.colorMap = colorMap;
 	}
@@ -107,7 +112,7 @@ public class ItemRenderContext extends AbstractRenderContext {
 
 	@Override
 	public BakedModelConsumer bakedModelConsumer() {
-		return vanillaModelConsumer;
+		return bakedModelConsumer;
 	}
 
 	public void renderModel(ItemStack itemStack, ModelTransformationMode transformMode, boolean invert, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int lightmap, int overlay, BakedModel model, VanillaQuadHandler vanillaHandler) {
@@ -285,9 +290,7 @@ public class ItemRenderContext extends AbstractRenderContext {
 				// if there's a transform in effect, convert to mesh-based quads so that we can apply it
 				for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
 					final Direction cullFace = ModelHelper.faceFromIndex(i);
-                    // TODO: could be refactored into prepareRandom like in the other contexts
-					random.setSeed(ITEM_RANDOM_SEED);
-					final List<BakedQuad> quads = model.getQuads(state, cullFace, random);
+					final List<BakedQuad> quads = model.getQuads(state, cullFace, prepareRandom());
 					final int count = quads.size();
 
 					for (int j = 0; j < count; j++) {

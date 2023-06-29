@@ -51,18 +51,14 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
     private final BlockColors blockColorMap = MinecraftClient.getInstance().getBlockColors();
     private final SingleBlockLightDataCache lightDataCache = new SingleBlockLightDataCache();
 
-    protected final BlockRenderContext ctx = new BlockRenderContext(null);
     // TODO: is this seriously hardcoded for the whole render?
     // TODO: convert once to VertexBufferWriter
+    // Holders for state used in FRAPI as we can't pass them via parameters
     private VertexBufferWriter vertexWriter;
     private MatrixStack.Entry matrixEntry;
     private int overlay;
     // Default AO mode for model (can be overridden by material property)
     private LightMode defaultLightMode;
-    // Cull cache (as it's checked per-quad instead of once in vanilla)
-    private boolean enableCulling;
-    private int cullCompletionFlags;
-    private int cullResultFlags;
     private final BlockPos.Mutable cullSearchPos = new BlockPos.Mutable();
 
 	private final MutableQuadViewImpl editorQuad = new MutableQuadViewImpl() {
@@ -77,20 +73,21 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
 		}
 	};
 
-	private final BakedModelConsumerImpl vanillaModelConsumer = new BakedModelConsumerImpl();
+	private final BakedModelConsumerImpl bakedModelConsumer = new BakedModelConsumerImpl();
 
     public NonTerrainBlockRenderContext() {
-        super.lighters = new LightPipelineProvider(this.lightDataCache);
+        this.lighters = new LightPipelineProvider(this.lightDataCache);
+        this.ctx = new BlockRenderContext(null);
     }
 
-    public void render(BlockRenderView blockView, BakedModel model, BlockState state, BlockPos pos, MatrixStack matrixStack, VertexConsumer buffer, boolean cull, Random random, long seed, int overlay) {
+    public void renderModel(BlockRenderView blockView, BakedModel model, BlockState state, BlockPos pos, MatrixStack matrixStack, VertexConsumer buffer, boolean cull, Random random, long seed, int overlay) {
+        // Store parameters
         this.vertexWriter = VertexBufferWriter.of(buffer);
         this.matrixEntry = matrixStack.peek();
         this.overlay = overlay;
 
         // Clear old state
-        this.cullCompletionFlags = 0;
-        this.cullResultFlags = 0;
+        this.resetCullState(cull);
         this.lightDataCache.reset(pos, blockView);
 
         // Prepare
@@ -98,33 +95,64 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
         this.ctx.update(pos, BlockPos.ORIGIN, state, model, seed);
         this.defaultLightMode = this.getLightingMode(ctx.state(), ctx.model());
 
+        // Actually render
         model.emitBlockQuads(blockView, state, pos, this.randomSupplier, this);
 
+        // Avoid dangling references
         this.vertexWriter = null;
         this.ctx.updateWorld(null);
     }
 
-    // TODO: should this be changed to use a BlockOcclusionCache? if so then it can be shared with the terrain pipeline
-    private boolean isFaceVisible(@Nullable Direction face) {
-        if (face == null || !this.enableCulling) {
-            return true;
+    private void renderQuad(MutableQuadViewImpl quad) {
+        if (!transform(quad)) {
+            return;
         }
 
-        final int mask = 1 << face.getId();
+        if (!isFaceVisible(this.ctx, quad.cullFace())) {
+            return;
+        }
 
-        if ((this.cullCompletionFlags & mask) == 0) {
-            this.cullCompletionFlags |= mask;
-            BlockRenderContext ctx = this.ctx;
-
-            if (Block.shouldDrawSide(ctx.state(), ctx.world(), ctx.pos(), face, this.cullSearchPos.set(ctx.pos(), face))) {
-                this.cullResultFlags |= mask;
-                return true;
-            } else {
-                return false;
-            }
+        final RenderMaterial mat = quad.material();
+        final int colorIndex = mat.disableColorIndex() ? -1 : quad.colorIndex();
+        final TriState aoMode = mat.ambientOcclusion();
+        final LightMode lightMode;
+        if (aoMode == TriState.DEFAULT) {
+            lightMode = this.defaultLightMode;
         } else {
-            return (this.cullResultFlags & mask) != 0;
+            lightMode = this.useAmbientOcclusion && aoMode.get() ? LightMode.SMOOTH : LightMode.FLAT;
         }
+        final boolean emissive = mat.emissive();
+
+        BlockRenderContext ctx = this.ctx;
+
+        colorizeQuad(ctx, quad, colorIndex);
+        QuadLightData lightData = this.cachedQuadLightData;
+        shadeQuad(ctx, quad, lightMode, emissive, lightData);
+        applyBrightness(quad, lightData.br);
+        bufferQuad(quad);
+    }
+
+    /** handles block color, common to all renders. */
+    private void colorizeQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, int colorIndex) {
+        if (colorIndex != -1) {
+            final int blockColor = 0xFF000000 | this.blockColorMap.getColor(ctx.state(), ctx.world(), ctx.pos(), colorIndex);
+
+            for (int i = 0; i < 4; i++) {
+                quad.color(i, ColorHelper.multiplyColor(blockColor, quad.color(i)));
+            }
+        }
+    }
+
+    private void applyBrightness(MutableQuadViewImpl quad, float[] brightness) {
+        for (int i = 0; i < 4; i++) {
+            quad.color(i, ColorHelper.multiplyRGB(quad.color(i), brightness[i]));
+        }
+    }
+
+    private void bufferQuad(MutableQuadViewImpl quad) {
+        BakedModelEncoder.writeQuadVertices(this.vertexWriter, this.matrixEntry, quad, this.overlay);
+
+        SpriteUtil.markSpriteActive(quad.getSprite(this.spriteFinder));
     }
 
     @Override
@@ -135,54 +163,8 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
 
 	@Override
 	public BakedModelConsumer bakedModelConsumer() {
-		return vanillaModelConsumer;
+		return bakedModelConsumer;
 	}
-
-	private void renderQuad(MutableQuadViewImpl quad) {
-		if (!transform(quad)) {
-			return;
-		}
-
-		if (!isFaceVisible(quad.cullFace())) {
-			return;
-		}
-
-		final RenderMaterial mat = quad.material();
-		final int colorIndex = mat.disableColorIndex() ? -1 : quad.colorIndex();
-		final TriState aoMode = mat.ambientOcclusion();
-        final LightMode lightMode;
-        if (aoMode == TriState.DEFAULT) {
-            lightMode = this.defaultLightMode;
-        } else {
-            lightMode = this.useAmbientOcclusion && aoMode.get() ? LightMode.SMOOTH : LightMode.FLAT;
-        }
-		final boolean emissive = mat.emissive();
-
-        BlockRenderContext ctx = this.ctx;
-
-		colorizeQuad(ctx, quad, colorIndex);
-        QuadLightData lightData = this.cachedQuadLightData;
-		shadeQuad(ctx, quad, lightMode, emissive, lightData);
-        // TODO: need to apply light data brightness to quad colors
-		bufferQuad(quad);
-	}
-
-	/** handles block color, common to all renders. */
-	private void colorizeQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, int colorIndex) {
-		if (colorIndex != -1) {
-            final int blockColor = 0xFF000000 | this.blockColorMap.getColor(ctx.state(), ctx.world(), ctx.pos(), colorIndex);
-
-			for (int i = 0; i < 4; i++) {
-				quad.color(i, ColorHelper.multiplyColor(blockColor, quad.color(i)));
-			}
-		}
-	}
-
-    private void bufferQuad(MutableQuadViewImpl quad) {
-        BakedModelEncoder.writeQuadVertices(this.vertexWriter, this.matrixEntry, quad, this.overlay);
-
-        SpriteUtil.markSpriteActive(quad.getSprite(this.spriteFinder));
-    }
 
 	/**
 	 * Consumer for vanilla baked models. Generally intended to give visual results matching a vanilla render,
