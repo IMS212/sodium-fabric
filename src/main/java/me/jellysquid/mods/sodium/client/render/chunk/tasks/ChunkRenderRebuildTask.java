@@ -1,10 +1,6 @@
 package me.jellysquid.mods.sodium.client.render.chunk.tasks;
 
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
-import jdk.jfr.Category;
-import jdk.jfr.Description;
-import jdk.jfr.Event;
-import jdk.jfr.Label;
 import me.jellysquid.mods.sodium.client.gl.compile.ChunkBuildContext;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderContext;
 import me.jellysquid.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
@@ -49,13 +45,6 @@ public class ChunkRenderRebuildTask extends ChunkRenderBuildTask {
         this.frame = frame;
     }
 
-    // TODO: only here for temp profiling
-    @Category("Sodium")
-    @Label("Gather Quads")
-    @Description("Time to gather quads from the models and process them.")
-    private static class GatherQuadsEvent extends Event {
-    }
-
     @Override
     public ChunkBuildResult performBuild(ChunkBuildContext buildContext, CancellationSource cancellationSource) {
         ChunkRenderData.Builder renderData = new ChunkRenderData.Builder();
@@ -82,9 +71,6 @@ public class ChunkRenderRebuildTask extends ChunkRenderBuildTask {
         BlockPos.Mutable modelOffset = new BlockPos.Mutable();
 
         BlockRenderContext context = new BlockRenderContext(slice);
-
-        GatherQuadsEvent event = new GatherQuadsEvent();
-        event.begin();
 
         for (int y = minY; y < maxY; y++) {
             if (cancellationSource.isCancelled()) {
@@ -137,9 +123,6 @@ public class ChunkRenderRebuildTask extends ChunkRenderBuildTask {
                 }
             }
         }
-
-        event.end();
-        event.commit();
 
         Map<TerrainRenderPass, ChunkMeshData> meshes = new Reference2ReferenceOpenHashMap<>();
 

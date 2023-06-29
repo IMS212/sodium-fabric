@@ -1,6 +1,5 @@
 package me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline;
 
-import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import me.jellysquid.mods.sodium.client.model.light.LightPipelineProvider;
 import me.jellysquid.mods.sodium.client.model.light.cache.ArrayLightDataCache;
 import me.jellysquid.mods.sodium.client.model.quad.blender.BiomeColorBlender;
@@ -14,7 +13,6 @@ public class BlockRenderCache {
     private final ArrayLightDataCache lightDataCache;
 
     private final BlockRenderer blockRenderer;
-    private final BlockRendererFRAPI blockRendererFRAPI;
     private final FluidRenderer fluidRenderer;
 
     private final BlockModels blockModels;
@@ -28,7 +26,6 @@ public class BlockRenderCache {
         BiomeColorBlender biomeColorBlender = createBiomeColorBlender();
 
         this.blockRenderer = new BlockRenderer(client, lightPipelineProvider, biomeColorBlender);
-        this.blockRendererFRAPI = new BlockRendererFRAPI(client, lightPipelineProvider, biomeColorBlender);
         this.fluidRenderer = new FluidRenderer(lightPipelineProvider, biomeColorBlender);
 
         this.blockModels = client.getBakedModelManager().getBlockModels();
@@ -38,8 +35,8 @@ public class BlockRenderCache {
         return this.blockModels;
     }
 
-    public IBlockRenderer getBlockRenderer() {
-        return SodiumClientMod.options().performance.useFrapiPipelineForTerrain ? this.blockRendererFRAPI : this.blockRenderer;
+    public BlockRenderer getBlockRenderer() {
+        return this.blockRenderer;
     }
 
     public FluidRenderer getFluidRenderer() {

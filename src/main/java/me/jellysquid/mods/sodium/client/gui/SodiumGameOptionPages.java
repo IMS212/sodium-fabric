@@ -307,14 +307,6 @@ public class SodiumGameOptionPages {
                         .setEnabled(supportsNoErrorContext())
                         .setFlags(OptionFlag.REQUIRES_GAME_RESTART)
                         .build())
-                // TODO: hardcoded strings because this is temporary
-                .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
-                        .setName(Text.literal("Enable FRAPI terrain pipeline"))
-                        .setTooltip(Text.literal("Use pipeline supporting Fabric Renderer API model features for terrain rendering."))
-                        .setControl(TickBoxControl::new)
-                        .setImpact(OptionImpact.HIGH)
-                        .setBinding((opts, value) -> opts.performance.useFrapiPipelineForTerrain = value, opts -> opts.performance.useFrapiPipelineForTerrain)
-                        .build())
                 .build());
 
         return new OptionPage(Text.translatable("sodium.options.pages.performance"), ImmutableList.copyOf(groups));
