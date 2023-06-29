@@ -57,6 +57,7 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
     private LightMode defaultLightMode;
     // Default material (can be overridden by blend mode per-quad)
     private Material defaultMaterial;
+    private ChunkModelBuilder defaultModelBuilder;
     // Cull cache (as it's checked per-quad instead of once in vanilla)
     private int cullCompletionFlags;
     private int cullResultFlags;
@@ -100,6 +101,7 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
         this.renderOffset = ctx.state().getModelOffset(ctx.world(), ctx.pos());
         this.defaultLightMode = this.getLightingMode(ctx.state(), ctx.model());
         this.defaultMaterial = DefaultMaterials.forBlockState(ctx.state());
+        this.defaultModelBuilder = buffers.get(this.defaultMaterial);
 
         // Actually render
         ctx.model().emitBlockQuads(ctx.world(), ctx.state(), ctx.pos(), this.randomSupplier, this);
@@ -142,18 +144,21 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
         final boolean emissive = mat.emissive();
         final BlendMode blendMode = mat.blendMode();
         final Material material;
+        final ChunkModelBuilder modelBuilder;
         if (blendMode == BlendMode.DEFAULT) {
             material = this.defaultMaterial;
+            modelBuilder = this.defaultModelBuilder;
         } else {
             material = DefaultMaterials.forRenderLayer(blendMode.blockRenderLayer);
+            modelBuilder = this.buffers.get(material);
         }
 
         BlockRenderContext ctx = this.ctx;
 
-        colorizeQuad(ctx, quad, colorIndex);
+        this.colorizeQuad(ctx, quad, colorIndex);
         QuadLightData lightData = this.cachedQuadLightData;
-        super.shadeQuad(ctx, quad, lightMode, emissive, lightData);
-        bufferQuad(ctx, quad, lightData.br, material);
+        this.shadeQuad(ctx, quad, lightMode, emissive, lightData);
+        this.bufferQuad(ctx, quad, lightData.br, material, modelBuilder);
     }
 
     private void colorizeQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, int colorIndex) {
@@ -174,7 +179,7 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
         }
     }
 
-    private void bufferQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, float[] brightness, Material material) {
+    private void bufferQuad(BlockRenderContext ctx, MutableQuadViewImpl quad, float[] brightness, Material material, ChunkModelBuilder modelBuilder) {
         ModelQuadOrientation orientation = ModelQuadOrientation.orientByBrightness(brightness);
         ChunkVertexEncoder.Vertex[] vertices = this.vertices;
 
@@ -191,9 +196,8 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
             out.y = ctx.origin().y() + quad.y(srcIndex) + (float) offset.getY();
             out.z = ctx.origin().z() + quad.z(srcIndex) + (float) offset.getZ();
 
-            // TODO: alpha from quad is ignored entirely
-            // TODO: do we need endianness changes to color? (seems ok from tests)
             // FRAPI implementation uses ARGB color format, convert to ABGR.
+            // Due to our vertex format, the alpha from the quad color is ignored entirely.
             out.color = ColorABGR.withAlpha(ColorARGB.toABGR(quad.color(srcIndex)), brightness[srcIndex]);
 
             out.u = quad.u(srcIndex);
@@ -203,8 +207,6 @@ public class BlockRendererFRAPI extends AbstractBlockRenderContext implements IB
 
             bounds.add(out.x, out.y, out.z, normalFace);
         }
-
-        ChunkModelBuilder modelBuilder = buffers.get(material);
 
         var vertexBuffer = modelBuilder.getVertexBuffer(normalFace);
         vertexBuffer.push(vertices, material);

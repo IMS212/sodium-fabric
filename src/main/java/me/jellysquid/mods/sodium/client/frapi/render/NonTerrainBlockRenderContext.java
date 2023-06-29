@@ -101,8 +101,10 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
         model.emitBlockQuads(blockView, state, pos, this.randomSupplier, this);
 
         this.vertexWriter = null;
+        this.ctx.updateWorld(null);
     }
 
+    // TODO: should this be changed to use a BlockOcclusionCache? if so then it can be shared with the terrain pipeline
     private boolean isFaceVisible(@Nullable Direction face) {
         if (face == null || !this.enableCulling) {
             return true;
