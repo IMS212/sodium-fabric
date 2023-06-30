@@ -500,14 +500,6 @@ public class RenderSectionManager {
         return x <= this.renderDistance && z <= this.renderDistance;
     }
 
-    private boolean isCulled(ChunkGraphInfo node, Direction from, Direction to) {
-        if (node.canCull(to)) {
-            return true;
-        }
-
-        return this.useOcclusionCulling && from != null && !node.isVisibleThrough(from, to);
-    }
-
     private void initSearch(ChunkRenderListBuilder list, Camera camera, Frustum frustum, int frame, boolean spectator) {
         this.currentFrame = frame;
         this.frustum = frustum;
