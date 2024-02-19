@@ -7,14 +7,13 @@ import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
 import org.lwjgl.system.MemoryUtil;
-import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
  * This Mixin is ported from Iris at <a href="https://github.com/IrisShaders/Iris/blob/41095ac23ea0add664afd1b85c414d1f1ed94066/src/main/java/net/coderbot/iris/mixin/bettermipmaps/MixinTextureAtlasSprite.java">MixinTextureAtlasSprite</a>.
@@ -34,12 +33,12 @@ public class SpriteContentsMixin {
     // support Forge, since this works well on Fabric too, it's fine to ensure that the diff between Fabric and Forge
     // can remain minimal. Being less dependent on specific details of Fabric is good, since it means we can be more
     // cross-platform.
-    @Redirect(method = "<init>", at = @At(value = "FIELD", target = "Lnet/minecraft/client/renderer/texture/SpriteContents;originalImage:Lcom/mojang/blaze3d/platform/NativeImage;", opcode = Opcodes.PUTFIELD))
-    private void sodium$beforeGenerateMipLevels(SpriteContents instance, NativeImage nativeImage, ResourceLocation identifier) {
+    @ModifyVariable(method = "<init>*", at = @At("HEAD"), index = 3, argsOnly = true)
+    private static NativeImage sodium$beforeGenerateMipLevels(NativeImage nativeImage) {
         // We're injecting after the "info" field has been set, so this is safe even though we're in a constructor.
         sodium$fillInTransparentPixelColors(nativeImage);
 
-        this.originalImage = nativeImage;
+        return nativeImage;
     }
 
     /**

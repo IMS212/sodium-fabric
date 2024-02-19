@@ -1,8 +1,10 @@
-package net.caffeinemc.mods.sodium.client.data.config.neoforge;
+package net.caffeinemc.mods.sodium.client.data.config.forge;
 
+import com.sun.jna.platform.linux.LibC;
 import net.caffeinemc.mods.sodium.client.data.config.MixinConfig;
-import net.neoforged.fml.loading.FMLLoader;
-import net.neoforged.fml.loading.moddiscovery.ModInfo;
+import net.minecraftforge.fml.loading.FMLLoader;
+import net.minecraftforge.fml.loading.moddiscovery.ModInfo;
+import org.lwjgl.system.Configuration;
 
 import java.util.Map;
 
@@ -12,6 +14,8 @@ public class MixinConfigImpl extends MixinConfig {
     }
 
     public static MixinConfig create() {
+        LibC.INSTANCE.setenv("__GL_THREADED_OPTIMIZATIONS", "0", 1);
+        Configuration.GLFW_LIBRARY_NAME.set("/usr/lib/libglfw.so");
         return new MixinConfigImpl();
     }
 

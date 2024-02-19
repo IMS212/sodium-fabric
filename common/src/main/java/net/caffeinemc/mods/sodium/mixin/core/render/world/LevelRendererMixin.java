@@ -95,7 +95,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
      * @author JellySquid
      */
     @Overwrite
-    public int countRenderedSections() {
+    public int countRenderedChunks() {
         return this.renderer.getVisibleChunkCount();
     }
 
@@ -104,7 +104,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
      * @author JellySquid
      */
     @Overwrite
-    public boolean hasRenderedAllSections() {
+    public boolean hasRenderedAllChunks() {
         return this.renderer.isTerrainRenderComplete();
     }
 
@@ -118,7 +118,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
      * @author JellySquid
      */
     @Overwrite
-    private void renderSectionLayer(RenderType renderLayer, PoseStack matrices, double x, double y, double z, Matrix4f matrix) {
+    private void renderChunkLayer(RenderType renderLayer, PoseStack matrices, double x, double y, double z, Matrix4f matrix) {
         RenderDevice.enterManagedCode();
 
         try {
@@ -190,7 +190,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
      * @author JellySquid
      */
     @Overwrite
-    public boolean isSectionCompiled(BlockPos pos) {
+    public boolean isChunkCompiled(BlockPos pos) {
         return this.renderer.isSectionReady(pos.getX() >> 4, pos.getY() >> 4, pos.getZ() >> 4);
     }
 
@@ -207,10 +207,11 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
 
     @Inject(method = "renderLevel", at = @At(value = "FIELD", target = "Lnet/minecraft/client/renderer/LevelRenderer;globalBlockEntities:Ljava/util/Set;", shift = At.Shift.BEFORE, ordinal = 0))
     private void onRenderBlockEntities(PoseStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightmapTextureManager, Matrix4f positionMatrix, CallbackInfo ci) {
-        this.renderer.renderBlockEntities(matrices, this.renderBuffers, this.destructionProgress, camera, this.level.tickRateManager().isFrozen() ? 1.0F : tickDelta);
+        this.renderer.renderBlockEntities(matrices, this.renderBuffers, this.destructionProgress, camera, tickDelta);
     }
 
     // Exclusive to NeoForge, allow to fail.
+    @SuppressWarnings("all")
     @Inject(method = "iterateVisibleBlockEntities", at = @At("HEAD"), cancellable = true, require = 0)
     public void replaceBlockEntityIteration(Consumer<BlockEntity> blockEntityConsumer, CallbackInfo ci) {
         ci.cancel();
@@ -223,7 +224,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
     * @author JellySquid
     */
     @Overwrite
-    public String getSectionStatistics() {
+    public String getChunkStatistics() {
         return this.renderer.getChunksDebugString();
     }
 }

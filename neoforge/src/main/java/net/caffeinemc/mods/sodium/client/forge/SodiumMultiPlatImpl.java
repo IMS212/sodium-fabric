@@ -1,9 +1,7 @@
-package net.caffeinemc.mods.sodium.client.neoforge;
+package net.caffeinemc.mods.sodium.client.forge;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderContext;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.material.DefaultMaterials;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.material.Material;
 import net.caffeinemc.mods.sodium.client.util.DirectionUtil;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -13,26 +11,25 @@ import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.material.FluidState;
-import net.neoforged.fml.loading.FMLLoader;
-import net.neoforged.fml.loading.FMLPaths;
-import net.neoforged.neoforge.client.ChunkRenderTypeSet;
-import net.neoforged.neoforge.client.ClientHooks;
-import net.neoforged.neoforge.client.model.data.ModelData;
-import net.neoforged.neoforge.client.model.data.ModelDataManager;
+import net.minecraftforge.client.ForgeHooksClient;
+import net.minecraftforge.client.model.data.ModelData;
+import net.minecraftforge.client.model.data.ModelDataManager;
+import net.minecraftforge.fml.loading.FMLLoader;
+import net.minecraftforge.fml.loading.FMLPaths;
 import org.joml.Matrix4f;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 
 public class SodiumMultiPlatImpl {
     public static boolean isBlockTransparent(BlockState block, BlockAndTintGetter level, BlockPos pos, FluidState fluidState) {
@@ -45,15 +42,15 @@ public class SodiumMultiPlatImpl {
         return null;
     }
 
-    public static Object getRenderData(Level level, BoundingBox pos, BlockEntity value) {
-        return level.getModelDataManager().snapshotSectionRegion(pos.minX() >> 4, pos.minY() >> 4, pos.minZ() >> 4,
-                pos.maxX() >> 4, pos.maxY() >> 4, pos.maxZ() >> 4);
+    public static Object getRenderData(Level level, ChunkPos pos, BlockEntity value) {
+        return level.getModelDataManager();
     }
 
     public static Object getModelData(Object o, BlockPos pos) {
-        if ((o instanceof ModelDataManager.Snapshot)) {
-            return ((ModelDataManager.Snapshot) o).getAtOrEmpty(pos);
+        if ((o instanceof ModelDataManager)) {
+            return Objects.requireNonNullElse(((ModelDataManager) o).getAt(pos), ModelData.EMPTY);
         } else {
+            System.out.println("wtf did we get " + o.getClass());
             return ModelData.EMPTY;
         }
     }
@@ -87,7 +84,7 @@ public class SodiumMultiPlatImpl {
     }
 
     public static void runChunkLayerEvents(RenderType renderType, LevelRenderer levelRenderer, PoseStack poseStack, Matrix4f projectionMatrix, int renderTick, Camera camera, Frustum frustum) {
-        ClientHooks.dispatchRenderStage(renderType, levelRenderer, poseStack, projectionMatrix, renderTick, camera, frustum);
+        ForgeHooksClient.dispatchRenderStage(renderType, levelRenderer, poseStack, projectionMatrix, renderTick, camera, frustum);
     }
 
     public static boolean shouldSkipRender(BlockGetter level, BlockState selfState, BlockState otherState, BlockPos selfPos, Direction facing) {

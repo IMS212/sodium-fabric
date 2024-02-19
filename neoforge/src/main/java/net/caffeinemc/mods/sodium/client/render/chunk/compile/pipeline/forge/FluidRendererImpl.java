@@ -1,9 +1,9 @@
-package net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.neoforge;
+package net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.forge;
 
 import net.caffeinemc.mods.sodium.client.model.color.ColorProvider;
 import net.caffeinemc.mods.sodium.client.model.color.ColorProviderRegistry;
 import net.caffeinemc.mods.sodium.client.model.light.LightPipelineProvider;
-import net.caffeinemc.mods.sodium.client.neoforge.ForgeColorProviders;
+import net.caffeinemc.mods.sodium.client.forge.ForgeColorProviders;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildBuffers;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.buffers.ChunkModelBuilder;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.DefaultFluidRenderer;
@@ -18,8 +18,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
-import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.neoforged.neoforge.client.textures.FluidSpriteCache;
+import net.minecraftforge.client.ForgeHooksClient;
+import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
 
 public class FluidRendererImpl extends FluidRenderer {
     // The current default context is set up before invoking FluidRenderHandler#renderFluid and cleared afterwards.
@@ -71,9 +71,7 @@ public class FluidRendererImpl extends FluidRenderer {
         defaultContext.setUp(this.colorProviderRegistry, this.defaultRenderer, level, fluidState, blockPos, offset, collector, meshBuilder, material, handler);
 
         try {
-            if (!handler.renderFluid(fluidState, level, blockPos, meshBuilder.asFallbackVertexConsumer(material), blockState)) {
-                defaultContext.renderIfSetUp();
-            }
+            defaultContext.renderIfSetUp();
         } finally {
             defaultContext.clear();
         }
@@ -137,7 +135,7 @@ public class FluidRendererImpl extends FluidRenderer {
         public boolean renderIfSetUp() {
             if (this.renderer != null) {
                 this.renderer.render(this.level, this.fluidState, this.blockPos, this.offset, this.collector, this.meshBuilder, this.material,
-                        getColorProvider(fluidState.getType()), FluidSpriteCache.getFluidSprites(level, blockPos, fluidState));
+                        getColorProvider(fluidState.getType()), ForgeHooksClient.getFluidSprites(level, blockPos, fluidState));
                 return true;
             }
 

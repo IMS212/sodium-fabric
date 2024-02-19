@@ -4,7 +4,7 @@ plugins {
 
 architectury {
     platformSetupLoomIde()
-    neoForge()
+    forge()
 }
 
 repositories {
@@ -17,7 +17,7 @@ repositories {
 
 val common: Configuration by configurations.creating
 val shadowCommon: Configuration by configurations.creating
-val developmentNeoForge: Configuration by configurations.getting
+val developmentForge: Configuration by configurations.getting
 
 val MINECRAFT_VERSION: String by rootProject.extra
 val NEOFORGE_VERSION: String by rootProject.extra
@@ -27,12 +27,20 @@ loom {
     silentMojangMappingsLicense()
 
     accessWidenerPath = project(":common").loom.accessWidenerPath
+
+    forge {
+        convertAccessWideners = true
+
+        mixinConfigs(
+                "sodium.mixins.json"
+        )
+    }
 }
 
 configurations {
     compileOnly.configure { extendsFrom(common) }
     runtimeOnly.configure { extendsFrom(common) }
-    developmentNeoForge.extendsFrom(common)
+    developmentForge.extendsFrom(common)
 }
 
 tasks.shadowJar {
@@ -61,13 +69,16 @@ components.getByName("java") {
 }
 
 dependencies {
-    neoForge("net.neoforged:neoforge:${NEOFORGE_VERSION}")
+    forge("net.neoforged:forge:${NEOFORGE_VERSION}")
 
     include(implementation(group = "com.lodborg", name = "interval-tree", version = "1.0.0"))
     forgeRuntimeLibrary(group = "com.lodborg", name = "interval-tree", version = "1.0.0")
-
+    compileOnly("io.github.llamalad7:mixinextras-common:0.3.5")
+    annotationProcessor("io.github.llamalad7:mixinextras-common:0.3.5")
+    include("io.github.llamalad7:mixinextras-forge:0.3.5")
+    implementation("io.github.llamalad7:mixinextras-forge:0.3.5")
     common(project(":common", "namedElements")) { isTransitive = false }
-    shadowCommon(project(":common", "transformProductionNeoForge")) { isTransitive = false }
+    shadowCommon(project(":common", "transformProductionForge")) { isTransitive = false }
 }
 
 tasks.processResources {

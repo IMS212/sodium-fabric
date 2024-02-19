@@ -138,7 +138,7 @@ public final class LevelSlice implements BlockAndTintGetter, BiomeColorView {
             }
         }
 
-        Object modelData = SodiumMultiPlat.getRenderData(level, box, null);
+        Object modelData = SodiumMultiPlat.getRenderData(level, chunk.getPos(), null);
 
         return new ChunkRenderContext(pos, sections, box, modelData);
     }

@@ -172,11 +172,11 @@ public class DefaultFluidRenderer {
 
             if (velocity.x == 0.0D && velocity.z == 0.0D) {
                 sprite = sprites[0];
-                u1 = sprite.getU(0.0f);
-                v1 = sprite.getV(0.0f);
+                u1 = sprite.getU(0.0D);
+                v1 = sprite.getV(0.0D);
                 u2 = u1;
-                v2 = sprite.getV(1.0f);
-                u3 = sprite.getU(1.0f);
+                v2 = sprite.getV(16.0D);
+                u3 = sprite.getU(16.0D);
                 v3 = v2;
                 u4 = u3;
                 v4 = v1;
@@ -185,19 +185,21 @@ public class DefaultFluidRenderer {
                 float dir = (float) Mth.atan2(velocity.z, velocity.x) - (1.5707964f);
                 float sin = Mth.sin(dir) * 0.25F;
                 float cos = Mth.cos(dir) * 0.25F;
-                u1 = sprite.getU(0.5F + (-cos - sin));
-                v1 = sprite.getV(0.5F + -cos + sin);
-                u2 = sprite.getU(0.5F + -cos + sin);
-                v2 = sprite.getV(0.5F + cos + sin);
-                u3 = sprite.getU(0.5F + cos + sin);
-                v3 = sprite.getV(0.5F + (cos - sin));
-                u4 = sprite.getU(0.5F + (cos - sin));
-                v4 = sprite.getV(0.5F + (-cos - sin));
+                u1 = sprite.getU(8.0F + (-cos - sin) * 16.0F);
+                v1 = sprite.getV(8.0F + (-cos + sin) * 16.0F);
+                u2 = sprite.getU(8.0F + (-cos + sin) * 16.0F);
+                v2 = sprite.getV(8.0F + (cos + sin) * 16.0F);
+                u3 = sprite.getU(8.0F + (cos + sin) * 16.0F);
+                v3 = sprite.getV(8.0F + (cos - sin) * 16.0F);
+                u4 = sprite.getU(8.0F + (cos - sin) * 16.0F);
+                v4 = sprite.getV(8.0F + (-cos - sin) * 16.0F);
             }
 
             float uAvg = (u1 + u2 + u3 + u4) / 4.0F;
             float vAvg = (v1 + v2 + v3 + v4) / 4.0F;
-            float s3 = sprites[0].uvShrinkRatio();
+            float s1 = (float) sprites[0].contents().width() / (sprites[0].getU1() - sprites[0].getU0());
+            float s2 = (float) sprites[0].contents().height() / (sprites[0].getV1() - sprites[0].getV0());
+            float s3 = 4.0F / Math.max(s2, s1);
 
             u1 = Mth.lerp(s3, u1, uAvg);
             u2 = Mth.lerp(s3, u2, uAvg);
@@ -328,11 +330,11 @@ public class DefaultFluidRenderer {
                     }
                 }
 
-                float u1 = sprite.getU(0.0F);
-                float u2 = sprite.getU(0.5F);
-                float v1 = sprite.getV((1.0F - c1) * 0.5F);
-                float v2 = sprite.getV((1.0F - c2) * 0.5F);
-                float v3 = sprite.getV(0.5F);
+                float u1 = sprite.getU(0.0D);
+                float u2 = sprite.getU(8.0D);
+                float v1 = sprite.getV((1.0F - c1) * 16.0F * 0.5F);
+                float v2 = sprite.getV((1.0F - c2) * 16.0F * 0.5F);
+                float v3 = sprite.getV(8.0D);
 
                 quad.setSprite(sprite);
 

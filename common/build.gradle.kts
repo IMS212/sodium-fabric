@@ -1,5 +1,5 @@
 architectury {
-    common("fabric", "neoforge")
+    common("fabric", "forge")
 }
 
 val MINECRAFT_VERSION: String by rootProject.extra

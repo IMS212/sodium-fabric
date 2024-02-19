@@ -8,7 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.random.WeightedEntry;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.model.data.ModelData;
+import net.minecraftforge.client.model.data.ModelData;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.*;
 
@@ -29,7 +29,7 @@ public class WeightedBakedModelMixin {
      * @author JellySquid
      * @reason Avoid excessive object allocations
      */
-    @Overwrite
+    @Overwrite(remap = false)
     public List<BakedQuad> getQuads(@javax.annotation.Nullable BlockState state, @javax.annotation.Nullable Direction face, RandomSource random, ModelData modelData, @org.jetbrains.annotations.Nullable RenderType renderType) {
         WeightedEntry.Wrapper<BakedModel> quad = getAt(this.list, Math.abs((int) random.nextLong()) % this.totalWeight);
 
