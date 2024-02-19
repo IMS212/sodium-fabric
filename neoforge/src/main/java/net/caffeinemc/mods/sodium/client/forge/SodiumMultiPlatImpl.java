@@ -29,6 +29,7 @@ import org.joml.Matrix4f;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class SodiumMultiPlatImpl {
@@ -43,14 +44,13 @@ public class SodiumMultiPlatImpl {
     }
 
     public static Object getRenderData(Level level, ChunkPos pos, BlockEntity value) {
-        return level.getModelDataManager();
+        return level.getModelDataManager().getAt(pos);
     }
 
     public static Object getModelData(Object o, BlockPos pos) {
-        if ((o instanceof ModelDataManager)) {
-            return Objects.requireNonNullElse(((ModelDataManager) o).getAt(pos), ModelData.EMPTY);
+        if ((o instanceof Map<?,?>)) {
+            return ((Map<BlockPos, ModelData>) o).getOrDefault(pos, ModelData.EMPTY);
         } else {
-            System.out.println("wtf did we get " + o.getClass());
             return ModelData.EMPTY;
         }
     }
