@@ -44,10 +44,12 @@ public class BakedQuadMixin implements BakedQuadView {
     private int normal;
 
     @Unique
-    private ModelQuadFacing normalFace = ModelQuadFacing.UNASSIGNED;
+    private ModelQuadFacing normalFace = null;
 
-    @Inject(method = "<init>*", at = @At("RETURN"))
-    private void init(int[] vertexData, int colorIndex, Direction face, TextureAtlasSprite sprite, boolean shade, CallbackInfo ci) {
+    @Inject(method = {
+            "<init>([IILnet/minecraft/core/Direction;Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;ZZ)V"
+    }, at = @At("RETURN"))
+    private void init(int[] is, int i, Direction face, TextureAtlasSprite arg2, boolean bl, boolean hasAmbientOcclusion, CallbackInfo ci) {
         this.normal = this.calculateNormal();
         this.normalFace = ModelQuadFacing.fromPackedNormal(this.normal);
 
@@ -72,6 +74,16 @@ public class BakedQuadMixin implements BakedQuadView {
     @Override
     public int getColor(int idx) {
         return this.vertices[ModelQuadUtil.vertexOffset(idx) + ModelQuadUtil.COLOR_INDEX];
+    }
+
+    @Override
+    public int getNormal(int idx) {
+        return this.vertices[ModelQuadUtil.vertexOffset(idx) + ModelQuadUtil.NORMAL_INDEX];
+    }
+
+    @Override
+    public int getLight(int idx) {
+        return this.vertices[ModelQuadUtil.vertexOffset(idx) + ModelQuadUtil.LIGHT_INDEX];
     }
 
     @Override

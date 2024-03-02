@@ -6,9 +6,12 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod("sodium")
 public class SodiumForgeMod {
-    public SodiumForgeMod() {
+    public SodiumForgeMod(IEventBus bus) {
         SodiumClientMod.onInitialization(ModList.get().getModContainerById("sodium").get().getModInfo().getVersion().toString());
+        bus.addListener(this::onResourceReload);
+    }
 
-        //ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(SpriteFinderCache.ReloadListener.INSTANCE);
+    public void onResourceReload(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(SpriteFinderCache.ReloadListener.INSTANCE);
     }
 }

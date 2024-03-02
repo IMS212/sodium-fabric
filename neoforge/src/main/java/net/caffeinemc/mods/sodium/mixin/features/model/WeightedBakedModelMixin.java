@@ -25,22 +25,6 @@ public class WeightedBakedModelMixin {
     @Final
     private int totalWeight;
 
-    /**
-     * @author JellySquid
-     * @reason Avoid excessive object allocations
-     */
-    @Overwrite(remap = false)
-    public List<BakedQuad> getQuads(@javax.annotation.Nullable BlockState state, @javax.annotation.Nullable Direction face, RandomSource random, ModelData modelData, @org.jetbrains.annotations.Nullable RenderType renderType) {
-        WeightedEntry.Wrapper<BakedModel> quad = getAt(this.list, Math.abs((int) random.nextLong()) % this.totalWeight);
-
-        if (quad != null) {
-            return quad.getData()
-                    .getQuads(state, face, random, modelData, renderType);
-        }
-
-        return Collections.emptyList();
-    }
-
     @Unique
     private static <T extends WeightedEntry> T getAt(List<T> pool, int totalWeight) {
         int i = 0;
@@ -58,5 +42,37 @@ public class WeightedBakedModelMixin {
         } while (totalWeight >= 0);
 
         return weighted;
+    }
+
+    /**
+     * @author JellySquid
+     * @reason Avoid excessive object allocations
+     */
+    @Overwrite
+    public List<BakedQuad> getQuads(@javax.annotation.Nullable BlockState state, @javax.annotation.Nullable Direction face, RandomSource random, ModelData modelData, @org.jetbrains.annotations.Nullable RenderType renderType) {
+        WeightedEntry.Wrapper<BakedModel> quad = getAt(this.list, Math.abs((int) random.nextLong()) % this.totalWeight);
+
+        if (quad != null) {
+            return quad.getData()
+                    .getQuads(state, face, random, modelData, renderType);
+        }
+
+        return Collections.emptyList();
+    }
+
+    /**
+     * @author JellySquid
+     * @reason Avoid excessive object allocations
+     */
+    @Overwrite
+    public ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data) {
+        WeightedEntry.Wrapper<BakedModel> quad = getAt(this.list, Math.abs((int) rand.nextLong()) % this.totalWeight);
+
+        if (quad != null) {
+            return quad.getData()
+                    .getRenderTypes(state, rand, data);
+        }
+
+        return ChunkRenderTypeSet.none();
     }
 }
