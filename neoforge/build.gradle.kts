@@ -14,7 +14,7 @@ repositories {
 
     mavenLocal()
 }
-val developmentNeoForge: Configuration by configurations.getting
+val developmentForge: Configuration by configurations.getting
 val architecturyTransformerRuntimeClasspath: Configuration by configurations.getting
 
 sourceSets {
@@ -49,9 +49,7 @@ loom {
     forge {
         convertAccessWideners = true
 
-        mixinConfigs(
-                "sodium.mixins.json"
-        )
+        mixinConfig("sodium.mixins.json", "sodium-forge.mixins.json")
     }
 }
 

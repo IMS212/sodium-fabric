@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.neoforge;
+package net.caffeinemc.mods.sodium.client.forge;
 
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
