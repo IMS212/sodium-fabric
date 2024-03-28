@@ -1,6 +1,7 @@
 package me.jellysquid.mods.sodium.client.render.immediate.model;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import me.jellysquid.mods.sodium.mixin.core.matrix.PoseAccessor;
 import net.caffeinemc.mods.sodium.api.math.MatrixHelper;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
 import net.caffeinemc.mods.sodium.api.vertex.format.common.ModelVertex;
@@ -181,12 +182,13 @@ public class EntityRenderer {
     }
 
     private static void prepareNormals(PoseStack.Pose matrices) {
-        CUBE_NORMALS[FACE_NEG_Y] = MatrixHelper.transformNormal(matrices.normal(), Direction.DOWN);
-        CUBE_NORMALS[FACE_POS_Y] = MatrixHelper.transformNormal(matrices.normal(), Direction.UP);
-        CUBE_NORMALS[FACE_NEG_Z] = MatrixHelper.transformNormal(matrices.normal(), Direction.NORTH);
-        CUBE_NORMALS[FACE_POS_Z] = MatrixHelper.transformNormal(matrices.normal(), Direction.SOUTH);
-        CUBE_NORMALS[FACE_POS_X] = MatrixHelper.transformNormal(matrices.normal(), Direction.WEST);
-        CUBE_NORMALS[FACE_NEG_X] = MatrixHelper.transformNormal(matrices.normal(), Direction.EAST);
+        boolean skipNormalization = ((PoseAccessor) (Object) matrices).canSkipNormalization();
+        CUBE_NORMALS[FACE_NEG_Y] = MatrixHelper.transformNormal(matrices.normal(), Direction.DOWN, skipNormalization);
+        CUBE_NORMALS[FACE_POS_Y] = MatrixHelper.transformNormal(matrices.normal(), Direction.UP, skipNormalization);
+        CUBE_NORMALS[FACE_NEG_Z] = MatrixHelper.transformNormal(matrices.normal(), Direction.NORTH, skipNormalization);
+        CUBE_NORMALS[FACE_POS_Z] = MatrixHelper.transformNormal(matrices.normal(), Direction.SOUTH, skipNormalization);
+        CUBE_NORMALS[FACE_POS_X] = MatrixHelper.transformNormal(matrices.normal(), Direction.WEST, skipNormalization);
+        CUBE_NORMALS[FACE_NEG_X] = MatrixHelper.transformNormal(matrices.normal(), Direction.EAST, skipNormalization);
 
         // When mirroring is used, the normals for EAST and WEST are swapped.
         CUBE_NORMALS_MIRRORED[FACE_NEG_Y] = CUBE_NORMALS[FACE_NEG_Y];

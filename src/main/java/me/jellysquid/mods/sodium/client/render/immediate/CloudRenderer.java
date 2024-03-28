@@ -70,7 +70,7 @@ public class CloudRenderer {
         this.reloadTextures(resourceProvider);
     }
 
-    public void render(@Nullable ClientLevel level, LocalPlayer player, PoseStack matrices, Matrix4f projectionMatrix, float ticks, float tickDelta, double cameraX, double cameraY, double cameraZ) {
+    public void render(@Nullable ClientLevel level, LocalPlayer player, PoseStack matrices, Matrix4f modelView, Matrix4f projectionMatrix, float ticks, float tickDelta, double cameraX, double cameraY, double cameraZ) {
         if (level == null) {
             return;
         }
@@ -145,7 +145,9 @@ public class CloudRenderer {
 
         RenderSystem.setShaderColor((float) color.x, (float) color.y, (float) color.z, 0.8f);
 
+        // In Vanilla, this amounts to just modelView. However, mods can theoretically change this.
         matrices.pushPose();
+        matrices.mulPose(modelView);
 
         Matrix4f modelViewMatrix = matrices.last().pose();
         modelViewMatrix.translate(-translateX, cloudHeight - (float) cameraY + 0.33F, -translateZ);

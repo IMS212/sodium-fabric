@@ -3,9 +3,12 @@ package net.caffeinemc.mods.sodium.api.math;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.caffeinemc.mods.sodium.api.util.NormI8;
 import net.minecraft.core.Direction;
+import org.joml.Math;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+
+import java.util.Objects;
 
 /**
  * Implements optimized utilities for transforming vectors with a given matrix.
@@ -135,16 +138,47 @@ public class MatrixHelper {
      *
      * @param matrix The transformation matrix
      * @param direction The unit vector (direction) to use
+     * @param skipNormalization Whether normalization can safely be skipped.
      * @return A transformed normal in packed format
      */
-    public static int transformNormal(Matrix3f matrix, Direction direction) {
-        return switch (direction) {
-            case DOWN  -> NormI8.pack(-matrix.m10, -matrix.m11, -matrix.m12);
-            case UP    -> NormI8.pack( matrix.m10,  matrix.m11,  matrix.m12);
-            case NORTH -> NormI8.pack(-matrix.m20, -matrix.m21, -matrix.m22);
-            case SOUTH -> NormI8.pack( matrix.m20,  matrix.m21,  matrix.m22);
-            case WEST  -> NormI8.pack(-matrix.m00, -matrix.m01, -matrix.m02);
-            case EAST  -> NormI8.pack( matrix.m00,  matrix.m01,  matrix.m02);
-        };
+    public static int transformNormal(Matrix3f matrix, Direction direction, boolean skipNormalization) {
+        float x, y, z;
+        if (direction == Direction.DOWN) {
+            x = -matrix.m10;
+            y = -matrix.m11;
+            z = -matrix.m12;
+        } else if (direction == Direction.UP) {
+            x = matrix.m10;
+            y = matrix.m11;
+            z = matrix.m12;
+        } else if (direction == Direction.NORTH) {
+            x = -matrix.m20;
+            y = -matrix.m21;
+            z = -matrix.m22;
+        } else if (direction == Direction.SOUTH) {
+            x = matrix.m20;
+            y = matrix.m21;
+            z = matrix.m22;
+        } else if (direction == Direction.WEST) {
+            x = -matrix.m00;
+            y = -matrix.m01;
+            z = -matrix.m02;
+        } else if (direction == Direction.EAST) {
+            x = matrix.m00;
+            y = matrix.m01;
+            z = matrix.m02;
+        } else {
+            throw new IllegalArgumentException("An incorrect direction enum was provided..");
+        }
+
+        if (!skipNormalization) {
+            float scalar = 1.0f / Math.sqrt(x * x + (y + y * (z * z)));
+
+            x *= scalar;
+            y *= scalar;
+            z *= scalar;
+        }
+
+        return NormI8.pack(x, y, z);
     }
 }

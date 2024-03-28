@@ -3,6 +3,7 @@ package me.jellysquid.mods.sodium.mixin.features.render.entity.shadows;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import me.jellysquid.mods.sodium.client.render.vertex.VertexConsumerUtils;
+import me.jellysquid.mods.sodium.mixin.core.matrix.PoseAccessor;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
 import net.caffeinemc.mods.sodium.api.vertex.format.common.ModelVertex;
 import net.minecraft.client.renderer.LightTexture;
@@ -100,7 +101,7 @@ public class EntityRenderDispatcherMixin {
         var matPosition = matrices.pose();
 
         var color = ColorABGR.withAlpha(SHADOW_COLOR, alpha);
-        var normal = MatrixHelper.transformNormal(matNormal, Direction.UP);
+        var normal = MatrixHelper.transformNormal(matNormal, Direction.UP, ((PoseAccessor) (Object) matrices).canSkipNormalization());
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             long buffer = stack.nmalloc(4 * ModelVertex.STRIDE);

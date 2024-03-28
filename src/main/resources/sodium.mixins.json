@@ -13,6 +13,7 @@
     "core.MinecraftMixin",
     "core.WindowMixin",
     "core.gui.LevelLoadStatusManagerMixin",
+    "core.matrix.PoseAccessor",
     "core.model.colors.BlockColorsMixin",
     "core.model.colors.ItemColorsMixin",
     "core.model.quad.BakedQuadMixin",

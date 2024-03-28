@@ -1,7 +1,10 @@
 package me.jellysquid.mods.sodium.mixin.features.render.immediate.matrix_stack;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import me.jellysquid.mods.sodium.mixin.core.matrix.PoseAccessor;
 import net.caffeinemc.mods.sodium.api.math.MatrixHelper;
+import org.joml.Math;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,10 +37,18 @@ public interface VertexConsumerMixin {
      * @author JellySquid
      */
     @Overwrite
-    default VertexConsumer normal(Matrix3f matrix, float x, float y, float z) {
-        float xt = MatrixHelper.transformNormalX(matrix, x, y, z);
-        float yt = MatrixHelper.transformNormalY(matrix, x, y, z);
-        float zt = MatrixHelper.transformNormalZ(matrix, x, y, z);
+    default VertexConsumer normal(PoseStack.Pose pose, float x, float y, float z) {
+        float xt = MatrixHelper.transformNormalX(pose.normal(), x, y, z);
+        float yt = MatrixHelper.transformNormalY(pose.normal(), x, y, z);
+        float zt = MatrixHelper.transformNormalZ(pose.normal(), x, y, z);
+
+        if (!((PoseAccessor) (Object) pose).canSkipNormalization()) {
+            float scalar = 1.0f / Math.sqrt(xt * xt + (yt + yt * (zt * zt)));
+
+            xt *= scalar;
+            yt *= scalar;
+            zt *= scalar;
+        }
 
         return this.normal(xt, yt, zt);
     }
