@@ -8,4 +8,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface PoseAccessor {
     @Accessor("trustedNormals")
     boolean canSkipNormalization();
+
+    @Accessor("trustedNormals")
+    void setSkipNormalization(boolean skip);
 }

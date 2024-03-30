@@ -1,5 +1,6 @@
 package me.jellysquid.mods.sodium.mixin.features.render.immediate.matrix_stack;
 
+import me.jellysquid.mods.sodium.mixin.core.matrix.PoseAccessor;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.*;
@@ -34,6 +35,7 @@ public abstract class PoseStackMixin {
                     .set(prev.pose());
             entry.normal()
                     .set(prev.normal());
+            ((PoseAccessor) (Object) entry).setSkipNormalization(((PoseAccessor) (Object) prev).canSkipNormalization());
         } else {
             entry = new PoseStack.Pose(new Matrix4f(prev.pose()), new Matrix3f(prev.normal()));
         }

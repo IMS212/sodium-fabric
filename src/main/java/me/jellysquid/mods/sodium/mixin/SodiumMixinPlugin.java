@@ -3,6 +3,7 @@ package me.jellysquid.mods.sodium.mixin;
 import me.jellysquid.mods.sodium.client.data.config.MixinConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lwjgl.system.Configuration;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -20,6 +21,7 @@ public class SodiumMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public void onLoad(String mixinPackage) {
+       // Configuration.GLFW_LIBRARY_NAME.set("/usr/lib/libglfw.so");
         try {
             this.config = MixinConfig.load(new File("./config/sodium-mixins.properties"));
         } catch (Exception e) {

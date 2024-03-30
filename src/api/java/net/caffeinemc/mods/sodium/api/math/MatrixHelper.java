@@ -172,7 +172,7 @@ public class MatrixHelper {
         }
 
         if (!skipNormalization) {
-            float scalar = 1.0f / Math.sqrt(x * x + (y + y * (z * z)));
+            float scalar = 1.0f / Math.sqrt(x * x + (y * y + (z * z)));
 
             x *= scalar;
             y *= scalar;

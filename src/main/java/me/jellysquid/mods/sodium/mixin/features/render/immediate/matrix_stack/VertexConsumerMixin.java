@@ -4,8 +4,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import me.jellysquid.mods.sodium.mixin.core.matrix.PoseAccessor;
 import net.caffeinemc.mods.sodium.api.math.MatrixHelper;
-import org.joml.Math;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -43,7 +41,7 @@ public interface VertexConsumerMixin {
         float zt = MatrixHelper.transformNormalZ(pose.normal(), x, y, z);
 
         if (!((PoseAccessor) (Object) pose).canSkipNormalization()) {
-            float scalar = 1.0f / Math.sqrt(xt * xt + (yt + yt * (zt * zt)));
+            float scalar = (float) (1.0f / Math.sqrt(x * x + (y * y + (z * z))));
 
             xt *= scalar;
             yt *= scalar;
