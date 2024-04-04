@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.client.world;
 
 import it.unimi.dsi.fastutil.ints.Int2ReferenceMap;
 import net.caffeinemc.mods.sodium.client.SodiumMultiPlat;
+import net.caffeinemc.mods.sodium.client.services.SodiumPlatformHelpers;
 import net.caffeinemc.mods.sodium.client.world.biome.LevelColorCache;
 import net.caffeinemc.mods.sodium.client.world.biome.BiomeColorSource;
 import net.caffeinemc.mods.sodium.client.world.biome.BiomeColorView;
@@ -138,7 +139,7 @@ public final class LevelSlice implements BlockAndTintGetter, BiomeColorView {
             }
         }
 
-        Object modelData = SodiumMultiPlat.getRenderData(level, box, null);
+        Object modelData = SodiumPlatformHelpers.INSTANCE.getRenderData(level, box, null);
 
         return new ChunkRenderContext(pos, sections, box, modelData);
     }
@@ -380,10 +381,10 @@ public final class LevelSlice implements BlockAndTintGetter, BiomeColorView {
 
     public Object getModelData(BlockPos pos) {
         if (!this.volume.isInside(pos.getX(), pos.getY(), pos.getZ())) {
-            return SodiumMultiPlat.getEmptyModelData();
+            return SodiumPlatformHelpers.INSTANCE.getEmptyModelData();
         }
 
-        return SodiumMultiPlat.getModelData(modelDataSnapshot, pos);
+        return SodiumPlatformHelpers.INSTANCE.getModelData(modelDataSnapshot, pos);
     }
 
     //@Override

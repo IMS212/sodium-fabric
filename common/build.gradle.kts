@@ -1,23 +1,42 @@
-architectury {
-    common("fabric", "neoforge")
+import net.fabricmc.loom.task.AbstractRemapJarTask
+
+plugins {
+    id("java")
+    id("idea")
+    id("fabric-loom") version "1.6.5"
 }
 
 val MINECRAFT_VERSION: String by rootProject.extra
 val FABRIC_LOADER_VERSION: String by rootProject.extra
 
 dependencies {
-    // We depend on Fabric Loader here for Mixin.
-    modImplementation("net.fabricmc:fabric-loader:${FABRIC_LOADER_VERSION}")
+    "minecraft"(group = "com.mojang", name = "minecraft", version = MINECRAFT_VERSION)
+    "mappings"(loom.officialMojangMappings())
+    compileOnly("io.github.llamalad7:mixinextras-common:0.3.5")
+    annotationProcessor("io.github.llamalad7:mixinextras-common:0.3.5")
+    compileOnly("net.fabricmc:sponge-mixin:0.13.2+mixin.0.8.5")
+
     modCompileOnly("net.fabricmc.fabric-api:fabric-renderer-api-v1:3.2.9+1172e897d7")
     implementation(group = "com.lodborg", name = "interval-tree", version = "1.0.0")
 }
 
+        tasks.withType<AbstractRemapJarTask>().forEach {
+            it.targetNamespace = "named"
+        }
+
 sourceSets {
     val main = getByName("main")
     val api = create("api")
+    val workarounds = create("workarounds")
     val desktop = create("desktop")
 
     api.apply {
+        java {
+            compileClasspath += main.compileClasspath
+        }
+    }
+
+    workarounds.apply {
         java {
             compileClasspath += main.compileClasspath
         }
@@ -32,6 +51,7 @@ sourceSets {
     main.apply {
         java {
             compileClasspath += api.output
+            compileClasspath += workarounds.output
             runtimeClasspath += api.output
         }
     }

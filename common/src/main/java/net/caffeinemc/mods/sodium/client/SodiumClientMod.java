@@ -3,8 +3,8 @@ package net.caffeinemc.mods.sodium.client;
 import net.caffeinemc.mods.sodium.client.data.fingerprint.FingerprintMeasure;
 import net.caffeinemc.mods.sodium.client.data.fingerprint.HashedFingerprint;
 import net.caffeinemc.mods.sodium.client.gui.SodiumGameOptions;
-import net.caffeinemc.mods.sodium.client.gui.console.Console;
-import net.caffeinemc.mods.sodium.client.gui.console.message.MessageLevel;
+import net.caffeinemc.mods.sodium.client.console.Console;
+import net.caffeinemc.mods.sodium.client.console.message.MessageLevel;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,14 +13,13 @@ import java.io.IOException;
 
 public class SodiumClientMod {
     private static SodiumGameOptions CONFIG;
-    private static Logger LOGGER;
+    private static final Logger LOGGER = LoggerFactory.getLogger("Sodium");
 
     private static String MOD_VERSION;
 
     public static void onInitialization(String version) {
         MOD_VERSION = version;
 
-        LOGGER = LoggerFactory.getLogger("Sodium");
         CONFIG = loadConfig();
 
         try {
@@ -53,7 +52,7 @@ public class SodiumClientMod {
             LOGGER.error("Failed to load configuration file", e);
             LOGGER.error("Using default configuration file in read-only mode");
 
-            Console.instance().logMessage(MessageLevel.SEVERE, Component.translatable("sodium.console.config_not_loaded"), 12.5);
+            Console.instance().logMessage(MessageLevel.SEVERE, "sodium.console.config_not_loaded", true, 12.5);
 
             var config = SodiumGameOptions.defaults();
             config.setReadOnly();
