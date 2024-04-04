@@ -1,6 +1,5 @@
 package net.caffeinemc.mods.sodium.client.data.config;
 
-import dev.architectury.injectables.annotations.ExpectPlatform;
 import net.caffeinemc.mods.sodium.mixin.MixinOption;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -215,7 +214,6 @@ public abstract class MixinConfig {
         return config;
     }
 
-    @ExpectPlatform
     private static MixinConfig create() {
         throw new AssertionError("Should be overriden");
     }

@@ -1,6 +1,5 @@
 package net.caffeinemc.mods.sodium.client.world.cloned;
 
-import dev.architectury.injectables.targets.ArchitecturyTarget;
 import it.unimi.dsi.fastutil.ints.Int2ReferenceMap;
 import it.unimi.dsi.fastutil.ints.Int2ReferenceMaps;
 import it.unimi.dsi.fastutil.ints.Int2ReferenceOpenHashMap;
@@ -65,7 +64,7 @@ public class ClonedChunkSection {
                     blockData = constructDebugWorldContainer(pos);
                 }
                 blockEntityMap = copyBlockEntities(chunk, pos);
-                if (blockEntityMap != null && ArchitecturyTarget.getCurrentTarget().equals("fabric")) {
+                if (blockEntityMap != null && SodiumMultiPlat.getCurrentTarget().equals("fabric")) {
                     blockEntityRenderDataMap = copyBlockEntityRenderData(level, blockEntityMap);
                 }
             }

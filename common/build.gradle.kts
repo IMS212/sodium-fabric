@@ -1,5 +1,14 @@
-architectury {
-    common("fabric", "neoforge")
+plugins {
+    id("idea")
+    id("java")
+    id("maven-publish")
+    id("org.spongepowered.gradle.vanilla") version "0.2.1-SNAPSHOT"
+}
+
+repositories {
+    maven {
+        url = uri("https://maven.fabricmc.net/")
+    }
 }
 
 val MINECRAFT_VERSION: String by rootProject.extra
@@ -7,9 +16,18 @@ val FABRIC_LOADER_VERSION: String by rootProject.extra
 
 dependencies {
     // We depend on Fabric Loader here for Mixin.
-    modImplementation("net.fabricmc:fabric-loader:${FABRIC_LOADER_VERSION}")
-    modCompileOnly("net.fabricmc.fabric-api:fabric-renderer-api-v1:3.2.9+1172e897d7")
+    implementation(group = "org.spongepowered", name = "mixin", version = "0.8.5")
+    implementation("org.ow2.asm:asm-tree:9.7")
+    annotationProcessor("io.github.llamalad7:mixinextras-common:0.3.5")
+    compileOnly("io.github.llamalad7:mixinextras-common:0.3.5")
+    //compileOnly("net.fabricmc.fabric-api:fabric-renderer-api-v1:3.2.9+1172e897d7")
     implementation(group = "com.lodborg", name = "interval-tree", version = "1.0.0")
+}
+
+minecraft {
+    version(MINECRAFT_VERSION)
+    accessWideners(file("src/main/resources/sodium.accesswidener"))
+
 }
 
 sourceSets {
@@ -37,6 +55,7 @@ sourceSets {
     }
 }
 
+/*
 loom {
     mixin {
         defaultRefmapName = "sodium.refmap.json"
@@ -51,7 +70,7 @@ loom {
             sourceSet("main")
         }
     }
-}
+}*/
 
 tasks {
     getByName<JavaCompile>("compileDesktopJava") {
