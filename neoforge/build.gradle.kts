@@ -11,6 +11,9 @@ repositories {
     maven {
         url = uri("https://maven.neoforged.net/releases")
     }
+    maven {
+        url = uri("https://maven.fabricmc.net/")
+    }
 
     mavenLocal()
 }
@@ -19,6 +22,7 @@ val architecturyTransformerRuntimeClasspath: Configuration by configurations.get
 
 sourceSets {
     val service = create("service")
+    val shade = create("shade")
     val main = getByName("main")
 
     service.apply {
@@ -29,8 +33,13 @@ sourceSets {
         compileClasspath += main.compileClasspath
     }
 
+    shade.apply {
+        compileClasspath += main.compileClasspath
+    }
+
     main.apply {
         runtimeClasspath -= output
+        runtimeClasspath += shade.output
     }
 }
 
@@ -97,6 +106,7 @@ runClientJar.configure {
     into("META-INF") {
         from(sourceSets.getByName("main").output.resourcesDir!!.toPath().resolve("META-INF").resolve("mods.toml").toFile())
     }
+
     into("META-INF/jarjar") {
         from(tasks.shadowJar.get().archiveFile.get())
     }
@@ -127,6 +137,7 @@ tasks.runClient {
 
 tasks.jar {
     archiveClassifier.set("dev")
+    from(sourceSets.getByName("shade").output)
 
     from("${rootProject.projectDir}/COPYING")
     from("${rootProject.projectDir}/COPYING.LESSER")
@@ -148,6 +159,8 @@ dependencies {
     annotationProcessor("io.github.llamalad7:mixinextras-common:0.3.5")
     include("io.github.llamalad7:mixinextras-forge:0.3.5")
     implementation("io.github.llamalad7:mixinextras-forge:0.3.5")
+    modCompileOnly("net.fabricmc.fabric-api:fabric-renderer-api-v1:3.2.9+1172e897d7")
+
     common(project(":common", "namedElements")) { isTransitive = false }
     shadowCommon(project(":common", "transformProductionForge")) { isTransitive = false }
 }
