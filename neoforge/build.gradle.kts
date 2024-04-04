@@ -1,21 +1,20 @@
 plugins {
+    id("net.neoforged.gradle.userdev") version "7.0.97"
     id("com.github.johnrengelman.shadow") version "8.1.1"
-}
-
-architectury {
-    platformSetupLoomIde()
-    neoForge()
 }
 
 repositories {
     maven {
         url = uri("https://maven.neoforged.net/releases")
     }
+    maven {
+        url = uri("https://maven.fabricmc.net/")
+    }
 
     mavenLocal()
 }
-val developmentNeoForge: Configuration by configurations.getting
-val architecturyTransformerRuntimeClasspath: Configuration by configurations.getting
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 sourceSets {
     val service = create("service")
@@ -40,42 +39,29 @@ sourceSets {
     }
 }
 
-val common: Configuration by configurations.creating
-val shadowCommon: Configuration by configurations.creating
-
 val MINECRAFT_VERSION: String by rootProject.extra
 val NEOFORGE_VERSION: String by rootProject.extra
 base.archivesName.set("sodium-forge")
 
-loom {
-    silentMojangMappingsLicense()
-
-    accessWidenerPath = project(":common").loom.accessWidenerPath
-}
-
-configurations {
-    compileOnly.configure { extendsFrom(common) }
-}
 
 tasks.shadowJar {
     exclude("fabric.mod.json")
-    configurations = listOf(shadowCommon)
     archiveClassifier.set("dev-shadow")
 }
 
 var fullJar = tasks.register<Jar>("fullJar")
 
 fullJar.configure {
-    dependsOn(tasks.remapJar)
+    dependsOn(tasks.jar)
     from(sourceSets.getByName("service").output)
     from(project(":common").sourceSets.getByName("desktop").output)
-    manifest.from(tasks.remapJar.get().manifest)
+    manifest.from(tasks.jar.get().manifest)
     into("META-INF") {
         from(sourceSets.getByName("main").output.resourcesDir!!.toPath().resolve("META-INF").resolve("mods.toml").toFile())
     }
     from(project(":common").sourceSets.getByName("main").output.resourcesDir!!.toPath().resolve("sodium-icon.png").toFile())
     into("META-INF/jarjar") {
-        from(tasks.remapJar.get().archiveFile.get())
+        from(tasks.jar.get().archiveFile.get())
     }
 
     archiveClassifier = ""
@@ -112,19 +98,10 @@ tasks.assemble.configure {
     dependsOn(runClientJar)
 }
 
-tasks.remapJar {
-    injectAccessWidener.set(true)
-    inputFile.set(tasks.shadowJar.get().archiveFile)
-    dependsOn(tasks.shadowJar)
-    archiveClassifier.set(null as String?)
-    atAccessWideners.add("sodium.accesswidener")
-    archiveClassifier.set("modonly")
-    destinationDirectory.set(projectDir.resolve("build").resolve("devlibs"))
-}
 
-tasks.runClient {
-    classpath += files(runClientJar)
-}
+//tasks.runClient {
+//    classpath += files(runClientJar)
+//}
 
 tasks.jar {
     archiveClassifier.set("dev")
@@ -141,16 +118,31 @@ components.getByName("java") {
     }
 }
 
+/*
+// NeoGradle compiles the game, but we don't want to add our common code to the game's code
+val notNeoTask = { it : Task -> !it.name.startsWith("neo") } as Spec<Task>
+
+tasks.withType<JavaCompile>().matching(notNeoTask).configureEach {
+    source(project(":common").sourceSets.main.allSource)
+}
+
+tasks.withType<Javadoc>().matching(notNeoTask).configureEach {
+    source(project(":common").sourceSets.main.allJava)
+}
+
+tasks.withType<ProcessResources>().matching(notNeoTask).configureEach {
+    from(project(":common").sourceSets.main.resources)
+}*/
+
+
 dependencies {
-    neoForge("net.neoforged:neoforge:${NEOFORGE_VERSION}")
+    implementation("net.neoforged:neoforge:${NEOFORGE_VERSION}")
 
-    include(group = "com.lodborg", name = "interval-tree", version = "1.0.0")
-    forgeRuntimeLibrary(group = "com.lodborg", name = "interval-tree", version = "1.0.0")
+    implementation(group = "com.lodborg", name = "interval-tree", version = "1.0.0")
+    //forgeRuntimeLibrary(group = "com.lodborg", name = "interval-tree", version = "1.0.0")
 
-    common(project(":common", "namedElements")) {
-        isTransitive = false
-    }
-    shadowCommon(project(":common", "transformProductionNeoForge")) {
+    //modCompileOnly("net.fabricmc.fabric-api:fabric-renderer-api-v1:3.2.9+1172e897d7")
+    compileOnly(project(":common", "namedElements")) {
         isTransitive = false
     }
 }
