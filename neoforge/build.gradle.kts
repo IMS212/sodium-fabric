@@ -159,7 +159,7 @@ dependencies {
     annotationProcessor("io.github.llamalad7:mixinextras-common:0.3.5")
     include("io.github.llamalad7:mixinextras-forge:0.3.5")
     implementation("io.github.llamalad7:mixinextras-forge:0.3.5")
-    modCompileOnly("net.fabricmc.fabric-api:fabric-renderer-api-v1:3.2.9+1172e897d7")
+    modImplementation(files("fabric_renderer_api_v1-1.0.0.jar"))
 
     common(project(":common", "namedElements")) { isTransitive = false }
     shadowCommon(project(":common", "transformProductionForge")) { isTransitive = false }
