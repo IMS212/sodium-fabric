@@ -15,7 +15,14 @@ dependencies {
 sourceSets {
     val main = getByName("main")
     val api = create("api")
+    val headers = create("headers")
     val desktop = create("desktop")
+
+    headers.apply {
+        java {
+            compileClasspath += main.compileClasspath
+        }
+    }
 
     api.apply {
         java {
@@ -31,6 +38,7 @@ sourceSets {
 
     main.apply {
         java {
+            compileClasspath += headers.output
             compileClasspath += api.output
             runtimeClasspath += api.output
         }

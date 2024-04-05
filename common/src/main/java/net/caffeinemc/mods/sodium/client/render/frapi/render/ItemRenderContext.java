@@ -283,7 +283,7 @@ public class ItemRenderContext extends AbstractRenderContext {
     }
 
     public void bufferDefaultModel(BakedModel model, @Nullable BlockState state) {
-        if (hasTransform()) {
+        if (vanillaBufferer == null || hasTransform()) {
             VanillaModelEncoder.emitItemQuads(model, state, randomSupplier, ItemRenderContext.this);
         } else {
             vanillaBufferer.accept(model, itemStack, lightmap, overlay, poseStack, defaultVertexConsumer);

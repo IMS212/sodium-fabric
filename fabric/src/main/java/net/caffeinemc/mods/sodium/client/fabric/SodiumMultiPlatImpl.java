@@ -70,7 +70,11 @@ public class SodiumMultiPlatImpl {
     }
 
     public static Iterable<RenderType> getMaterials(BlockAndTintGetter level, BakedModel model, BlockState state, BlockPos pos, RandomSource random, Object modelData) {
-        return Collections.singleton(ItemBlockRenderTypes.getChunkRenderType(state));
+        if (state == null) {
+            return Collections.singleton(RenderType.solid());
+        } else {
+            return Collections.singleton(ItemBlockRenderTypes.getChunkRenderType(state));
+        }
     }
 
     public static List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BakedModel model, BlockState state, Direction face, RandomSource random, RenderType renderType, Object modelData) {

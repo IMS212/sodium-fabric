@@ -50,7 +50,9 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
 
         @Override
         public void emitDirectly() {
+            type = RenderType.solid();
             renderQuad(this);
+            type = null;
         }
     };
 
