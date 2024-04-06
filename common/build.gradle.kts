@@ -27,9 +27,16 @@ dependencies {
 sourceSets {
     val main = getByName("main")
     val api = create("api")
+    val workarounds = create("workarounds")
     val desktop = create("desktop")
 
     api.apply {
+        java {
+            compileClasspath += main.compileClasspath
+        }
+    }
+
+    workarounds.apply {
         java {
             compileClasspath += main.compileClasspath
         }
@@ -44,6 +51,7 @@ sourceSets {
     main.apply {
         java {
             compileClasspath += api.output
+            compileClasspath += workarounds.output
             runtimeClasspath += api.output
         }
     }
