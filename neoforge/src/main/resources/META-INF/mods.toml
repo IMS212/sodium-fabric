@@ -1,0 +1,35 @@
+modLoader = "javafml"
+loaderVersion = "*"
+license = "LGPL-3.0-only"
+
+[[mods]]
+modId = "sodium"
+
+version = "${version}"
+displayName = "Sodium"
+
+logoFile="sodium-icon.png" #optional
+
+authors="JellySquid"
+# A multi-line description for your mod. This has no minimum length, but it *is* required!
+description = '''
+Sodium is a free and open-source optimization mod for Minecraft which improves frame rates and reduces lag spikes.
+'''
+
+provides = ["indium"]
+
+[modproperties.sodium]
+"fabric-renderer-api-v1:contains_renderer"=true
+
+[[dependencies.sodium]]
+modId="minecraft"
+type="required"
+versionRange="[1.20.4,1.21)"
+ordering="NONE"
+side="CLIENT"
+
+[[mixins]]
+config = "sodium.mixins.json"
+
+[[mixins]]
+config = "sodium-forge.mixins.json"
