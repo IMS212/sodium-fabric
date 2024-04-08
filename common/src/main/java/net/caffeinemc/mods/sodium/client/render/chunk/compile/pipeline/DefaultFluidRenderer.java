@@ -331,10 +331,10 @@ public class DefaultFluidRenderer {
                 }
 
                 float u1 = sprite.getU(0.0F);
-                float u2 = sprite.getU(0.5F);
-                float v1 = sprite.getV((1.0F - c1) * 0.5F);
-                float v2 = sprite.getV((1.0F - c2) * 0.5F);
-                float v3 = sprite.getV(0.5F);
+                float u2 = sprite.getU(8.0F);
+                float v1 = sprite.getV((1.0F - c1) * 16.0F  * 0.5F);
+                float v2 = sprite.getV((1.0F - c2) * 16.0F  * 0.5F);
+                float v3 = sprite.getV(8.0F);
 
                 quad.setSprite(sprite);
 
