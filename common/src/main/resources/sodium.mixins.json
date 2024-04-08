@@ -2,6 +2,7 @@
   "package": "net.caffeinemc.mods.sodium.mixin",
   "required": true,
   "compatibilityLevel": "JAVA_17",
+  "refmap" : "sodium.refmap.json",
   "plugin": "net.caffeinemc.mods.sodium.mixin.SodiumMixinPlugin",
   "injectors": {
     "defaultRequire": 1
@@ -26,7 +27,7 @@
     "core.render.immediate.consumer.BufferSourceMixin",
     "core.render.immediate.consumer.VertexMultiConsumerMixin$DoubleMixin",
     "core.render.immediate.consumer.VertexMultiConsumerMixin$MultipleMixin",
-    "core.render.world.RenderBuffersMixin",
+    "core.render.world.ChunkRenderDispatcherMixin",
     "core.render.world.LevelRendererMixin",
     "core.world.biome.ClientLevelMixin",
     "core.world.chunk.ZeroBitStorageMixin",
@@ -84,8 +85,6 @@
     "features.textures.animations.upload.SpriteContentsFrameInfoAccessor",
     "features.textures.animations.upload.SpriteContentsTickerAccessor",
     "features.textures.animations.upload.SpriteContentsInterpolationMixin",
-    "features.textures.mipmaps.MipmapGeneratorMixin",
-    "features.textures.mipmaps.SpriteContentsMixin",
     "features.world.biome.BiomeMixin",
     "features.world.storage.ClientChunkCacheMixin",
     "workarounds.context_creation.WindowMixin",

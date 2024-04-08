@@ -1,12 +1,13 @@
 
 plugins {
     id("java")
+    id("idea")
 }
 
-val MINECRAFT_VERSION by extra { "1.20.4" }
-val NEOFORGE_VERSION by extra { "20.4.219" }
+val MINECRAFT_VERSION by extra { "1.20.1" }
+val NEOFORGE_VERSION by extra { "47.2.23" }
 val FABRIC_LOADER_VERSION by extra { "0.15.6" }
-val FABRIC_API_VERSION by extra { "0.96.0+1.20.4" }
+val FABRIC_API_VERSION by extra { "0.92.0+1.20.1" }
 
 // https://semver.org/
 val MOD_VERSION by extra { "0.6.0" }
@@ -22,6 +23,7 @@ tasks.withType<JavaCompile> {
 
 subprojects {
     apply(plugin = "maven-publish")
+    apply(plugin = "idea")
 
     java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 

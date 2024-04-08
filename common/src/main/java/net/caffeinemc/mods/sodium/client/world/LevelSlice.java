@@ -140,7 +140,7 @@ public final class LevelSlice implements BlockAndTintGetter, BiomeColorView, Ren
             }
         }
 
-        Object modelData = SodiumPlatformHelpers.INSTANCE.getRenderData(level, box, null);
+        Object modelData = SodiumPlatformHelpers.INSTANCE.getRenderData(level, pos.chunk(), null);
 
         return new ChunkRenderContext(pos, sections, box, modelData);
     }

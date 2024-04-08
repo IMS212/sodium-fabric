@@ -1,13 +1,13 @@
 package net.caffeinemc.mods.sodium.mixin.core.gui;
 
-import net.minecraft.client.multiplayer.LevelLoadStatusManager;
+import net.minecraft.client.gui.screens.ReceivingLevelScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-@Mixin(LevelLoadStatusManager.class)
+@Mixin(ReceivingLevelScreen.class)
 public class LevelLoadStatusManagerMixin {
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;blockPosition()Lnet/minecraft/core/BlockPos;"))
     private BlockPos redirect$getPlayerBlockPosition(LocalPlayer instance) {

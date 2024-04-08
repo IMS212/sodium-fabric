@@ -1,12 +1,16 @@
 package net.caffeinemc.mods.sodium.service;
 
+import com.google.common.collect.ImmutableMap;
 import com.sun.jna.platform.unix.LibC;
-import net.neoforged.fml.loading.moddiscovery.AbstractJarFileModLocator;
+import net.minecraftforge.fml.loading.moddiscovery.AbstractJarFileModLocator;
 import org.lwjgl.system.Configuration;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -23,7 +27,14 @@ public class ModLocator extends AbstractJarFileModLocator {
             throw new RuntimeException(e);
         }
     }
-
+    // I honestly have no idea why this works.
+    private static Path getJarInJar(Path name) throws IOException, URISyntaxException {
+        // Code taken from JarInJarDependencyLocator#loadModFileFrom
+        URI filePathUri = new URI("jij:" + name.toAbsolutePath().toUri().getRawSchemeSpecificPart()).normalize();
+        Map<String, ?> outerFsArgs = ImmutableMap.of("packagePath", name);
+        FileSystem zipFS = FileSystems.newFileSystem(filePathUri, outerFsArgs);
+        return zipFS.getPath("/");
+    }
     @Override
     public String name() {
         return "sodium-locator";

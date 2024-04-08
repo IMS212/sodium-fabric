@@ -76,8 +76,8 @@ public class WindowMixin {
         }
     }
 
-    @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL;createCapabilities()Lorg/lwjgl/opengl/GLCapabilities;"))
-    private GLCapabilities postWindowCreated() {
+    @WrapOperation(method = "<init>", at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL;createCapabilities()Lorg/lwjgl/opengl/GLCapabilities;"))
+    private GLCapabilities postWindowCreated(Operation<GLCapabilities> original) {
         GLCapabilities capabilities = GL.createCapabilities();
 
         // Capture the current WGL context so that we can detect it being replaced later.

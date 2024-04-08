@@ -16,6 +16,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -35,7 +36,7 @@ public interface SodiumPlatformHelpers {
 
     Path getConfigDir();
 
-    Object getRenderData(Level level, BoundingBox pos, BlockEntity value);
+    Object getRenderData(Level level, ChunkPos pos, BlockEntity value);
 
     boolean isDevelopmentEnvironment();
 
