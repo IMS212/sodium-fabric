@@ -7,6 +7,7 @@ plugins {
     id("java-library")
     id("org.spongepowered.mixin") version "0.7-SNAPSHOT"
 }
+
 base {
     archivesName = "sodium-forge-1.20.1"
 }
@@ -175,8 +176,7 @@ val fullJar: Jar by tasks.creating(Jar::class) {
     from(sourceSets.getByName("service").output)
     from(project(":common").sourceSets.getByName("desktop").output)
     from(project(":common").sourceSets.getByName("workarounds").output)
-    // Despite not being part of jarjar metadata, the mod jar must be located in this directory
-    // in order to be deobfuscated by FG in userdev environments
+
     into("META-INF/jarjar/") {
         from(tasks.jarJar.get().archiveFile)
     }
@@ -186,6 +186,8 @@ val fullJar: Jar by tasks.creating(Jar::class) {
 
         from(projectDir.resolve("src").resolve("main").resolve("resources").resolve("META-INF").resolve("mods.toml"))
     }
+
+    from(rootDir.resolve("LICENSE.md"))
 
     filesMatching("mods.toml") {
         expand(mapOf("version" to MOD_VERSION))

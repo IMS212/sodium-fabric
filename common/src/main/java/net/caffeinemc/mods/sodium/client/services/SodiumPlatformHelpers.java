@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.caffeinemc.mods.sodium.client.model.color.ColorProviderRegistry;
 import net.caffeinemc.mods.sodium.client.model.light.LightPipelineProvider;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.FluidRenderer;
+import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderType;
@@ -65,4 +66,6 @@ public interface SodiumPlatformHelpers {
     TextureAtlasSprite findInBlockAtlas(float texU, float texV);
 
     boolean isEarlyLoadingScreenActive();
+
+    Object getProperModelData(BakedModel model, BlockState state, BlockPos pos, LevelSlice slice, Object modelData);
 }
