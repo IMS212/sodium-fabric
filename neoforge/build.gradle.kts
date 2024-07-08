@@ -3,7 +3,7 @@ import groovy.lang.Closure
 plugins {
     id("idea")
     id("maven-publish")
-    id("net.neoforged.moddev") version "0.1.110"
+    id("net.neoforged.moddev") version "0.1.126"
     id("java-library")
 }
 
@@ -30,6 +30,10 @@ sourceSets {
     }
 }
 
+val serviceClasspath by configurations.creating {
+    isCanBeConsumed = false
+}
+
 repositories {
     maven {
         url = uri("https://maven.pkg.github.com/ims212/Forge_Fabric_API")
@@ -54,42 +58,60 @@ repositories {
     }
 }
 
-val fullJar: Jar by tasks.creating(Jar::class) {
-    dependsOn(tasks.jar)
+val serviceJar: Jar by tasks.creating(Jar::class) {
     from(sourceSets.getByName("service").output)
-    from(project(":common").sourceSets.getByName("desktop").output)
     from(project(":common").sourceSets.getByName("workarounds").output)
-
-    into("META-INF/jarjar/") {
-        from(tasks.jar.get().archiveFile)
-    }
 
     into("META-INF") {
         from(projectDir.resolve("src").resolve("main").resolve("resources").resolve("sodium-icon.png"))
 
         from(projectDir.resolve("src").resolve("main").resolve("resources").resolve("META-INF").resolve("neoforge.mods.toml"))
     }
-
     from(rootDir.resolve("LICENSE.md"))
+    manifest.attributes["FMLModType"] = "LIBRARY"
+    archiveClassifier = "service"
+}
+
+configurations {
+    create("serviceConfig") {
+        isCanBeConsumed = true
+        isCanBeResolved = false
+        outgoing {
+            artifact((tasks.getByName("serviceJar") as Jar).archiveFile.get().asFile) {
+
+            }
+        }
+    }
+}
+
+artifacts {
+    add("serviceConfig", serviceJar) {
+        name = "sodium-service"
+        builtBy(tasks.getByName("serviceJar"))
+    }
+}
+
+tasks.build {
+}
+
+tasks.jar {
+
+    from(project(":common").sourceSets.getByName("desktop").output)
+    from(rootDir.resolve("LICENSE.md"))
+    //into("META-INF/jarjar/") {
+    //    from((tasks.getByName("serviceJar") as Jar).archiveFile)
+    //}
 
     filesMatching("neoforge.mods.toml") {
         expand(mapOf("version" to MOD_VERSION))
     }
 
+    dependencies {
+        jarJar(project(":neoforge", "serviceConfig")) {
+            setGroup("")
+        }
+    }
     manifest.attributes["Main-Class"] = "net.caffeinemc.mods.sodium.desktop.LaunchWarn"
-    manifest.attributes["FMLModType"] = "LIBRARY"
-
-}
-
-tasks.build {
-    dependsOn.clear()
-    dependsOn(fullJar)
-}
-
-tasks.jar {
-    from(rootDir.resolve("LICENSE.md"))
-
-    archiveClassifier = "modonly"
 }
 
 neoForge {
@@ -103,8 +125,6 @@ neoForge {
 
     runs {
         create("client") {
-            additionalRuntimeClasspath.add("com.lodborg:interval-tree:1.0.0")
-            additionalRuntimeClasspath.add(rootProject.project(":common").sourceSets.getByName("workarounds").output)
             client()
         }
     }
@@ -115,8 +135,6 @@ neoForge {
         }
     }
 }
-
-val localRuntime = configurations.create("localRuntime")
 
 fun includeDep(dependency : String, closure : Action<ExternalModuleDependency>) {
     dependencies.implementation(dependency, closure)
@@ -137,14 +155,6 @@ dependencies {
     }
     includeDep("com.lodborg:interval-tree:1.0.0")
     includeDep("org.sinytra.forgified-fabric-api:fabric-block-view-api-v2:1.0.10+9afaaf8cd1")
-}
-
-// Sets up a dependency configuration called 'localRuntime'.
-// This configuration should be used instead of 'runtimeOnly' to declare
-// a dependency that will be present for runtime testing but that is
-// "optional", meaning it will not be pulled by dependents of this mod.
-configurations {
-    runtimeClasspath.get().extendsFrom(localRuntime)
 }
 
 // NeoGradle compiles the game, but we don't want to add our common code to the game's code
