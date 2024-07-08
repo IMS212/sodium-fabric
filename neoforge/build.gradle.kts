@@ -30,10 +30,6 @@ sourceSets {
     }
 }
 
-val serviceClasspath by configurations.creating {
-    isCanBeConsumed = false
-}
-
 repositories {
     maven {
         url = uri("https://maven.pkg.github.com/ims212/Forge_Fabric_API")
@@ -63,9 +59,8 @@ val serviceJar: Jar by tasks.creating(Jar::class) {
     from(project(":common").sourceSets.getByName("workarounds").output)
 
     into("META-INF") {
-        from(projectDir.resolve("src").resolve("main").resolve("resources").resolve("sodium-icon.png"))
-
-        from(projectDir.resolve("src").resolve("main").resolve("resources").resolve("META-INF").resolve("neoforge.mods.toml"))
+        from(projectDir.resolve("src/main/resources/sodium-icon.png"))
+        from(projectDir.resolve("src/main/resources/META-INF/neoforge.mods.toml"))
     }
     from(rootDir.resolve("LICENSE.md"))
     manifest.attributes["FMLModType"] = "LIBRARY"
@@ -77,21 +72,13 @@ configurations {
         isCanBeConsumed = true
         isCanBeResolved = false
         outgoing {
-            artifact((tasks.getByName("serviceJar") as Jar).archiveFile.get().asFile) {
-
-            }
+            artifact(serviceJar)
         }
     }
 }
 
-artifacts {
-    add("serviceConfig", serviceJar) {
-        name = "sodium-service"
-        builtBy(tasks.getByName("serviceJar"))
-    }
-}
-
-tasks.build {
+dependencies {
+    jarJar(project(":neoforge", "serviceConfig"))
 }
 
 tasks.jar {
@@ -106,11 +93,6 @@ tasks.jar {
         expand(mapOf("version" to MOD_VERSION))
     }
 
-    dependencies {
-        jarJar(project(":neoforge", "serviceConfig")) {
-            setGroup("")
-        }
-    }
     manifest.attributes["Main-Class"] = "net.caffeinemc.mods.sodium.desktop.LaunchWarn"
 }
 
