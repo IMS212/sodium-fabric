@@ -24,18 +24,26 @@ import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.SortBe
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkMeshAttribute;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
 import net.caffeinemc.mods.sodium.client.render.viewport.CameraTransform;
+import net.caffeinemc.mods.sodium.client.services.PlatformLevelAccess;
 import net.caffeinemc.mods.sodium.client.util.BitwiseMath;
+import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.RenderType;
+import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryUtil;
 import java.util.Iterator;
 
 public class DefaultChunkRenderer extends ShaderChunkRenderer {
     private final MultiDrawBatch batch;
 
+    private final RenderSectionManager manager;
     private final SharedQuadIndexBuffer sharedIndexBuffer;
 
-    public DefaultChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
+    public DefaultChunkRenderer(RenderSectionManager manager, RenderDevice device, ChunkVertexType vertexType) {
         super(device, vertexType);
 
+        this.manager = manager;
         this.batch = new MultiDrawBatch((ModelQuadFacing.COUNT * RenderRegion.REGION_SIZE) + 1);
         this.sharedIndexBuffer = new SharedQuadIndexBuffer(device.createCommandList(), SharedQuadIndexBuffer.IndexType.INTEGER);
     }
@@ -94,6 +102,13 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
 
             setModelMatrixUniforms(shader, region, camera);
             executeDrawBatch(commandList, tessellation, this.batch);
+        }
+
+        RenderType[] renderTypes = renderPass.getVanillaLayers();
+        LevelRendererExtension levelRenderer = manager.getRenderer().getParent();
+
+        for (RenderType renderType : renderTypes) {
+            PlatformLevelAccess.getInstance().runChunkLayerEvents(renderType, ((LevelRenderer) levelRenderer), new Matrix4f(matrices.modelView()), new Matrix4f(matrices.projection()), levelRenderer.sodium$getTickCount(), Minecraft.getInstance().gameRenderer.getMainCamera(), levelRenderer.sodium$getFrustum());
         }
 
         super.end(renderPass);

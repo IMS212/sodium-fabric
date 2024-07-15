@@ -71,6 +71,16 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
         return this.renderer;
     }
 
+    @Override
+    public Frustum sodium$getFrustum() {
+        return cullingFrustum;
+    }
+
+    @Override
+    public int sodium$getTickCount() {
+        return ticks;
+    }
+
     @Redirect(method = "allChanged()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Options;getEffectiveRenderDistance()I", ordinal = 1))
     private int nullifyBuiltChunkStorage(Options options) {
         // Do not allow any resources to be allocated
@@ -79,7 +89,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void init(Minecraft client, EntityRenderDispatcher entityRenderDispatcher, BlockEntityRenderDispatcher blockEntityRenderDispatcher, RenderBuffers bufferBuilderStorage, CallbackInfo ci) {
-        this.renderer = new SodiumWorldRenderer(client);
+        this.renderer = new SodiumWorldRenderer(this, client);
     }
 
     @Inject(method = "setLevel", at = @At("RETURN"))
@@ -129,8 +139,6 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
         } finally {
             RenderDevice.exitManagedCode();
         }
-
-        PlatformLevelAccess.getInstance().runChunkLayerEvents(renderLayer, ((LevelRenderer) (Object) this), modelMatrix, projectionMatrix, this.ticks, this.minecraft.gameRenderer.getMainCamera(), this.cullingFrustum);
     }
 
     /**
@@ -139,7 +147,6 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
      */
     @Overwrite
     private void setupRender(Camera camera, Frustum frustum, boolean hasForcedFrustum, boolean spectator) {
-
         var viewport = ((ViewportProvider) frustum).sodium$createViewport();
         var updateChunksImmediately = PlatformInfoAccess.getInstance().isFlawlessFramesActive();
 

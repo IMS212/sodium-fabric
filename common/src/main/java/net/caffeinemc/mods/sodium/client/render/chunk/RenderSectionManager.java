@@ -11,6 +11,7 @@ import it.unimi.dsi.fastutil.objects.ReferenceSets;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.BuilderTaskOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkSortOutput;
@@ -68,6 +69,8 @@ public class RenderSectionManager {
     private final RenderRegionManager regions;
     private final ClonedChunkSectionCache sectionCache;
 
+    private final SodiumWorldRenderer renderer;
+
     private final Long2ReferenceMap<RenderSection> sectionByPosition = new Long2ReferenceOpenHashMap<>();
 
     private final ConcurrentLinkedDeque<ChunkJobResult<? extends BuilderTaskOutput>> buildResults = new ConcurrentLinkedDeque<>();
@@ -99,8 +102,9 @@ public class RenderSectionManager {
     private @Nullable BlockPos cameraBlockPos;
     private @Nullable Vector3dc cameraPosition;
 
-    public RenderSectionManager(ClientLevel level, int renderDistance, CommandList commandList) {
-        this.chunkRenderer = new DefaultChunkRenderer(RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
+    public RenderSectionManager(SodiumWorldRenderer renderer, ClientLevel level, int renderDistance, CommandList commandList) {
+        this.renderer = renderer;
+        this.chunkRenderer = new DefaultChunkRenderer(this, RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
 
         this.level = level;
         this.builder = new ChunkBuilder(level, ChunkMeshFormats.COMPACT);
@@ -735,5 +739,9 @@ public class RenderSectionManager {
 
     public Collection<RenderSection> getSectionsWithGlobalEntities() {
         return ReferenceSets.unmodifiable(this.sectionsWithGlobalEntities);
+    }
+
+    public SodiumWorldRenderer getRenderer() {
+        return renderer;
     }
 }

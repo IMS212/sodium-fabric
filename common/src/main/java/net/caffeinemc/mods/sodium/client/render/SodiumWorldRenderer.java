@@ -51,6 +51,7 @@ import java.util.function.Consumer;
  */
 public class SodiumWorldRenderer {
     private final Minecraft client;
+    private final LevelRendererExtension parent;
 
     private ClientLevel level;
     private int renderDistance;
@@ -89,7 +90,8 @@ public class SodiumWorldRenderer {
         return null;
     }
 
-    public SodiumWorldRenderer(Minecraft client) {
+    public SodiumWorldRenderer(LevelRendererExtension parent, Minecraft client) {
+        this.parent = parent;
         this.client = client;
     }
 
@@ -116,6 +118,10 @@ public class SodiumWorldRenderer {
         try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
             this.initRenderer(commandList);
         }
+    }
+
+    public LevelRendererExtension getParent() {
+        return parent;
     }
 
     private void unloadLevel() {
@@ -267,7 +273,7 @@ public class SodiumWorldRenderer {
 
         this.renderDistance = this.client.options.getEffectiveRenderDistance();
 
-        this.renderSectionManager = new RenderSectionManager(this.level, this.renderDistance, commandList);
+        this.renderSectionManager = new RenderSectionManager(this, this.level, this.renderDistance, commandList);
 
         var tracker = ChunkTrackerHolder.get(this.level);
         ChunkTracker.forEachChunk(tracker.getReadyChunks(), this.renderSectionManager::onChunkAdded);
