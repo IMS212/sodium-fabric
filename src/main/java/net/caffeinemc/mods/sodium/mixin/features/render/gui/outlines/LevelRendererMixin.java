@@ -4,7 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.caffeinemc.mods.sodium.client.render.vertex.VertexConsumerUtils;
 import net.caffeinemc.mods.sodium.api.vertex.format.common.LineVertex;
-import net.caffeinemc.mods.sodium.client.render.vertex.buffer.BufferBuilderExtension;
+import net.caffeinemc.mods.sodium.client.render.vertex.buffer.DuplicatedBufferBuilder;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
 import net.caffeinemc.mods.sodium.api.util.NormI8;
@@ -81,7 +81,7 @@ public class LevelRendererMixin {
         float v8y = Math.fma(position.m01(), x2f, Math.fma(position.m11(), y2f, Math.fma(position.m21(), z2f, position.m31())));
         float v8z = Math.fma(position.m02(), x2f, Math.fma(position.m12(), y2f, Math.fma(position.m22(), z2f, position.m32())));
 
-        if (vertexConsumer instanceof BufferBuilderExtension ext) {
+        if (vertexConsumer instanceof DuplicatedBufferBuilder ext) {
             ext.sodium$duplicateVertex();
         }
 

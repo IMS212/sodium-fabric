@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.mixin.features.textures.animations.tracking;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteUtil;
+import net.caffeinemc.mods.sodium.client.render.vertex.BufferBuilderExtension;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.SingleQuadParticle;
@@ -34,7 +35,11 @@ public abstract class TextureSheetParticleMixin extends SingleQuadParticle {
     @Override
     public void render(VertexConsumer vertexConsumer, Camera camera, float tickDelta) {
         if (this.shouldTickSprite) {
-            SpriteUtil.markSpriteActive(this.sprite);
+            if (vertexConsumer instanceof BufferBuilderExtension extension) {
+                extension.addSprite(sprite);
+            } else {
+                SpriteUtil.markSpriteActive(sprite);
+            }
         }
 
         super.render(vertexConsumer, camera, tickDelta);

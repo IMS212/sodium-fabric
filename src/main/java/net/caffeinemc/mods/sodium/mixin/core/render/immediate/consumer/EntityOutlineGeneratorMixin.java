@@ -7,6 +7,8 @@ import net.caffeinemc.mods.sodium.api.vertex.attributes.CommonVertexAttribute;
 import net.caffeinemc.mods.sodium.api.vertex.attributes.common.ColorAttribute;
 import net.caffeinemc.mods.sodium.api.vertex.format.VertexFormatDescription;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
+import net.caffeinemc.mods.sodium.client.render.vertex.BufferBuilderExtension;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import org.lwjgl.system.MemoryStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(targets = "net/minecraft/client/renderer/OutlineBufferSource$EntityOutlineGenerator")
-public abstract class EntityOutlineGeneratorMixin implements VertexBufferWriter {
+public abstract class EntityOutlineGeneratorMixin implements VertexBufferWriter, BufferBuilderExtension {
     @Shadow
     @Final
     private VertexConsumer delegate;
@@ -68,4 +70,10 @@ public abstract class EntityOutlineGeneratorMixin implements VertexBufferWriter 
         }
     }
 
+    @Override
+    public void addSprite(TextureAtlasSprite sprite) {
+        if (this.delegate instanceof BufferBuilderExtension extension) {
+            extension.addSprite(sprite);
+        }
+    }
 }

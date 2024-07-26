@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.caffeinemc.mods.sodium.api.vertex.attributes.CommonVertexAttribute;
 import net.caffeinemc.mods.sodium.api.vertex.attributes.common.TextureAttribute;
 import net.caffeinemc.mods.sodium.api.vertex.format.VertexFormatDescription;
+import net.caffeinemc.mods.sodium.client.render.vertex.BufferBuilderExtension;
 import net.minecraft.client.renderer.SpriteCoordinateExpander;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
@@ -17,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SpriteCoordinateExpander.class)
-public class SpriteCoordinateExpanderMixin implements VertexBufferWriter {
+public class SpriteCoordinateExpanderMixin implements VertexBufferWriter, BufferBuilderExtension {
     @Shadow
     @Final
     private VertexConsumer delegate;
@@ -40,6 +41,10 @@ public class SpriteCoordinateExpanderMixin implements VertexBufferWriter {
         this.maxV = sprite.getV1();
 
         this.canUseIntrinsics = VertexBufferWriter.tryOf(this.delegate) != null;
+
+        if (this.delegate instanceof BufferBuilderExtension extension) {
+            extension.addSprite(sprite);
+        }
     }
 
     @Override
@@ -90,6 +95,13 @@ public class SpriteCoordinateExpanderMixin implements VertexBufferWriter {
             TextureAttribute.put(ptr + offsetUV, ut, vt);
 
             ptr += stride;
+        }
+    }
+
+    @Override
+    public void addSprite(TextureAtlasSprite sprite) {
+        if (this.delegate instanceof BufferBuilderExtension extension) {
+            extension.addSprite(sprite);
         }
     }
 }
