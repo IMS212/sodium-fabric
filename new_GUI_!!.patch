@@ -1,0 +1,1803 @@
+Subject: [PATCH] new GUI !!
+---
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionGroup.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionGroup.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionGroup.java
+--- a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionGroup.java	(revision acf5e6180e4df362307fd19c0024f09fe7df656b)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionGroup.java	(date 1722378466453)
+@@ -4,6 +4,7 @@
+ import org.apache.commons.lang3.Validate;
+ 
+ import java.util.ArrayList;
++import java.util.Collection;
+ import java.util.List;
+ 
+ public class OptionGroup {
+@@ -27,6 +28,12 @@
+         public Builder add(Option<?> option) {
+             this.options.add(option);
+ 
++            return this;
++        }
++
++        public Builder addAll(Collection<Option<?>> options) {
++            this.options.addAll(options);
++
+             return this;
+         }
+ 
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/SearchWidget.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/SearchWidget.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/SearchWidget.java
+new file mode 100644
+--- /dev/null	(date 1722380719929)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/SearchWidget.java	(date 1722380719929)
+@@ -0,0 +1,471 @@
++package net.caffeinemc.mods.sodium.client.gui.widgets;
++
++import net.caffeinemc.mods.sodium.client.gui.SodiumOptionsGUI;
++import net.caffeinemc.mods.sodium.client.gui.options.Option;
++import net.caffeinemc.mods.sodium.client.gui.options.OptionPage;
++import net.caffeinemc.mods.sodium.client.util.Dim2i;
++import net.minecraft.Util;
++import net.minecraft.client.Minecraft;
++import net.minecraft.client.gui.ComponentPath;
++import net.minecraft.client.gui.Font;
++import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.gui.components.Renderable;
++import net.minecraft.client.gui.navigation.CommonInputs;
++import net.minecraft.client.gui.navigation.FocusNavigationEvent;
++import net.minecraft.client.gui.navigation.ScreenRectangle;
++import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.renderer.RenderType;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.chat.Style;
++import net.minecraft.util.FormattedCharSequence;
++import net.minecraft.util.Mth;
++import net.minecraft.util.StringUtil;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++import org.lwjgl.glfw.GLFW;
++
++import java.util.Objects;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.BiFunction;
++import java.util.function.Predicate;
++
++public class SearchWidget extends AbstractWidget implements Renderable {
++    private final Dim2i dim;
++    private final Runnable action;
++    private final boolean drawBackground;
++    private final boolean leftAlign;
++    private final Font font = Minecraft.getInstance().font;
++    private final Predicate<String> textPredicate = Objects::nonNull;
++    private final SodiumOptionsGUI gui;
++    protected boolean selecting;
++    protected String text = "";
++    protected int maxLength = 100;
++    protected boolean visible = true;
++    protected boolean editable = true;
++    private int firstCharacterIndex;
++    private int selectionStart;
++    private int selectionEnd;
++    private int lastCursorPosition = this.getCursor();
++    private @NotNull Style style = Style.defaults();
++    private final BiFunction<String, Integer, FormattedCharSequence> renderTextProvider = (string, firstCharacterIndex) -> FormattedCharSequence.forward(string, net.minecraft.network.chat.Style.EMPTY);
++
++    private boolean selected;
++    private boolean enabled = true;
++
++    private Component label;
++
++    public SearchWidget(SodiumOptionsGUI gui, Dim2i dim, Runnable action, boolean drawBackground, boolean leftAlign) {
++        this.gui = gui;
++        this.dim = dim;
++        this.label = Component.empty();
++        this.action = action;
++        this.drawBackground = drawBackground;
++        this.leftAlign = leftAlign;
++    }
++
++    @Override
++    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
++        if (!this.visible) {
++            return;
++        }
++        if (!this.isHovered() && this.text.isBlank()) {
++            String key = "rso.search_bar_empty";
++            Component text = Component.translatable(key);
++            if (text.getString().equals(key))
++                text = Component.literal("Search options...");
++            this.drawString(guiGraphics, text, this.dim.x() + 6, this.dim.y() + 6, 0xFFAAAAAA);
++        }
++
++        this.drawRect(guiGraphics, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), this.isHovered() ? 0xE0000000 : 0x90000000);
++        int j = this.selectionStart - this.firstCharacterIndex;
++        int k = this.selectionEnd - this.firstCharacterIndex;
++        String string = this.font.plainSubstrByWidth(this.text.substring(this.firstCharacterIndex), this.getInnerWidth());
++        boolean bl = j >= 0 && j <= string.length();
++        int l = this.dim.x() + 6;
++        int m = this.dim.y() + 6;
++        int n = l;
++        if (k > string.length()) {
++            k = string.length();
++        }
++        if (!string.isEmpty()) {
++            String string2 = bl ? string.substring(0, j) : string;
++            n = guiGraphics.drawString(this.font, this.renderTextProvider.apply(string2, this.firstCharacterIndex), n, m, 0xFFFFFFFF);
++        }
++        boolean bl3 = this.selectionStart < this.text.length() || this.text.length() >= this.getMaxLength();
++        int o = n;
++        if (!bl) {
++            o = j > 0 ? l + this.dim.width() - 12 : l;
++        } else if (bl3) {
++            --o;
++            --n;
++        }
++        if (!string.isEmpty() && bl && j < string.length()) {
++            guiGraphics.drawString(this.font, this.renderTextProvider.apply(string.substring(j), this.selectionStart), n, m, 0xFFFFFFFF);
++        }
++        // Cursor
++        if (this.isHovered()) {
++            guiGraphics.fill(RenderType.guiOverlay(), o, m - 1, o + 1, m + 1 + this.font.lineHeight, -3092272);
++        }
++        // Highlighted text
++        if (k != j) {
++            int p = l + this.font.width(string.substring(0, k));
++            //this.drawSelectionHighlight(guiGraphics, o, m - 1, p - 1, m + 1 + this.font.lineHeight);
++        }
++    }
++
++    public void setStyle(@NotNull Style style) {
++        Objects.requireNonNull(style);
++
++        this.style = style;
++    }
++
++    public void setSelected(boolean selected) {
++        this.selected = selected;
++    }
++
++    @Override
++    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++        int i = Mth.floor(mouseX) - this.dim.x() - 6;
++        String string = this.font.plainSubstrByWidth(this.text.substring(this.firstCharacterIndex), this.getInnerWidth());
++        this.setCursor(this.font.plainSubstrByWidth(string, i).length() + this.firstCharacterIndex);
++        this.hovered = this.dim.containsCursor(mouseX, mouseY);
++
++        this.setFocused(this.dim.containsCursor(mouseX, mouseY));
++        //this.pages.forEach(page -> page
++        //         .getOptions()
++        //        .stream()
++        //        .filter(OptionExtended.class::isInstance)
++        //       .map(OptionExtended.class::cast)
++        //        .forEach(optionExtended -> optionExtended.setSelected(false)));
++        return this.isHovered();
++    }
++    @Override
++    public boolean charTyped(char chr, int modifiers) {
++        if (!this.isActive()) {
++            return false;
++        }
++        if (StringUtil.isAllowedChatCharacter(chr)) {
++            if (this.editable) {
++                this.write(Character.toString(chr));
++            }
++            return true;
++        }
++        return false;
++    }
++    @Override
++    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++        if (!this.isHovered()) {
++            return false;
++        } else {
++            this.selecting = Screen.hasShiftDown();
++            if (Screen.isSelectAll(keyCode)) {
++                this.setCursorToEnd();
++                this.setSelectionEnd(0);
++                return true;
++            } else if (Screen.isCopy(keyCode)) {
++                Minecraft.getInstance().keyboardHandler.setClipboard(this.getSelectedText());
++                return true;
++            } else if (Screen.isPaste(keyCode)) {
++                if (this.editable) {
++                    this.write(Minecraft.getInstance().keyboardHandler.getClipboard());
++                }
++
++                return true;
++            } else if (Screen.isCut(keyCode)) {
++                Minecraft.getInstance().keyboardHandler.setClipboard(this.getSelectedText());
++                if (this.editable) {
++                    this.write("");
++                }
++
++                return true;
++            } else {
++                switch (keyCode) {
++                    case GLFW.GLFW_KEY_ENTER -> {
++                        if (this.editable) {
++                            int count = 0;
++                            this.gui.setSearch(this.text);
++                            this.gui.rebuildGUI();
++                        }
++                        return true;
++                    }
++                    case GLFW.GLFW_KEY_BACKSPACE -> {
++                        if (this.editable) {
++                            this.selecting = false;
++                            this.erase(-1);
++                            this.selecting = Screen.hasShiftDown();
++                        }
++                        return true;
++                    }
++                    case GLFW.GLFW_KEY_DELETE -> {
++                        if (this.editable) {
++                            this.selecting = false;
++                            this.erase(1);
++                            this.selecting = Screen.hasShiftDown();
++                        }
++                        return true;
++                    }
++                    case GLFW.GLFW_KEY_RIGHT -> {
++                        if (Screen.hasControlDown()) {
++                            this.setCursor(this.getWordSkipPosition(1));
++                        } else {
++                            this.moveCursor(1);
++                        }
++                        boolean state = this.getCursor() != this.lastCursorPosition && this.getCursor() != this.text.length() + 1;
++                        this.lastCursorPosition = this.getCursor();
++                        return state;
++                    }
++                    case GLFW.GLFW_KEY_LEFT -> {
++                        if (Screen.hasControlDown()) {
++                            this.setCursor(this.getWordSkipPosition(-1));
++                        } else {
++                            this.moveCursor(-1);
++                        }
++                        boolean state = this.getCursor() != this.lastCursorPosition && this.getCursor() != 0;
++                        this.lastCursorPosition = this.getCursor();
++                        return state;
++                    }
++                    case GLFW.GLFW_KEY_HOME -> {
++                        this.setCursorToStart();
++                        return true;
++                    }
++                    case GLFW.GLFW_KEY_END -> {
++                        this.setCursorToEnd();
++                        return true;
++                    }
++                    default -> {
++                        return false;
++                    }
++                }
++            }
++        }
++    }
++
++    private void doAction() {
++        this.action.run();
++        this.playClickSound();
++    }
++
++    private void erase(int offset) {
++        if (Screen.hasControlDown()) {
++            this.eraseWords(offset);
++        } else {
++            this.eraseCharacters(offset);
++        }
++
++    }
++
++    private int getMaxLength() {
++        return this.maxLength;
++    }
++
++    public String getSelectedText() {
++        int i = Math.min(this.selectionStart, this.selectionEnd);
++        int j = Math.max(this.selectionStart, this.selectionEnd);
++        return this.text.substring(i, j);
++    }
++
++    public void write(String text) {
++
++
++        int i = Math.min(this.selectionStart, this.selectionEnd);
++        int j = Math.max(this.selectionStart, this.selectionEnd);
++        int k = this.maxLength - this.text.length() - (i - j);
++        String string = StringUtil.filterText(text);
++        int l = string.length();
++        if (k < l) {
++            string = string.substring(0, k);
++            l = k;
++        }
++
++        String string2 = (new StringBuilder(this.text)).replace(i, j, string).toString();
++        if (this.textPredicate.test(string2)) {
++            this.text = string2;
++            this.setSelectionStart(i + l);
++            this.setSelectionEnd(this.selectionStart);
++            this.onChanged(this.text);
++        }
++    }
++
++    public void eraseWords(int wordOffset) {
++        if (!this.text.isEmpty()) {
++            if (this.selectionEnd != this.selectionStart) {
++                this.write("");
++            } else {
++                this.eraseCharacters(this.getWordSkipPosition(wordOffset) - this.selectionStart);
++            }
++        }
++    }
++
++    public void eraseCharacters(int characterOffset) {
++        if (!this.text.isEmpty()) {
++            if (this.selectionEnd != this.selectionStart) {
++                this.write("");
++            } else {
++                int i = this.getCursorPosWithOffset(characterOffset);
++                int j = Math.min(i, this.selectionStart);
++                int k = Math.max(i, this.selectionStart);
++                if (j != k) {
++                    String string = (new StringBuilder(this.text)).delete(j, k).toString();
++                    if (this.textPredicate.test(string)) {
++                        this.text = string;
++                        this.setCursor(j);
++                        this.onChanged(this.text);
++                    }
++                }
++            }
++        }
++    }
++
++    public int getWordSkipPosition(int wordOffset) {
++        return this.getWordSkipPosition(wordOffset, this.getCursor());
++    }
++
++    private int getWordSkipPosition(int wordOffset, int cursorPosition) {
++        return this.getWordSkipPosition(wordOffset, cursorPosition, true);
++    }
++
++    private int getWordSkipPosition(int wordOffset, int cursorPosition, boolean skipOverSpaces) {
++        int i = cursorPosition;
++        boolean bl = wordOffset < 0;
++        int j = Math.abs(wordOffset);
++
++        for (int k = 0; k < j; ++k) {
++            if (!bl) {
++                int l = this.text.length();
++                i = this.text.indexOf(32, i);
++                if (i == -1) {
++                    i = l;
++                } else {
++                    while (skipOverSpaces && i < l && this.text.charAt(i) == ' ') {
++                        ++i;
++                    }
++                }
++            } else {
++                while (skipOverSpaces && i > 0 && this.text.charAt(i - 1) == ' ') {
++                    --i;
++                }
++
++                while (i > 0 && this.text.charAt(i - 1) != ' ') {
++                    --i;
++                }
++            }
++        }
++
++        return i;
++    }
++
++    public int getCursor() {
++        return this.selectionStart;
++    }
++
++    public void setCursor(int cursor) {
++        this.setSelectionStart(cursor);
++        if (!this.selecting) {
++            this.setSelectionEnd(this.selectionStart);
++        }
++
++        this.onChanged(this.text);
++    }
++
++    private void onChanged(String text) {
++        // TODO: Implement onChanged
++        this.gui.setSearch(text);
++    }
++
++    public void moveCursor(int offset) {
++        this.setCursor(this.getCursorPosWithOffset(offset));
++    }
++
++    private int getCursorPosWithOffset(int offset) {
++        return Util.offsetByCodepoints(this.text, this.selectionStart, offset);
++    }
++
++    public void setSelectionStart(int cursor) {
++        this.selectionStart = Mth.clamp(cursor, 0, this.text.length());
++    }
++
++    public void setCursorToStart() {
++        this.setCursor(0);
++    }
++
++    public void setCursorToEnd() {
++        this.setCursor(this.text.length());
++    }
++
++    public int getInnerWidth() {
++        return this.dim.width() - 12;
++    }
++
++    public void setSelectionEnd(int index) {
++        int i = this.text.length();
++        this.selectionEnd = Mth.clamp(index, 0, i);
++        if (this.font != null) {
++            if (this.firstCharacterIndex > i) {
++                this.firstCharacterIndex = i;
++            }
++
++            int j = this.getInnerWidth();
++            String string = this.font.plainSubstrByWidth(this.text.substring(this.firstCharacterIndex), j);
++            int k = string.length() + this.firstCharacterIndex;
++            if (this.selectionEnd == this.firstCharacterIndex) {
++                this.firstCharacterIndex -= this.font.plainSubstrByWidth(this.text, j, true).length();
++            }
++
++            if (this.selectionEnd > k) {
++                this.firstCharacterIndex += this.selectionEnd - k;
++            } else if (this.selectionEnd <= this.firstCharacterIndex) {
++                this.firstCharacterIndex -= this.firstCharacterIndex - this.selectionEnd;
++            }
++
++            this.firstCharacterIndex = Mth.clamp(this.firstCharacterIndex, 0, i);
++        }
++    }
++
++    public void setEnabled(boolean enabled) {
++        this.enabled = enabled;
++    }
++
++    public void setVisible(boolean visible) {
++        this.visible = visible;
++    }
++
++    public void setLabel(Component text) {
++        this.label = text;
++    }
++
++    public Component getLabel() {
++        return this.label;
++    }
++
++    @Override
++    public @Nullable ComponentPath nextFocusPath(FocusNavigationEvent event) {
++        if (!this.enabled || !this.visible)
++            return null;
++        return super.nextFocusPath(event);
++    }
++
++    @Override
++    public ScreenRectangle getRectangle() {
++        return new ScreenRectangle(this.dim.x(), this.dim.y(), this.dim.width(), this.dim.height());
++    }
++
++    public boolean hasText() {
++        return !text.isBlank();
++    }
++
++    public static class Style {
++        public int bgHovered, bgDefault, bgDisabled;
++        public int textDefault, textDisabled;
++
++        public static Style defaults() {
++            var style = new Style();
++            style.bgHovered = 0xE0000000;
++            style.bgDefault = 0x90000000;
++            style.bgDisabled = 0x60000000;
++            style.textDefault = 0xFFFFFFFF;
++            style.textDisabled = 0x90FFFFFF;
++
++            return style;
++        }
++    }
++}
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/SodiumOptionsGUI.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/SodiumOptionsGUI.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/SodiumOptionsGUI.java
+--- a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/SodiumOptionsGUI.java	(revision acf5e6180e4df362307fd19c0024f09fe7df656b)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/SodiumOptionsGUI.java	(date 1722442570043)
+@@ -1,5 +1,7 @@
+ package net.caffeinemc.mods.sodium.client.gui;
+ 
++import com.google.common.collect.ImmutableList;
++import com.mojang.blaze3d.systems.RenderSystem;
+ import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+ import net.caffeinemc.mods.sodium.client.data.fingerprint.HashedFingerprint;
+ import net.caffeinemc.mods.sodium.client.console.Console;
+@@ -7,17 +9,21 @@
+ import net.caffeinemc.mods.sodium.client.gui.options.*;
+ import net.caffeinemc.mods.sodium.client.gui.options.control.Control;
+ import net.caffeinemc.mods.sodium.client.gui.options.control.ControlElement;
++import net.caffeinemc.mods.sodium.client.gui.options.control.TickBoxControl;
+ import net.caffeinemc.mods.sodium.client.gui.options.storage.OptionStorage;
+ import net.caffeinemc.mods.sodium.client.gui.prompt.ScreenPrompt;
+ import net.caffeinemc.mods.sodium.client.gui.prompt.ScreenPromptable;
+ import net.caffeinemc.mods.sodium.client.gui.screen.ConfigCorruptedScreen;
++import net.caffeinemc.mods.sodium.client.gui.widgets.CenteredFlatWidget;
+ import net.caffeinemc.mods.sodium.client.gui.widgets.FlatButtonWidget;
++import net.caffeinemc.mods.sodium.client.gui.widgets.SearchWidget;
+ import net.caffeinemc.mods.sodium.client.services.PlatformInfoAccess;
+ import net.caffeinemc.mods.sodium.client.util.Dim2i;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.Util;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.gui.components.EditBox;
+ import net.minecraft.client.gui.components.events.GuiEventListener;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.gui.screens.options.VideoSettingsScreen;
+@@ -31,10 +37,12 @@
+ import java.io.IOException;
+ import java.time.Instant;
+ import java.time.temporal.ChronoUnit;
+-import java.util.ArrayList;
+-import java.util.EnumSet;
+-import java.util.HashSet;
+-import java.util.List;
++import java.util.*;
++import java.util.function.BiConsumer;
++import java.util.function.BinaryOperator;
++import java.util.function.Function;
++import java.util.function.Supplier;
++import java.util.stream.Collector;
+ import java.util.stream.Stream;
+ 
+ // TODO: Rename in Sodium 0.6
+@@ -44,6 +52,7 @@
+     private final List<ControlElement<?>> controls = new ArrayList<>();
+ 
+     private final Screen prevScreen;
++    private final List<Option<?>> options;
+ 
+     private OptionPage currentPage;
+ 
+@@ -54,6 +63,7 @@
+     private ControlElement<?> hoveredElement;
+ 
+     private @Nullable ScreenPrompt prompt;
++    private SearchWidget searchButton;
+ 
+     private SodiumOptionsGUI(Screen prevScreen) {
+         super(Component.literal("Sodium Renderer Settings"));
+@@ -65,9 +75,146 @@
+         this.pages.add(SodiumGameOptionPages.performance());
+         this.pages.add(SodiumGameOptionPages.advanced());
+ 
++        List<Option<?>> options = new ArrayList<>();
++        for (OptionPage page : this.pages) {
++            options.addAll(page.getOptions());
++        }
++
++        this.options = options;
++
++        this.pages.add(new OptionPage(Component.literal("Search"), options.stream().filter(o -> o.getName().getString().contains("Use")).collect(new Collector<Option<?>, List<Option<?>>, ImmutableList<OptionGroup>>() {
++            @Override
++            public Supplier<List<Option<?>>> supplier() {
++                return ArrayList::new;
++            }
++
++            @Override
++            public BiConsumer<List<Option<?>>, Option<?>> accumulator() {
++                return List::add;
++            }
++
++            @Override
++            public BinaryOperator<List<Option<?>>> combiner() {
++                return (a, b) -> {
++                    a.addAll(b);
++                    return a;
++                };
++            }
++
++            @Override
++            public Function<List<Option<?>>, ImmutableList<OptionGroup>> finisher() {
++                return list -> ImmutableList.of(OptionGroup.createBuilder().addAll(list).build());
++            }
++
++            @Override
++            public Set<Characteristics> characteristics() {
++                return Set.of();
++            }
++        })));
++
+         this.checkPromptTimers();
+     }
+ 
++    public void setSearch(String search) {
++        this.pages.getLast().setOptions(options.stream().filter(o -> o.getName().getString().toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT))).collect(new Collector<Option<?>, List<Option<?>>, ImmutableList<OptionGroup>>() {
++            @Override
++            public Supplier<List<Option<?>>> supplier() {
++                return ArrayList::new;
++            }
++
++            @Override
++            public BiConsumer<List<Option<?>>, Option<?>> accumulator() {
++                return List::add;
++            }
++
++            @Override
++            public BinaryOperator<List<Option<?>>> combiner() {
++                return (a, b) -> {
++                    a.addAll(b);
++                    return a;
++                };
++            }
++
++            @Override
++            public Function<List<Option<?>>, ImmutableList<OptionGroup>> finisher() {
++                return list -> {
++                    if (list.isEmpty()) {
++                        return ImmutableList.of(OptionGroup.createBuilder().add(new Option<Boolean>() {
++                            @Override
++                            public Component getName() {
++                                return Component.literal("No results.");
++                            }
++
++                            @Override
++                            public Component getTooltip() {
++                                return Component.empty();
++                            }
++
++                            @Override
++                            public OptionImpact getImpact() {
++                                return OptionImpact.HIGH;
++                            }
++
++                            @Override
++                            public Control<Boolean> getControl() {
++                                return new TickBoxControl(this);
++                            }
++
++                            @Override
++                            public Boolean getValue() {
++                                return null;
++                            }
++
++                            @Override
++                            public void setValue(Boolean value) {
++
++                            }
++
++                            @Override
++                            public void reset() {
++
++                            }
++
++                            @Override
++                            public OptionStorage<?> getStorage() {
++                                return null;
++                            }
++
++                            @Override
++                            public boolean isAvailable() {
++                                return false;
++                            }
++
++                            @Override
++                            public boolean hasChanged() {
++                                return false;
++                            }
++
++                            @Override
++                            public void applyChanges() {
++
++                            }
++
++                            @Override
++                            public Collection<OptionFlag> getFlags() {
++                                return List.of();
++                            }
++                        }).build());
++                    }
++                    return ImmutableList.of(OptionGroup.createBuilder().addAll(list).build());
++                };
++            }
++
++            @Override
++            public Set<Characteristics> characteristics() {
++                return Set.of();
++            }
++        }));
++        this.currentPage = this.pages.getLast();
++
++        this.rebuildGUI();
++    }
++
+     private void checkPromptTimers() {
+         // Never show the prompt in developer workspaces.
+         if (PlatformInfoAccess.getInstance().isDevelopmentEnvironment()) {
+@@ -146,7 +293,7 @@
+         }
+     }
+ 
+-    private void rebuildGUI() {
++    public void rebuildGUI() {
+         this.controls.clear();
+ 
+         this.clearWidgets();
+@@ -161,13 +308,17 @@
+         }
+ 
+         this.rebuildGUIPages();
+-        this.rebuildGUIOptions();
++        int pageY = this.rebuildGUIOptions();
+ 
+-        this.undoButton = new FlatButtonWidget(new Dim2i(this.width - 211, this.height - 30, 65, 20), Component.translatable("sodium.options.buttons.undo"), this::undoChanges);
+-        this.applyButton = new FlatButtonWidget(new Dim2i(this.width - 142, this.height - 30, 65, 20), Component.translatable("sodium.options.buttons.apply"), this::applyChanges);
+-        this.closeButton = new FlatButtonWidget(new Dim2i(this.width - 73, this.height - 30, 65, 20), Component.translatable("gui.done"), this::onClose);
+-        this.donateButton = new FlatButtonWidget(new Dim2i(this.width - 128, 6, 100, 20), Component.translatable("sodium.options.buttons.donate"), this::openDonationPage);
+-        this.hideDonateButton = new FlatButtonWidget(new Dim2i(this.width - 26, 6, 20, 20), Component.literal("x"), this::hideDonationButton);
++        this.undoButton = new FlatButtonWidget(new Dim2i(270, this.height - 30, 65, 20), Component.translatable("sodium.options.buttons.undo"), this::undoChanges, true, false);
++        this.applyButton = new FlatButtonWidget(new Dim2i(130, this.height - 30, 65, 20), Component.translatable("sodium.options.buttons.apply"), this::applyChanges, true, false);
++        this.closeButton = new FlatButtonWidget(new Dim2i(200, this.height - 30, 65, 20), Component.translatable("gui.done"), this::onClose, true, false);
++        this.donateButton = new FlatButtonWidget(new Dim2i(this.width - 128, 6, 100, 20), Component.translatable("sodium.options.buttons.donate"), this::openDonationPage, true, false);
++        this.hideDonateButton = new FlatButtonWidget(new Dim2i(this.width - 26, 6, 20, 20), Component.literal("x"), this::hideDonationButton, true, false);
++
++        if (this.searchButton == null) {
++            this.searchButton = new SearchWidget(this, new Dim2i(0, this.height - 30, 125, 20), this::hideDonationButton, true, true);
++        }
+ 
+         if (SodiumClientMod.options().notifications.hasClearedDonationButton) {
+             this.setDonationButtonVisibility(false);
+@@ -176,6 +327,7 @@
+         this.addRenderableWidget(this.undoButton);
+         this.addRenderableWidget(this.applyButton);
+         this.addRenderableWidget(this.closeButton);
++        this.addRenderableWidget(this.searchButton);
+         this.addRenderableWidget(this.donateButton);
+         this.addRenderableWidget(this.hideDonateButton);
+     }
+@@ -199,24 +351,55 @@
+     }
+ 
+     private void rebuildGUIPages() {
+-        int x = 6;
+-        int y = 6;
++        int x = 0;
++        int y = 5;
++        int width = 125;
++
++        CenteredFlatWidget header = new CenteredFlatWidget(new Dim2i(x, y, width, font.lineHeight * 2), Component.literal("Sodium Renderer"), () -> {}, false);
++
++        y += font.lineHeight * 2;
++
++        this.addRenderableWidget(header);
+ 
+         for (OptionPage page : this.pages) {
+-            int width = 12 + this.font.width(page.getName());
+-
+-            FlatButtonWidget button = new FlatButtonWidget(new Dim2i(x, y, width, 18), page.getName(), () -> this.setPage(page));
++            if (!page.isVisible()) continue;
++            CenteredFlatWidget button = new CenteredFlatWidget(new Dim2i(x, y, width, font.lineHeight * 2), page.getName(), () -> this.setPage(page), true);
+             button.setSelected(this.currentPage == page);
+ 
+-            x += width + 6;
++            y += font.lineHeight * 2;
+ 
+             this.addRenderableWidget(button);
+         }
++
++        y += font.lineHeight * 2;
++        y += font.lineHeight * 2;
++
++        CenteredFlatWidget button = new CenteredFlatWidget(new Dim2i(x, y, width, font.lineHeight * 2), Component.literal("" +
++                "Iris Shaders"), () -> {}, false);
++
++        CenteredFlatWidget.Style style = CenteredFlatWidget.Style.defaults();
++        style.textDefault = 0xFFEE00AA;
++        button.setStyle(style);
++
++        y += font.lineHeight * 2;
++
++        this.addRenderableWidget(button);
++
++        CenteredFlatWidget button2 = new CenteredFlatWidget(new Dim2i(x, y, width, font.lineHeight * 2), Component.literal("Shader Packs"), () -> {}, true);
++
++
++        CenteredFlatWidget.Style style2 = CenteredFlatWidget.Style.defaults();
++        style2.textDefault = 0xFFCC0088;
++        button2.setStyle(style2);
++        y += font.lineHeight * 2;
++
++        this.addRenderableWidget(button2);
++
+     }
+ 
+-    private void rebuildGUIOptions() {
+-        int x = 6;
+-        int y = 28;
++    public int rebuildGUIOptions() {
++        int x = (int) (130);
++        int y = 23;
+ 
+         for (OptionGroup group : this.currentPage.getGroups()) {
+             // Add each option's control element
+@@ -235,6 +418,8 @@
+             // Add padding beneath each option group
+             y += 4;
+         }
++
++        return y;
+     }
+ 
+     @Override
+@@ -242,7 +427,9 @@
+         this.updateControls();
+ 
+         super.render(graphics, this.prompt != null ? -1 : mouseX, this.prompt != null ? -1 : mouseY, delta);
+-
++        graphics.fillGradient(0, 0, 125, this.minecraft.getMainRenderTarget().height, 0x40000000, 0x90000000);
++        //graphics.fill(0, 0, 335, 20, 0x40000000);
++        RenderSystem.enableBlend();
+         if (this.hoveredElement != null) {
+             this.renderOptionTooltip(graphics, this.hoveredElement);
+         }
+@@ -292,10 +479,10 @@
+     private void renderOptionTooltip(GuiGraphics graphics, ControlElement<?> element) {
+         Dim2i dim = element.getDimensions();
+ 
+-        int textPadding = 3;
+-        int boxPadding = 3;
++        int textPadding = 5;
++        int boxPadding = 5;
+ 
+-        int boxWidth = 200;
++        int boxWidth = this.width - 340;
+ 
+         int boxY = dim.y();
+         int boxX = dim.getLimitX() + boxPadding;
+@@ -318,7 +505,7 @@
+             boxY -= boxYLimit - boxYCutoff;
+         }
+ 
+-        graphics.fillGradient(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xE0000000, 0xE0000000);
++        graphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0x40000000);
+ 
+         for (int i = 0; i < tooltip.size(); i++) {
+             graphics.drawString(this.font, tooltip.get(i), boxX + textPadding, boxY + textPadding + (i * 12), 0xFFFFFFFF);
+@@ -382,7 +569,7 @@
+         }
+ 
+         if (this.prompt == null && keyCode == GLFW.GLFW_KEY_P && (modifiers & GLFW.GLFW_MOD_SHIFT) != 0) {
+-            Minecraft.getInstance().setScreen(new VideoSettingsScreen(this.prevScreen, Minecraft.getInstance(), Minecraft.getInstance().options));
++            Minecraft.getInstance().setScreen(new VideoSettingsScreen(this, Minecraft.getInstance(), Minecraft.getInstance().options));
+ 
+             return true;
+         }
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/FlatButtonWidget.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+--- a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/FlatButtonWidget.java	(revision acf5e6180e4df362307fd19c0024f09fe7df656b)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/FlatButtonWidget.java	(date 1722377867379)
+@@ -16,6 +16,8 @@
+ public class FlatButtonWidget extends AbstractWidget implements Renderable {
+     private final Dim2i dim;
+     private final Runnable action;
++    private final boolean drawBackground;
++    private final boolean leftAlign;
+ 
+     private @NotNull Style style = Style.defaults();
+ 
+@@ -25,10 +27,12 @@
+ 
+     private Component label;
+ 
+-    public FlatButtonWidget(Dim2i dim, Component label, Runnable action) {
++    public FlatButtonWidget(Dim2i dim, Component label, Runnable action, boolean drawBackground, boolean leftAlign) {
+         this.dim = dim;
+         this.label = label;
+         this.action = action;
++        this.drawBackground = drawBackground;
++        this.leftAlign = leftAlign;
+     }
+ 
+     @Override
+@@ -44,14 +48,19 @@
+ 
+         int strWidth = this.font.width(this.label);
+ 
+-        this.drawRect(graphics, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), backgroundColor);
+-        this.drawString(graphics, this.label, this.dim.getCenterX() - (strWidth / 2), this.dim.getCenterY() - 4, textColor);
++        if (drawBackground) {
++            this.drawRect(graphics, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), backgroundColor);
++        }
++
++        this.drawString(graphics, this.label, this.leftAlign ? this.dim.x() + 5 : (this.dim.getCenterX() - (strWidth / 2)), this.dim.getCenterY() - 4, textColor);
+ 
+         if (this.enabled && this.selected) {
+             this.drawRect(graphics, this.dim.x(), this.dim.getLimitY() - 1, this.dim.getLimitX(), this.dim.getLimitY(), 0xFF94E4D3);
+         }
+-        if (this.enabled && this.isFocused()) {
+-            this.drawBorder(graphics, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), -1);
++
++        if (!drawBackground) {
++            this.drawBorder(graphics, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), 0x8000FFEE);
++
+         }
+     }
+ 
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/prompt/ScreenPrompt.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/prompt/ScreenPrompt.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/prompt/ScreenPrompt.java
+--- a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/prompt/ScreenPrompt.java	(revision acf5e6180e4df362307fd19c0024f09fe7df656b)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/prompt/ScreenPrompt.java	(date 1722377867356)
+@@ -40,10 +40,10 @@
+         int boxX = (parentDimensions.width() / 2) - (width / 2);
+         int boxY = (parentDimensions.height() / 2) - (height / 2);
+ 
+-        this.closeButton = new FlatButtonWidget(new Dim2i((boxX + width) - 84, (boxY + height) - 24, 80, 20), Component.literal("Close"), this::close);
++        this.closeButton = new FlatButtonWidget(new Dim2i((boxX + width) - 84, (boxY + height) - 24, 80, 20), Component.literal("Close"), this::close, true, false);
+         this.closeButton.setStyle(createButtonStyle());
+ 
+-        this.actionButton = new FlatButtonWidget(new Dim2i((boxX + width) - 198, (boxY + height) - 24, 110, 20), this.action.label, this::runAction);
++        this.actionButton = new FlatButtonWidget(new Dim2i((boxX + width) - 198, (boxY + height) - 24, 110, 20), this.action.label, this::runAction, true, false);
+         this.actionButton.setStyle(createButtonStyle());
+     }
+ 
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/control/ControlElement.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/control/ControlElement.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/control/ControlElement.java
+--- a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/control/ControlElement.java	(revision acf5e6180e4df362307fd19c0024f09fe7df656b)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/control/ControlElement.java	(date 1722377867346)
+@@ -8,6 +8,8 @@
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.navigation.FocusNavigationEvent;
+ import net.minecraft.client.gui.navigation.ScreenRectangle;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.chat.Style;
+ import org.jetbrains.annotations.Nullable;
+ 
+ public class ControlElement<T> extends AbstractWidget {
+@@ -22,21 +24,18 @@
+ 
+     @Override
+     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+-        String name = this.option.getName().getString();
+-        String label;
++        Component label = this.option.getName();
+ 
+-        if ((this.hovered || this.isFocused()) && this.font.width(name) > (this.dim.width() - this.option.getControl().getMaxWidth())) {
+-            name = name.substring(0, Math.min(name.length(), 10)) + "...";
++        if ((this.hovered || this.isFocused()) && this.font.width(label) > (this.dim.width() - this.option.getControl().getMaxWidth())) {
++            label = Component.literal(label.getString().substring(0, Math.min(label.getString().length(), 10)) + "...");
+         }
+ 
+         if (this.option.isAvailable()) {
+             if (this.option.hasChanged()) {
+-                label = ChatFormatting.ITALIC + name + " *";
+-            } else {
+-                label = ChatFormatting.WHITE + name;
++                label = label.copy().withStyle(Style.EMPTY.withColor(0xffccfdee).withItalic(true));
+             }
+         } else {
+-            label = String.valueOf(ChatFormatting.GRAY) + ChatFormatting.STRIKETHROUGH + name;
++            label = label.copy().withStyle(ChatFormatting.GRAY, ChatFormatting.STRIKETHROUGH);
+         }
+ 
+         this.hovered = this.dim.containsCursor(mouseX, mouseY);
+Index: fabric/src/main/java/net/caffeinemc/mods/sodium/fabric/MixinConfigFabric.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/fabric/src/main/java/net/caffeinemc/mods/sodium/fabric/MixinConfigFabric.java b/fabric/src/main/java/net/caffeinemc/mods/sodium/fabric/MixinConfigFabric.java
+--- a/fabric/src/main/java/net/caffeinemc/mods/sodium/fabric/MixinConfigFabric.java	(revision acf5e6180e4df362307fd19c0024f09fe7df656b)
++++ b/fabric/src/main/java/net/caffeinemc/mods/sodium/fabric/MixinConfigFabric.java	(date 1722377886683)
+@@ -1,16 +1,21 @@
+ package net.caffeinemc.mods.sodium.fabric;
+ 
++import com.sun.jna.platform.linux.LibC;
+ import net.caffeinemc.mods.sodium.client.data.config.MixinConfig;
+ import net.fabricmc.loader.api.FabricLoader;
+ import net.fabricmc.loader.api.ModContainer;
+ import net.fabricmc.loader.api.metadata.CustomValue;
+ import net.fabricmc.loader.api.metadata.ModMetadata;
++import org.lwjgl.system.Configuration;
+ 
+ import java.util.Map;
+ 
+ public class MixinConfigFabric extends MixinConfig {
+     public MixinConfigFabric() {
+         super();
++        LibC.INSTANCE.setenv("__GL_THREADED_OPTIMIZATIONS", "0", 1);
++
++        Configuration.GLFW_LIBRARY_NAME.set("/usr/lib/libglfw.so");
+     }
+ 
+     @Override
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/CenteredFlatWidget.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/CenteredFlatWidget.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/CenteredFlatWidget.java
+new file mode 100644
+--- /dev/null	(date 1722377867373)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/CenteredFlatWidget.java	(date 1722377867373)
+@@ -0,0 +1,150 @@
++package net.caffeinemc.mods.sodium.client.gui.widgets;
++
++import net.caffeinemc.mods.sodium.client.util.Dim2i;
++import net.minecraft.client.gui.ComponentPath;
++import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.gui.components.Renderable;
++import net.minecraft.client.gui.navigation.CommonInputs;
++import net.minecraft.client.gui.navigation.FocusNavigationEvent;
++import net.minecraft.client.gui.navigation.ScreenRectangle;
++import net.minecraft.network.chat.Component;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Objects;
++
++public class CenteredFlatWidget extends AbstractWidget implements Renderable {
++    private final Dim2i dim;
++    private final Runnable action;
++    private final boolean isSelectable;
++
++    private @NotNull Style style = Style.defaults();
++
++    private boolean selected;
++    private boolean enabled = true;
++    private boolean visible = true;
++
++    private Component label;
++
++    public CenteredFlatWidget(Dim2i dim, Component label, Runnable action, boolean isSelectable) {
++        this.dim = dim;
++        this.label = label;
++        this.action = action;
++        this.isSelectable = isSelectable;
++    }
++
++    @Override
++    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
++        if (!this.visible) {
++            return;
++        }
++
++        this.hovered = this.dim.containsCursor(mouseX, mouseY);
++
++        int backgroundColor = this.hovered ? 0x40001101 : (this.selected ? 0x80000000 : 0x40000000);
++        int textColor = this.selected || !this.isSelectable ? this.style.textDefault : this.style.textDisabled;
++
++        int strWidth = this.font.width(this.label);
++
++        if (isSelectable) {
++            this.drawRect(graphics, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), backgroundColor);
++        }
++
++        if (selected) {
++            this.drawRect(graphics, this.dim.getLimitX() - 3, this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), 0xFFccfdee);
++        }
++
++        this.drawString(graphics, this.label, (int) (this.dim.x() + 8), (int) Math.ceil(((this.dim.getCenterY() - (font.lineHeight * 0.5f)))), textColor);
++
++        if (this.enabled && this.isFocused()) {
++            this.drawBorder(graphics, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), -1);
++        }
++    }
++
++    public void setStyle(@NotNull Style style) {
++        Objects.requireNonNull(style);
++
++        this.style = style;
++    }
++
++    public void setSelected(boolean selected) {
++        this.selected = selected;
++    }
++
++    @Override
++    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++        if (!this.enabled || !this.visible) {
++            return false;
++        }
++
++        if (button == 0 && this.dim.containsCursor(mouseX, mouseY)) {
++            doAction();
++
++            return true;
++        }
++
++        return false;
++    }
++
++    @Override
++    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++        if (!this.isFocused())
++            return false;
++
++        if (CommonInputs.selected(keyCode)) {
++            doAction();
++            return true;
++        }
++
++        return false;
++    }
++
++    private void doAction() {
++        this.action.run();
++        this.playClickSound();
++    }
++
++    public void setEnabled(boolean enabled) {
++        this.enabled = enabled;
++    }
++
++    public void setVisible(boolean visible) {
++        this.visible = visible;
++    }
++
++    public void setLabel(Component text) {
++        this.label = text;
++    }
++
++    public Component getLabel() {
++        return this.label;
++    }
++
++    @Override
++    public @Nullable ComponentPath nextFocusPath(FocusNavigationEvent event) {
++        if (!this.enabled || !this.visible)
++            return null;
++        return super.nextFocusPath(event);
++    }
++
++    @Override
++    public ScreenRectangle getRectangle() {
++        return new ScreenRectangle(this.dim.x(), this.dim.y(), this.dim.width(), this.dim.height());
++    }
++
++    public static class Style {
++        public int bgHovered, bgDefault, bgDisabled;
++        public int textDefault, textDisabled;
++
++        public static Style defaults() {
++            var style = new Style();
++            style.bgHovered = 0xE0000000;
++            style.bgDefault = 0x90000000;
++            style.bgDisabled = 0x60000000;
++            style.textDefault = 0xccfdee;
++            style.textDisabled = 0xF06f9090;
++
++            return style;
++        }
++    }
++}
+Index: SearchTextFieldComponent.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/SearchTextFieldComponent.java b/SearchTextFieldComponent.java
+new file mode 100644
+--- /dev/null	(date 1722378983526)
++++ b/SearchTextFieldComponent.java	(date 1722378983526)
+@@ -0,0 +1,518 @@
++package net.caffeinemc.mods.sodium.client.gui.widgets;
++
++import net.caffeinemc.mods.sodium.client.gui.SodiumOptionsGUI;
++import net.caffeinemc.mods.sodium.client.gui.options.Option;
++import net.caffeinemc.mods.sodium.client.gui.options.OptionPage;
++import net.caffeinemc.mods.sodium.client.util.Dim2i;
++import net.minecraft.Util;
++import net.minecraft.client.Minecraft;
++import net.minecraft.client.gui.ComponentPath;
++import net.minecraft.client.gui.Font;
++import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.gui.navigation.FocusNavigationEvent;
++import net.minecraft.client.gui.navigation.ScreenRectangle;
++import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.renderer.RenderType;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.chat.Style;
++import net.minecraft.util.FormattedCharSequence;
++import net.minecraft.util.Mth;
++import net.minecraft.util.StringUtil;
++import org.jetbrains.annotations.Nullable;
++import org.lwjgl.glfw.GLFW;
++
++import java.util.List;
++import java.util.Objects;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.BiFunction;
++import java.util.function.Predicate;
++
++public class SearchTextFieldComponent extends AbstractWidget {
++    protected final Dim2i dim;
++    protected final List<OptionPage> pages;
++    private final Font font = Minecraft.getInstance().font;
++    private final Predicate<String> textPredicate = Objects::nonNull;
++    private final BiFunction<String, Integer, FormattedCharSequence> renderTextProvider = (string, firstCharacterIndex) -> FormattedCharSequence.forward(string, Style.EMPTY);
++    private final AtomicReference<Component> tabFrameSelectedTab;
++    private final AtomicReference<Integer> tabFrameScrollBarOffset;
++    private final AtomicReference<Integer> optionPageScrollBarOffset;
++    private final int tabDimHeight;
++    private final SodiumOptionsGUI sodiumVideoOptionsScreen;
++    private final AtomicReference<String> lastSearch;
++    private final AtomicReference<Integer> lastSearchIndex;
++    protected boolean selecting;
++    protected String text = "";
++    protected int maxLength = 100;
++    protected boolean visible = true;
++    protected boolean editable = true;
++    private int firstCharacterIndex;
++    private int selectionStart;
++    private int selectionEnd;
++    private int lastCursorPosition = this.getCursor();
++
++    public SearchTextFieldComponent(Dim2i dim, List<OptionPage> pages, AtomicReference<Component> tabFrameSelectedTab, AtomicReference<Integer> tabFrameScrollBarOffset, AtomicReference<Integer> optionPageScrollBarOffset, int tabDimHeight, SodiumOptionsGUI sodiumVideoOptionsScreen, AtomicReference<String> lastSearch, AtomicReference<Integer> lastSearchIndex) {
++        this.dim = dim;
++        this.pages = pages;
++        this.tabFrameSelectedTab = tabFrameSelectedTab;
++        this.tabFrameScrollBarOffset = tabFrameScrollBarOffset;
++        this.optionPageScrollBarOffset = optionPageScrollBarOffset;
++        this.tabDimHeight = tabDimHeight;
++        this.sodiumVideoOptionsScreen = sodiumVideoOptionsScreen;
++        this.lastSearch = lastSearch;
++        this.lastSearchIndex = lastSearchIndex;
++        if (!lastSearch.get().trim().isEmpty()) {
++            this.write(lastSearch.get());
++        }
++    }
++
++    @Override
++    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
++        if (!this.isVisible()) {
++            return;
++        }
++        if (!this.isFocused() && this.text.isBlank()) {
++            String key = "rso.search_bar_empty";
++            Component text = Component.translatable(key);
++            if (text.getString().equals(key))
++                text = Component.literal("Search options...");
++            this.drawString(guiGraphics, text, this.dim.x() + 6, this.dim.y() + 6, 0xFFAAAAAA);
++        }
++
++        this.drawRect(guiGraphics, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), this.isFocused() ? 0xE0000000 : 0x90000000);
++        int j = this.selectionStart - this.firstCharacterIndex;
++        int k = this.selectionEnd - this.firstCharacterIndex;
++        String string = this.font.plainSubstrByWidth(this.text.substring(this.firstCharacterIndex), this.getInnerWidth());
++        boolean bl = j >= 0 && j <= string.length();
++        int l = this.dim.x() + 6;
++        int m = this.dim.y() + 6;
++        int n = l;
++        if (k > string.length()) {
++            k = string.length();
++        }
++        if (!string.isEmpty()) {
++            String string2 = bl ? string.substring(0, j) : string;
++            n = guiGraphics.drawString(this.font, this.renderTextProvider.apply(string2, this.firstCharacterIndex), n, m, 0xFFFFFFFF);
++        }
++        boolean bl3 = this.selectionStart < this.text.length() || this.text.length() >= this.getMaxLength();
++        int o = n;
++        if (!bl) {
++            o = j > 0 ? l + this.dim.width() - 12 : l;
++        } else if (bl3) {
++            --o;
++            --n;
++        }
++        if (!string.isEmpty() && bl && j < string.length()) {
++            guiGraphics.drawString(this.font, this.renderTextProvider.apply(string.substring(j), this.selectionStart), n, m, 0xFFFFFFFF);
++        }
++        // Cursor
++        if (this.isFocused()) {
++            guiGraphics.fill(RenderType.guiOverlay(), o, m - 1, o + 1, m + 1 + this.font.lineHeight, -3092272);
++        }
++        // Highlighted text
++        if (k != j) {
++            int p = l + this.font.width(string.substring(0, k));
++            this.drawSelectionHighlight(guiGraphics, o, m - 1, p - 1, m + 1 + this.font.lineHeight);
++        }
++
++        /*this.drawRect(context, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), 0x90000000);
++        //this.drawBorder(context, this.dim.x(), this.dim.y(), this.dim.getLimitX(), this.dim.getLimitY(), 0xffffffff);
++        this.drawString(context, this.text, this.dim.x() + 6, this.dim.y() + 6, 0xffffffff);*/
++    }
++
++    @Override
++    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++        int i = Mth.floor(mouseX) - this.dim.x() - 6;
++        String string = this.font.plainSubstrByWidth(this.text.substring(this.firstCharacterIndex), this.getInnerWidth());
++        this.setCursor(this.font.plainSubstrByWidth(string, i).length() + this.firstCharacterIndex);
++
++        this.setFocused(this.dim.containsCursor(mouseX, mouseY));
++        //this.pages.forEach(page -> page
++       //         .getOptions()
++        //        .stream()
++        //        .filter(OptionExtended.class::isInstance)
++         //       .map(OptionExtended.class::cast)
++        //        .forEach(optionExtended -> optionExtended.setSelected(false)));
++        return this.isFocused();
++    }
++
++    // fixme: this is here because of 0.5.1's https://github.com/CaffeineMC/sodium-fabric/commit/20006a85fb7a64889f507eb13521e55693ae0d7e
++    @Override
++    public void setFocused(boolean focused) {
++        this.focused = focused;
++    }
++
++    private void drawSelectionHighlight(GuiGraphics guiGraphics, int x1, int y1, int x2, int y2) {
++        int i;
++        if (x1 < x2) {
++            i = x1;
++            x1 = x2;
++            x2 = i;
++        }
++        if (y1 < y2) {
++            i = y1;
++            y1 = y2;
++            y2 = i;
++        }
++        if (x2 > this.dim.x() + this.dim.width()) {
++            x2 = this.dim.x() + this.dim.width();
++        }
++        if (x1 > this.dim.x() + this.dim.width()) {
++            x1 = this.dim.x() + this.dim.width();
++        }
++        guiGraphics.fill(RenderType.guiTextHighlight(), x1, y1, x2, y2, -16776961);
++    }
++
++    private int getMaxLength() {
++        return this.maxLength;
++    }
++
++    public String getSelectedText() {
++        int i = Math.min(this.selectionStart, this.selectionEnd);
++        int j = Math.max(this.selectionStart, this.selectionEnd);
++        return this.text.substring(i, j);
++    }
++
++    public void write(String text) {
++
++
++        int i = Math.min(this.selectionStart, this.selectionEnd);
++        int j = Math.max(this.selectionStart, this.selectionEnd);
++        int k = this.maxLength - this.text.length() - (i - j);
++        String string = StringUtil.filterText(text);
++        int l = string.length();
++        if (k < l) {
++            string = string.substring(0, k);
++            l = k;
++        }
++
++        String string2 = (new StringBuilder(this.text)).replace(i, j, string).toString();
++        if (this.textPredicate.test(string2)) {
++            this.text = string2;
++            this.setSelectionStart(i + l);
++            this.setSelectionEnd(this.selectionStart);
++            this.onChanged(this.text);
++        }
++    }
++
++    private void onChanged(String newText) {
++        this.pages.forEach(page -> page
++                .getOptions()
++                .stream()
++                .filter(OptionExtended.class::isInstance)
++                .map(OptionExtended.class::cast)
++                .forEach(optionExtended -> optionExtended.setHighlight(false)));
++
++        this.lastSearch.set(newText.trim());
++        if (this.editable) {
++            if (!newText.trim().isEmpty()) {
++                List<Option<?>> fuzzy = StringUtils.fuzzySearch(this.pages, newText, 2);
++                fuzzy.stream()
++                        .filter(OptionExtended.class::isInstance)
++                        .map(OptionExtended.class::cast)
++                        .forEach(optionExtended -> optionExtended.setHighlight(true));
++            }
++        }
++    }
++
++    private void erase(int offset) {
++        if (Screen.hasControlDown()) {
++            this.eraseWords(offset);
++        } else {
++            this.eraseCharacters(offset);
++        }
++
++    }
++
++    public void eraseWords(int wordOffset) {
++        if (!this.text.isEmpty()) {
++            if (this.selectionEnd != this.selectionStart) {
++                this.write("");
++            } else {
++                this.eraseCharacters(this.getWordSkipPosition(wordOffset) - this.selectionStart);
++            }
++        }
++    }
++
++    public void eraseCharacters(int characterOffset) {
++        if (!this.text.isEmpty()) {
++            if (this.selectionEnd != this.selectionStart) {
++                this.write("");
++            } else {
++                int i = this.getCursorPosWithOffset(characterOffset);
++                int j = Math.min(i, this.selectionStart);
++                int k = Math.max(i, this.selectionStart);
++                if (j != k) {
++                    String string = (new StringBuilder(this.text)).delete(j, k).toString();
++                    if (this.textPredicate.test(string)) {
++                        this.text = string;
++                        this.setCursor(j);
++                        this.onChanged(this.text);
++                    }
++                }
++            }
++        }
++    }
++
++    public int getWordSkipPosition(int wordOffset) {
++        return this.getWordSkipPosition(wordOffset, this.getCursor());
++    }
++
++    private int getWordSkipPosition(int wordOffset, int cursorPosition) {
++        return this.getWordSkipPosition(wordOffset, cursorPosition, true);
++    }
++
++    private int getWordSkipPosition(int wordOffset, int cursorPosition, boolean skipOverSpaces) {
++        int i = cursorPosition;
++        boolean bl = wordOffset < 0;
++        int j = Math.abs(wordOffset);
++
++        for (int k = 0; k < j; ++k) {
++            if (!bl) {
++                int l = this.text.length();
++                i = this.text.indexOf(32, i);
++                if (i == -1) {
++                    i = l;
++                } else {
++                    while (skipOverSpaces && i < l && this.text.charAt(i) == ' ') {
++                        ++i;
++                    }
++                }
++            } else {
++                while (skipOverSpaces && i > 0 && this.text.charAt(i - 1) == ' ') {
++                    --i;
++                }
++
++                while (i > 0 && this.text.charAt(i - 1) != ' ') {
++                    --i;
++                }
++            }
++        }
++
++        return i;
++    }
++
++    public int getCursor() {
++        return this.selectionStart;
++    }
++
++    public void setCursor(int cursor) {
++        this.setSelectionStart(cursor);
++        if (!this.selecting) {
++            this.setSelectionEnd(this.selectionStart);
++        }
++
++        this.onChanged(this.text);
++    }
++
++    public void moveCursor(int offset) {
++        this.setCursor(this.getCursorPosWithOffset(offset));
++    }
++
++    private int getCursorPosWithOffset(int offset) {
++        return Util.offsetByCodepoints(this.text, this.selectionStart, offset);
++    }
++
++    public void setSelectionStart(int cursor) {
++        this.selectionStart = Mth.clamp(cursor, 0, this.text.length());
++    }
++
++    public void setCursorToStart() {
++        this.setCursor(0);
++    }
++
++    public void setCursorToEnd() {
++        this.setCursor(this.text.length());
++    }
++
++    public void setSelectionEnd(int index) {
++        int i = this.text.length();
++        this.selectionEnd = Mth.clamp(index, 0, i);
++        if (this.font != null) {
++            if (this.firstCharacterIndex > i) {
++                this.firstCharacterIndex = i;
++            }
++
++            int j = this.getInnerWidth();
++            String string = this.font.plainSubstrByWidth(this.text.substring(this.firstCharacterIndex), j);
++            int k = string.length() + this.firstCharacterIndex;
++            if (this.selectionEnd == this.firstCharacterIndex) {
++                this.firstCharacterIndex -= this.font.plainSubstrByWidth(this.text, j, true).length();
++            }
++
++            if (this.selectionEnd > k) {
++                this.firstCharacterIndex += this.selectionEnd - k;
++            } else if (this.selectionEnd <= this.firstCharacterIndex) {
++                this.firstCharacterIndex -= this.firstCharacterIndex - this.selectionEnd;
++            }
++
++            this.firstCharacterIndex = Mth.clamp(this.firstCharacterIndex, 0, i);
++        }
++    }
++
++    public boolean isActive() {
++        return this.isVisible() && this.isFocused() && this.isEditable();
++    }
++
++    @Override
++    public boolean charTyped(char chr, int modifiers) {
++        if (!this.isActive()) {
++            return false;
++        }
++        if (StringUtil.isAllowedChatCharacter(chr)) {
++            if (this.editable) {
++                this.lastSearch.set(this.text.trim());
++                this.write(Character.toString(chr));
++                this.lastSearchIndex.set(0);
++            }
++            return true;
++        }
++        return false;
++    }
++
++    @Override
++    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++        this.pages.forEach(page2 -> page2
++                .getOptions()
++                .stream()
++                .filter(OptionExtended.class::isInstance)
++                .map(OptionExtended.class::cast)
++                .forEach(optionExtended2 -> optionExtended2.setSelected(false)));
++        if (!this.isActive()) {
++            return false;
++        } else {
++            this.selecting = Screen.hasShiftDown();
++            if (Screen.isSelectAll(keyCode)) {
++                this.setCursorToEnd();
++                this.setSelectionEnd(0);
++                return true;
++            } else if (Screen.isCopy(keyCode)) {
++                Minecraft.getInstance().keyboardHandler.setClipboard(this.getSelectedText());
++                return true;
++            } else if (Screen.isPaste(keyCode)) {
++                if (this.editable) {
++                    this.write(Minecraft.getInstance().keyboardHandler.getClipboard());
++                }
++
++                return true;
++            } else if (Screen.isCut(keyCode)) {
++                Minecraft.getInstance().keyboardHandler.setClipboard(this.getSelectedText());
++                if (this.editable) {
++                    this.write("");
++                }
++
++                return true;
++            } else {
++                switch (keyCode) {
++                    case GLFW.GLFW_KEY_ENTER -> {
++                        if (this.editable) {
++                            int count = 0;
++                            for (OptionPage page : this.pages) {
++                                for (Option<?> option : page.getOptions()) {
++                                    if (option instanceof OptionExtended optionExtended && optionExtended.isHighlight() && optionExtended.getParentDimension() != null) {
++                                        if (count == this.lastSearchIndex.get()) {
++                                            Dim2i optionDim = optionExtended.getDim2i();
++                                            Dim2i parentDim = optionExtended.getParentDimension();
++                                            int maxOffset = parentDim.height() - this.tabDimHeight;
++                                            int input = optionDim.y() - parentDim.y();
++                                            int inputOffset = input + optionDim.height() == parentDim.height() ? parentDim.height() : input;
++                                            int offset = inputOffset * maxOffset / parentDim.height();
++
++
++                                            int total = this.pages.stream().mapToInt(page2 -> Math.toIntExact(page2.getOptions().stream().filter(OptionExtended.class::isInstance).map(OptionExtended.class::cast).filter(OptionExtended::isHighlight).count())).sum();
++
++                                            int value = total == this.lastSearchIndex.get() + 1 ? 0 : this.lastSearchIndex.get() + 1;
++                                            optionExtended.setSelected(true);
++                                            this.lastSearchIndex.set(value);
++                                            this.tabFrameSelectedTab.set(page.getName());
++                                            // todo: calculate tab frame scroll bar offset
++                                            this.tabFrameScrollBarOffset.set(0);
++
++
++                                            this.optionPageScrollBarOffset.set(offset);
++                                            this.setFocused(false);
++                                            this.sodiumVideoOptionsScreen.rebuildUI();
++                                            return true;
++                                        }
++                                        count++;
++                                    }
++                                }
++                            }
++                        }
++                        return true;
++                    }
++                    case GLFW.GLFW_KEY_BACKSPACE -> {
++                        if (this.editable) {
++                            this.selecting = false;
++                            this.erase(-1);
++                            this.selecting = Screen.hasShiftDown();
++                        }
++                        return true;
++                    }
++                    case GLFW.GLFW_KEY_DELETE -> {
++                        if (this.editable) {
++                            this.selecting = false;
++                            this.erase(1);
++                            this.selecting = Screen.hasShiftDown();
++                        }
++                        return true;
++                    }
++                    case GLFW.GLFW_KEY_RIGHT -> {
++                        if (Screen.hasControlDown()) {
++                            this.setCursor(this.getWordSkipPosition(1));
++                        } else {
++                            this.moveCursor(1);
++                        }
++                        boolean state = this.getCursor() != this.lastCursorPosition && this.getCursor() != this.text.length() + 1;
++                        this.lastCursorPosition = this.getCursor();
++                        return state;
++                    }
++                    case GLFW.GLFW_KEY_LEFT -> {
++                        if (Screen.hasControlDown()) {
++                            this.setCursor(this.getWordSkipPosition(-1));
++                        } else {
++                            this.moveCursor(-1);
++                        }
++                        boolean state = this.getCursor() != this.lastCursorPosition && this.getCursor() != 0;
++                        this.lastCursorPosition = this.getCursor();
++                        return state;
++                    }
++                    case GLFW.GLFW_KEY_HOME -> {
++                        this.setCursorToStart();
++                        return true;
++                    }
++                    case GLFW.GLFW_KEY_END -> {
++                        this.setCursorToEnd();
++                        return true;
++                    }
++                    default -> {
++                        return false;
++                    }
++                }
++            }
++        }
++    }
++
++    public boolean isVisible() {
++        return visible;
++    }
++
++    public boolean isEditable() {
++        return editable;
++    }
++
++    public int getInnerWidth() {
++        return this.dim.width() - 12;
++    }
++
++    @Override
++    public @Nullable ComponentPath nextFocusPath(FocusNavigationEvent navigation) {
++        if (!this.visible)
++            return null;
++        return super.nextFocusPath(navigation);
++    }
++
++    @Override
++    public ScreenRectangle getRectangle() {
++        return new ScreenRectangle(this.dim.x(), this.dim.y(), this.dim.width(), this.dim.height());
++    }
++}
+\ No newline at end of file
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/AbstractWidget.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/AbstractWidget.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/AbstractWidget.java
+--- a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/AbstractWidget.java	(revision acf5e6180e4df362307fd19c0024f09fe7df656b)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/widgets/AbstractWidget.java	(date 1722377867363)
+@@ -35,6 +35,10 @@
+         graphics.drawString(this.font, text, x, y, color);
+     }
+ 
++    protected void drawCenteredString(GuiGraphics graphics, Component text, int x, int y, int color) {
++        graphics.drawCenteredString(this.font, text, x, y, color);
++    }
++
+     public boolean isHovered() {
+         return this.hovered;
+     }
+Index: common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionPage.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionPage.java b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionPage.java
+--- a/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionPage.java	(revision acf5e6180e4df362307fd19c0024f09fe7df656b)
++++ b/common/src/main/java/net/caffeinemc/mods/sodium/client/gui/options/OptionPage.java	(date 1722380719916)
+@@ -3,14 +3,22 @@
+ import com.google.common.collect.ImmutableList;
+ import net.minecraft.network.chat.Component;
+ 
++import java.util.function.BooleanSupplier;
++
+ public class OptionPage {
+     private final Component name;
+-    private final ImmutableList<OptionGroup> groups;
+-    private final ImmutableList<Option<?>> options;
++    private ImmutableList<OptionGroup> groups;
++    private ImmutableList<Option<?>> options;
++    private BooleanSupplier visible;
+ 
+     public OptionPage(Component name, ImmutableList<OptionGroup> groups) {
++        this(name, groups, () -> true);
++    }
++
++    public OptionPage(Component name, ImmutableList<OptionGroup> groups, BooleanSupplier visible) {
+         this.name = name;
+         this.groups = groups;
++        this.visible = visible;
+ 
+         ImmutableList.Builder<Option<?>> builder = ImmutableList.builder();
+ 
+@@ -29,8 +37,23 @@
+         return this.options;
+     }
+ 
++    public void setOptions(ImmutableList<OptionGroup> groups) {
++        this.groups = groups;
++
++        ImmutableList.Builder<Option<?>> builder = ImmutableList.builder();
++
++        for (OptionGroup group : groups) {
++            builder.addAll(group.getOptions());
++        }
++
++        this.options = builder.build();
++    }
++
+     public Component getName() {
+         return this.name;
+     }
+ 
++    public boolean isVisible() {
++        return visible.getAsBoolean();
++    }
+ }
