@@ -28,6 +28,7 @@ import net.minecraft.CrashReport;
 import net.minecraft.CrashReportCategory;
 import net.minecraft.ReportedException;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.chunk.VisGraph;
 import net.minecraft.client.resources.model.BakedModel;
@@ -65,6 +66,8 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
 
         ChunkBuildBuffers buffers = buildContext.buffers;
         buffers.init(renderData, this.render.getSectionIndex());
+
+        VoxelBuffer voxels = new VoxelBuffer();
 
         BlockRenderCache cache = buildContext.cache;
         cache.init(this.renderContext);
@@ -104,11 +107,15 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
                         BlockState blockState = slice.getBlockState(x, y, z);
 
                         if (blockState.isAir() && !blockState.hasBlockEntity()) {
+                            voxels.write(x & 15, y & 15, z & 15, 0, 0);
                             continue;
                         }
 
                         blockPos.set(x, y, z);
                         modelOffset.set(x & 15, y & 15, z & 15);
+
+                        // todo perf
+                        voxels.write(x & 15, y & 15, z & 15, 99, LevelRenderer.getLightColor(slice, blockState, blockPos));
 
                         if (blockState.getRenderShape() == RenderShape.MODEL) {
                             BakedModel model = cache.getBlockModels()
@@ -176,6 +183,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         // cancellation opportunity right before translucent sorting
         if (cancellationToken.isCancelled()) {
             meshes.forEach((pass, mesh) -> mesh.getVertexData().free());
+            voxels.delete();
             profiler.pop();
             return null;
         }
@@ -193,7 +201,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
             reuseUploadedData = translucentData == oldData;
         }
 
-        var output = new ChunkBuildOutput(this.render, this.submitTime, translucentData, renderData.build(), meshes);
+        var output = new ChunkBuildOutput(this.render, this.submitTime, translucentData, renderData.build(), meshes, voxels);
 
         if (collector != null) {
             if (reuseUploadedData) {

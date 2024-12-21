@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.client.render.chunk.lists;
 
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.caffeinemc.mods.sodium.client.render.chunk.PersistentVoxelBuffer;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionFlags;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.CullType;
@@ -15,10 +16,16 @@ import net.minecraft.world.level.Level;
  */
 public class VisibleChunkCollectorSync extends SectionTree {
     private final ObjectArrayList<ChunkRenderList> sortedRenderLists;
+    private final PersistentVoxelBuffer persistentBuffer;
+    private final int renderDiameter;
+    private int chunkZAmount;
 
-    public VisibleChunkCollectorSync(Viewport viewport, float buildDistance, int frame, CullType cullType, Level level) {
+    public VisibleChunkCollectorSync(Viewport viewport, float buildDistance, int frame, CullType cullType, Level level, PersistentVoxelBuffer persistentBuffer, int renderDiameter, int chunkZAmount) {
         super(viewport, buildDistance, frame, cullType, level);
         this.sortedRenderLists = new ObjectArrayList<>();
+        this.persistentBuffer = persistentBuffer;
+        this.renderDiameter = renderDiameter;
+        this.chunkZAmount = chunkZAmount;
     }
 
     @Override
@@ -39,7 +46,18 @@ public class VisibleChunkCollectorSync extends SectionTree {
         var index = section.getSectionIndex();
         if ((region.getSectionFlags(index) & RenderSectionFlags.MASK_NEEDS_RENDER) != 0) {
             renderList.add(index);
+            if (!section.sentVoxelData()) {
+                section.markSentVoxelData();
+                this.persistentBuffer.write(getVoxelLocation(section) * 4L, (int) (section.getVoxelData().getOffset() / 32768L));
+            }
         }
+    }
+
+    private int getVoxelLocation(RenderSection section) {
+        int x = section.getChunkX() % renderDiameter;
+        int y = section.getChunkY() % chunkZAmount;
+        int z = section.getChunkZ() % renderDiameter;
+        return x + y * renderDiameter + z * renderDiameter * chunkZAmount;
     }
 
     private static int[] sortItems = new int[RenderRegion.REGION_SIZE];

@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferArena;
 import net.caffeinemc.mods.sodium.client.gl.arena.PendingUpload;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.FallbackStagingBuffer;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.MappedStagingBuffer;
@@ -11,13 +12,16 @@ import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
+import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.BuilderTaskOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkSortOutput;
+import net.caffeinemc.mods.sodium.client.render.chunk.compile.tasks.VoxelBuffer;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionMeshParts;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
 import org.jetbrains.annotations.NotNull;
@@ -28,9 +32,18 @@ public class RenderRegionManager {
     private final Long2ReferenceOpenHashMap<RenderRegion> regions = new Long2ReferenceOpenHashMap<>();
 
     private final StagingBuffer stagingBuffer;
+    public final GlBufferArena voxelArena;
+    private final int diameter;
+    private final RenderSectionManager sectionManager;
+    private final int chunkZSize;
 
-    public RenderRegionManager(CommandList commandList) {
+    public RenderRegionManager(RenderSectionManager sectionManager, CommandList commandList, ClientLevel level, int renderDistance) {
         this.stagingBuffer = createStagingBuffer(commandList);
+        this.diameter = (renderDistance * 2) + 1;
+        this.chunkZSize = Math.abs(level.getMinSectionY() - level.getMaxSectionY());
+        this.sectionManager = sectionManager;
+
+        this.voxelArena = new GlBufferArena(commandList, diameter * diameter * Math.abs(level.getMinSectionY() - level.getMaxSectionY()) * (16 * 16 * 16), 8, stagingBuffer);
     }
 
     public void update() {
@@ -61,6 +74,7 @@ public class RenderRegionManager {
 
     private void uploadResults(CommandList commandList, RenderRegion region, Collection<BuilderTaskOutput> results) {
         var uploads = new ArrayList<PendingSectionMeshUpload>();
+        var voxelUploads = new ArrayList<PendingSectionVoxelUpload>();
         var indexUploads = new ArrayList<PendingSectionIndexBufferUpload>();
 
         for (BuilderTaskOutput result : results) {
@@ -78,12 +92,22 @@ public class RenderRegionManager {
                         storage.removeVertexData(renderSectionIndex);
                     }
 
+                    if (storage != null) {
+                        storage.removeVoxelData(renderSectionIndex);
+                    }
+
                     BuiltSectionMeshParts mesh = chunkBuildOutput.getMesh(pass);
 
                     if (mesh != null) {
                         uploads.add(new PendingSectionMeshUpload(result.render, mesh, pass,
                         new PendingUpload(mesh.getVertexData())));
                     }
+                }
+
+                VoxelBuffer voxels = chunkBuildOutput.getVoxels();
+
+                if (voxels != null) {
+                    voxelUploads.add(new PendingSectionVoxelUpload(result.render, voxels, new PendingUpload(voxels.getBuffer())));
                 }
             }
 
@@ -134,6 +158,25 @@ public class RenderRegionManager {
             }
         }
 
+        profiler.popPush("upload_voxels");
+
+        if (!voxelUploads.isEmpty()) {
+            boolean bufferChanged = voxelArena.upload(commandList, voxelUploads.stream()
+                    .map(upload -> upload.voxelUpload));
+
+            // If any of the buffers changed, the tessellation will need to be updated
+            // Once invalidated the tessellation will be re-created on the next attempted use
+            if (bufferChanged) {
+                //region.refreshTesselation(commandList);
+            }
+
+            // Collect the upload results
+            for (PendingSectionVoxelUpload upload : voxelUploads) {
+                upload.section.setVoxelData(sectionManager.getPersistentBuffer(), diameter, chunkZSize,
+                        upload.voxelUpload.getResult());
+            }
+        }
+
         profiler.popPush("upload_indices");
 
         if (!indexUploads.isEmpty()) {
@@ -171,6 +214,7 @@ public class RenderRegionManager {
         }
 
         this.regions.clear();
+        this.voxelArena.delete(commandList);
         this.stagingBuffer.delete(commandList);
     }
 
@@ -207,6 +251,9 @@ public class RenderRegionManager {
     }
 
     private record PendingSectionMeshUpload(RenderSection section, BuiltSectionMeshParts meshData, TerrainRenderPass pass, PendingUpload vertexUpload) {
+    }
+
+    private record PendingSectionVoxelUpload(RenderSection section, VoxelBuffer voxels, PendingUpload voxelUpload) {
     }
 
     private record PendingSectionIndexBufferUpload(RenderSection section, PendingUpload indexBufferUpload) {

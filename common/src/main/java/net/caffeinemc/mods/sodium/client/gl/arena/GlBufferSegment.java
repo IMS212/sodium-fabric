@@ -29,6 +29,15 @@ public class GlBufferSegment {
         return UInt32.upcast(this.offset);
     }
 
+    @Override
+    public String toString() {
+        return "GlBufferSegment{" +
+                "offset=" + offset +
+                ", length=" + length +
+                ", free=" + free +
+                '}';
+    }
+
     /* Uint32 */
     public long getLength() {
         return UInt32.upcast(this.length);

@@ -30,12 +30,14 @@ import java.util.Arrays;
  */
 public class SectionRenderDataStorage {
     private final @Nullable GlBufferSegment[] vertexAllocations;
+    private final @Nullable GlBufferSegment[] voxelAllocations;
     private final @Nullable GlBufferSegment @Nullable[] elementAllocations;
 
     private final long pMeshDataArray;
 
     public SectionRenderDataStorage(boolean storesIndices) {
         this.vertexAllocations = new GlBufferSegment[RenderRegion.REGION_SIZE];
+        this.voxelAllocations = new GlBufferSegment[RenderRegion.REGION_SIZE];
 
         if (storesIndices) {
             this.elementAllocations = new GlBufferSegment[RenderRegion.REGION_SIZE];
@@ -100,6 +102,7 @@ public class SectionRenderDataStorage {
 
     public void removeData(int localSectionIndex) {
         this.removeVertexData(localSectionIndex, false);
+        this.removeVoxelData(localSectionIndex);
 
         if (this.elementAllocations != null) {
             this.removeIndexData(localSectionIndex);
@@ -129,6 +132,18 @@ public class SectionRenderDataStorage {
         if (retainIndexData) {
             SectionRenderDataUnsafe.setBaseElement(pMeshData, baseElement);
         }
+    }
+
+    public void removeVoxelData(int localSectionIndex) {
+        GlBufferSegment prev = this.voxelAllocations[localSectionIndex];
+
+        if (prev == null) {
+            return;
+        }
+
+        prev.delete();
+
+        this.voxelAllocations[localSectionIndex] = null;
     }
 
     public void removeIndexData(int localSectionIndex) {
@@ -191,6 +206,7 @@ public class SectionRenderDataStorage {
 
     public void delete() {
         deleteAllocations(this.vertexAllocations);
+        deleteAllocations(this.voxelAllocations);
 
         if (this.elementAllocations != null) {
             deleteAllocations(this.elementAllocations);
@@ -207,5 +223,15 @@ public class SectionRenderDataStorage {
         }
 
         Arrays.fill(allocations, null);
+    }
+
+    public void setVoxelData(int localSectionIndex, GlBufferSegment allocation) {
+        GlBufferSegment prev = this.vertexAllocations[localSectionIndex];
+
+        if (prev != null) {
+            prev.delete();
+        }
+
+        this.vertexAllocations[localSectionIndex] = allocation;
     }
 }

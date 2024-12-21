@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
+import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferSegment;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.estimation.MeshResultSize;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionInfo;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.GraphDirection;
@@ -12,6 +13,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.math.BigInteger;
 
 /**
  * The render state object for a chunk section. This contains all the graphics state for each render pass along with
@@ -58,6 +61,8 @@ public class RenderSection {
 
     // Lifetime state
     private boolean disposed;
+    private GlBufferSegment voxelData;
+    private boolean sentVoxelData;
 
     public RenderSection(RenderRegion region, int chunkX, int chunkY, int chunkZ) {
         this.chunkX = chunkX;
@@ -157,6 +162,11 @@ public class RenderSection {
         var wasBuilt = this.isBuilt();
 
         this.region.clearSectionRenderState(this.sectionIndex);
+        if (this.voxelData != null) {
+            this.sentVoxelData = false;
+            this.voxelData.delete();
+            this.voxelData = null;
+        }
         this.visibilityData = VisibilityEncoding.NULL;
 
         // changes to data if it moves from built to not built don't matter, so only build state changes matter
@@ -347,5 +357,35 @@ public class RenderSection {
 
     public void setLastSubmittedFrame(int lastSubmittedFrame) {
         this.lastSubmittedFrame = lastSubmittedFrame;
+    }
+
+    public void setVoxelData(PersistentVoxelBuffer b, int diameter, int chunkYSize, GlBufferSegment result) {
+        this.voxelData = result;
+        if (getChunkX() == 627 && getChunkY() == 4 && getChunkZ() == 624) {
+            System.out.println("Voxel data set for chunk " + getChunkX() + ", " + getChunkY() + ", " + getChunkZ());
+            System.out.println("Location: " + getVoxelLocation(diameter, chunkYSize));
+            System.out.println("Voxel Data Offset: " + BigInteger.valueOf(getVoxelData().getOffset()).divide(BigInteger.valueOf(32768)));
+            System.out.println(getVoxelData());
+        }
+        b.write(getVoxelLocation(diameter, chunkYSize) * 4L, (int) (getVoxelData().getOffset() / 32768L));
+    }
+
+    private int getVoxelLocation(int renderDiameter, int chunkZAmount) {
+        int x = getChunkX() % renderDiameter;
+        int y = getChunkY() % chunkZAmount;
+        int z = getChunkZ() % renderDiameter;
+        return x + y * renderDiameter + z * renderDiameter * chunkZAmount;
+    }
+
+    public GlBufferSegment getVoxelData() {
+        return voxelData;
+    }
+
+    public boolean sentVoxelData() {
+        return sentVoxelData;
+    }
+
+    public void markSentVoxelData() {
+        this.sentVoxelData = true;
     }
 }

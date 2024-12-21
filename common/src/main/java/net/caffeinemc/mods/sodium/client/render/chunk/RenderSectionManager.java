@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import it.unimi.dsi.fastutil.longs.*;
 import it.unimi.dsi.fastutil.objects.*;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferArena;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.async.*;
@@ -52,6 +53,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3dc;
+import org.lwjgl.opengl.GL46C;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -118,6 +120,7 @@ public class RenderSectionManager {
     private final Map<CullType, SectionTree> trees = new EnumMap<>(CullType.class);
 
     private final AsyncCameraTimingControl cameraTimingControl = new AsyncCameraTimingControl();
+    private final PersistentVoxelBuffer persistentBuffer;
 
     public RenderSectionManager(ClientLevel level, int renderDistance, CommandList commandList) {
         this.chunkRenderer = new DefaultChunkRenderer(RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
@@ -129,7 +132,11 @@ public class RenderSectionManager {
 
         this.sortTriggering = new SortTriggering();
 
-        this.regions = new RenderRegionManager(commandList);
+        this.regions = new RenderRegionManager(this, commandList, level, renderDistance);
+        int diameter = (renderDistance * 2) + 1;
+
+        this.persistentBuffer = new PersistentVoxelBuffer(diameter * diameter * Math.abs(level.getMinSectionY() - level.getMaxSectionY()) * 4L);
+
         this.sectionCache = new ClonedChunkSectionCache(this.level);
 
         this.renderLists = SortedRenderLists.empty();
@@ -211,10 +218,13 @@ public class RenderSectionManager {
             task.getResult();
         }
         this.pendingTasks.clear();
+        int diameter = (renderDistance * 2) + 1;
 
-        var tree = new VisibleChunkCollectorSync(viewport, searchDistance, this.frame, CullType.FRUSTUM, this.level);
+        var tree = new VisibleChunkCollectorSync(viewport, searchDistance, this.frame, CullType.FRUSTUM, this.level, this.persistentBuffer, diameter, Math.abs(level.getMinSectionY() - level.getMaxSectionY()));
         this.occlusionCuller.findVisible(tree, viewport, searchDistance, useOcclusionCulling, CancellationToken.NEVER_CANCELLED);
         tree.finalizeTrees();
+
+        this.persistentBuffer.flush();
 
         this.frustumTaskLists = tree.getPendingTaskLists();
         this.globalTaskLists = null;
@@ -515,6 +525,9 @@ public class RenderSectionManager {
     public void renderLayer(ChunkRenderMatrices matrices, TerrainRenderPass pass, double x, double y, double z) {
         RenderDevice device = RenderDevice.INSTANCE;
         CommandList commandList = device.createCommandList();
+
+        GL46C.glBindBufferBase(GL46C.GL_SHADER_STORAGE_BUFFER, 3, this.persistentBuffer.getId());
+        GL46C.glBindBufferBase(GL46C.GL_SHADER_STORAGE_BUFFER, 4, this.regions.voxelArena.getBufferObject().handle());
 
         this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z));
 
@@ -823,7 +836,7 @@ public class RenderSectionManager {
                     // index data.
                     var result = ChunkJobResult.successfully(new ChunkBuildOutput(
                             section, this.frame, NoData.forEmptySection(section.getPosition()),
-                            BuiltSectionInfo.EMPTY, Collections.emptyMap()));
+                            BuiltSectionInfo.EMPTY, Collections.emptyMap(), null));
                     this.buildResults.add(result);
 
                     section.setTaskCancellationToken(null);
@@ -1120,5 +1133,9 @@ public class RenderSectionManager {
 
     public Collection<RenderSection> getSectionsWithGlobalEntities() {
         return ReferenceSets.unmodifiable(this.sectionsWithGlobalEntities);
+    }
+
+    public PersistentVoxelBuffer getPersistentBuffer() {
+        return persistentBuffer;
     }
 }

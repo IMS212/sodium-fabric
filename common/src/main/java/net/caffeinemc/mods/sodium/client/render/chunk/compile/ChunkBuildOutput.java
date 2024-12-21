@@ -1,10 +1,12 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.compile;
 
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
+import net.caffeinemc.mods.sodium.client.render.chunk.compile.tasks.VoxelBuffer;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionInfo;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionMeshParts;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.TranslucentData;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 
@@ -18,14 +20,16 @@ public class ChunkBuildOutput extends ChunkSortOutput {
     public final BuiltSectionInfo info;
     public final TranslucentData translucentData;
     public final Map<TerrainRenderPass, BuiltSectionMeshParts> meshes;
+    private final VoxelBuffer voxels;
 
     public ChunkBuildOutput(RenderSection render, int buildTime, TranslucentData translucentData, BuiltSectionInfo info,
-            Map<TerrainRenderPass, BuiltSectionMeshParts> meshes) {
+                            Map<TerrainRenderPass, BuiltSectionMeshParts> meshes, VoxelBuffer voxels) {
         super(render, buildTime);
 
         this.info = info;
         this.translucentData = translucentData;
         this.meshes = meshes;
+        this.voxels = voxels;
     }
 
     public BuiltSectionMeshParts getMesh(TerrainRenderPass pass) {
@@ -39,6 +43,10 @@ public class ChunkBuildOutput extends ChunkSortOutput {
         for (BuiltSectionMeshParts data : this.meshes.values()) {
             data.getVertexData().free();
         }
+
+        if (voxels != null) {
+            voxels.delete();
+        }
     }
 
     private long getMeshSize() {
@@ -47,6 +55,11 @@ public class ChunkBuildOutput extends ChunkSortOutput {
             size += data.getVertexData().getLength();
         }
         return size;
+    }
+
+    @Nullable
+    public VoxelBuffer getVoxels() {
+        return voxels;
     }
 
     @Override

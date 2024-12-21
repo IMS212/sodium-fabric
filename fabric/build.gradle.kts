@@ -69,6 +69,7 @@ loom {
     runs {
         named("client") {
             client()
+            environmentVariable("LD_PRELOAD", "/usr/lib/librenderdoc.so")
             configName = "Fabric/Client"
             appendProjectPathToConfigName = false
             ideConfigGenerated(true)

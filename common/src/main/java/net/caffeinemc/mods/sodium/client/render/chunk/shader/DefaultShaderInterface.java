@@ -30,8 +30,8 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
         this.uniformRegionOffset = context.bindUniform("u_RegionOffset", GlUniformFloat3v::new);
 
         this.uniformTextures = new EnumMap<>(ChunkShaderTextureSlot.class);
-        this.uniformTextures.put(ChunkShaderTextureSlot.BLOCK, context.bindUniform("u_BlockTex", GlUniformInt::new));
-        this.uniformTextures.put(ChunkShaderTextureSlot.LIGHT, context.bindUniform("u_LightTex", GlUniformInt::new));
+        this.uniformTextures.put(ChunkShaderTextureSlot.BLOCK, context.bindUniformOptional("u_BlockTex", GlUniformInt::new));
+        this.uniformTextures.put(ChunkShaderTextureSlot.LIGHT, context.bindUniformOptional("u_LightTex", GlUniformInt::new));
 
         this.fogShader = options.fog().getFactory().apply(context);
     }
@@ -55,7 +55,7 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
         GlStateManager._bindTexture(textureId);
 
         var uniform = this.uniformTextures.get(slot);
-        uniform.setInt(slot.ordinal());
+        if (uniform != null) uniform.setInt(slot.ordinal());
     }
 
     @Override
