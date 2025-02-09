@@ -21,6 +21,7 @@ import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.Transl
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.PresentTranslucentData;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.TranslucentData;
 import net.caffeinemc.mods.sodium.client.services.PlatformLevelRenderHooks;
+import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
 import net.caffeinemc.mods.sodium.client.util.task.CancellationToken;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
@@ -39,6 +40,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import org.joml.Vector3dc;
+import org.lwjgl.system.MemoryUtil;
 
 import java.util.Map;
 
@@ -56,6 +58,11 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         super(render, buildTime, absoluteCameraPos);
         this.renderContext = renderContext;
     }
+
+    public static long to1D( int x, int y, int z ) {
+        return (z * 16L * 16L) + (y * 16L) + x;
+    }
+
 
     @Override
     public ChunkBuildOutput execute(ChunkBuildContext buildContext, CancellationToken cancellationToken) {
@@ -89,13 +96,20 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         } else {
             collector = null;
         }
+
+        NativeBuffer voxels = new NativeBuffer(32768);
+
         BlockRenderer blockRenderer = cache.getBlockRenderer();
         blockRenderer.prepare(buffers, slice, collector);
 
         profiler.push("render blocks");
+
+        long addr = voxels.getAddress();
+
         try {
             for (int y = minY; y < maxY; y++) {
                 if (cancellationToken.isCancelled()) {
+                    voxels.free();
                     return null;
                 }
 
@@ -109,6 +123,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
 
                         blockPos.set(x, y, z);
                         modelOffset.set(x & 15, y & 15, z & 15);
+                        MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * Integer.BYTES), 1);
 
                         if (blockState.getRenderShape() == RenderShape.MODEL) {
                             BakedModel model = cache.getBlockModels()
@@ -176,6 +191,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         // cancellation opportunity right before translucent sorting
         if (cancellationToken.isCancelled()) {
             meshes.forEach((pass, mesh) -> mesh.getVertexData().free());
+            voxels.free();
             profiler.pop();
             return null;
         }
@@ -193,7 +209,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
             reuseUploadedData = translucentData == oldData;
         }
 
-        var output = new ChunkBuildOutput(this.render, this.submitTime, translucentData, renderData.build(), meshes);
+        var output = new ChunkBuildOutput(this.render, this.submitTime, translucentData, renderData.build(), meshes, voxels);
 
         if (collector != null) {
             if (reuseUploadedData) {

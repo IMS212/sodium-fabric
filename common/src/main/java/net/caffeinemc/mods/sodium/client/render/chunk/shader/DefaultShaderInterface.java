@@ -20,6 +20,7 @@ import java.util.Map;
  * A forward-rendering shader program for chunks.
  */
 public class DefaultShaderInterface implements ChunkShaderInterface {
+    public static int VOXEL;
     // Direct3D specifies at least 8 bits of sub-texel precision for texture fetches. OpenGL specifies at least
     // 4 bits of sub-texel precision. Most OpenGL-capable graphics are Direct3D-capable as well, so we can
     // *probably* assume 8 bits of precision.
@@ -34,12 +35,14 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
 
     // The fog shader component used by this program in order to setup the appropriate GL state
     private final ChunkShaderFogComponent fogShader;
+    private final GlUniformInt uniformTest;
 
     public DefaultShaderInterface(ShaderBindingContext context, ChunkShaderOptions options) {
         this.uniformModelViewMatrix = context.bindUniform("u_ModelViewMatrix", GlUniformMatrix4f::new);
         this.uniformProjectionMatrix = context.bindUniform("u_ProjectionMatrix", GlUniformMatrix4f::new);
         this.uniformRegionOffset = context.bindUniform("u_RegionOffset", GlUniformFloat3v::new);
         this.uniformTexCoordShrink = context.bindUniform("u_TexCoordShrink", GlUniformFloat2v::new);
+        this.uniformTest = context.bindUniformOptional("u_Test", GlUniformInt::new);
 
         this.uniformTextures = new EnumMap<>(ChunkShaderTextureSlot.class);
         this.uniformTextures.put(ChunkShaderTextureSlot.BLOCK, context.bindUniform("u_BlockTex", GlUniformInt::new));
@@ -68,6 +71,10 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
                 (float) (subTexelOffset + ((1.0D / textureAtlas.getWidth()) / subTexelPrecision)),
                 (float) (subTexelOffset + ((1.0D / textureAtlas.getHeight()) / subTexelPrecision))
         );
+
+        if (this.uniformTest != null) {
+            this.uniformTest.setInt(VOXEL);
+        }
 
         this.fogShader.setup();
     }

@@ -1,6 +1,20 @@
-#version 330 core
+#version 460 core
 
 #import <sodium:include/fog.glsl>
+
+struct Chunk {
+    uint blocks[4096];
+};
+
+layout(binding = 8, std430) buffer Voxels {
+    Chunk[] ids;
+};
+
+int to1D( int x, int y, int z ) {
+        return (z * 16 * 16) + (y * 16) + x;
+}
+
+uniform int u_Test;
 
 in vec4 v_Color; // The interpolated vertex color
 in vec2 v_TexCoord; // The interpolated block texture coordinates
@@ -29,5 +43,10 @@ void main() {
     }
 #endif
 
+    if (ids[u_Test].blocks[to1D(11, 15, 5)] == 0u) {
+    fragColor = diffuseColor.rrra;
+    } else {
+
     fragColor = _linearFog(diffuseColor, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);
+    }
 }

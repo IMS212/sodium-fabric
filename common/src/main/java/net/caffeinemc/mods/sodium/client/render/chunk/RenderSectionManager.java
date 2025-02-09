@@ -989,7 +989,7 @@ public class RenderSectionManager {
                 // index data.
                 var result = ChunkJobResult.successfully(new ChunkBuildOutput(
                         section, this.frame, NoData.forEmptySection(section.getPosition()),
-                        BuiltSectionInfo.EMPTY, Collections.emptyMap()));
+                        BuiltSectionInfo.EMPTY, Collections.emptyMap(), null));
                 this.buildResults.add(result);
 
                 section.setTaskCancellationToken(null);

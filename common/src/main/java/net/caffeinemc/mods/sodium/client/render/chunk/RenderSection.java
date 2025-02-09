@@ -8,7 +8,6 @@ import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.VisibilityEncodi
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.TranslucentData;
 import net.caffeinemc.mods.sodium.client.util.task.CancellationToken;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -58,6 +57,7 @@ public class RenderSection {
 
     // Lifetime state
     private boolean disposed;
+    private long voxelOffset;
 
     public RenderSection(RenderRegion region, int chunkX, int chunkY, int chunkZ) {
         this.chunkX = chunkX;
@@ -261,6 +261,14 @@ public class RenderSection {
 
     public int getSectionIndex() {
         return this.sectionIndex;
+    }
+
+    public long getVoxelOffset() {
+        return this.voxelOffset;
+    }
+
+    public void setVoxelOffset(long voxelOffset) {
+        this.voxelOffset = voxelOffset;
     }
 
     public RenderRegion getRegion() {

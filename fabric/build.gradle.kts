@@ -74,6 +74,14 @@ loom {
             ideConfigGenerated(true)
             runDir("run")
         }
+        create("clientWithRenderdoc") {
+            client()
+            configName = "Fabric/Client"
+            appendProjectPathToConfigName = false
+            ideConfigGenerated(true)
+            runDir("run")
+            environmentVariable("LD_PRELOAD", "/usr/lib/librenderdoc.so")
+        }
     }
 }
 

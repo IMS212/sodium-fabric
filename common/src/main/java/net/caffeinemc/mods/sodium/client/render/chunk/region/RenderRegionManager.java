@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferArena;
 import net.caffeinemc.mods.sodium.client.gl.arena.PendingUpload;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.FallbackStagingBuffer;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.MappedStagingBuffer;
@@ -15,25 +16,39 @@ import net.caffeinemc.mods.sodium.client.render.chunk.compile.BuilderTaskOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkSortOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionMeshParts;
+import net.caffeinemc.mods.sodium.client.render.chunk.shader.DefaultShaderInterface;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
-
+import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.SectionPos;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
 import org.jetbrains.annotations.NotNull;
+import org.lwjgl.opengl.GL46C;
+import org.lwjgl.system.MemoryUtil;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
 public class RenderRegionManager {
     private final Long2ReferenceOpenHashMap<RenderRegion> regions = new Long2ReferenceOpenHashMap<>();
 
     private final StagingBuffer stagingBuffer;
+    private final GlBufferArena voxelArena;
 
     public RenderRegionManager(CommandList commandList) {
         this.stagingBuffer = createStagingBuffer(commandList);
+        int rd = 2 * Minecraft.getInstance().options.getEffectiveRenderDistance() + 1;
+        this.voxelArena = new GlBufferArena(commandList, rd * 16,
+                32768, stagingBuffer);
     }
 
     public void update() {
+        GL46C.glBindBufferBase(GL46C.GL_SHADER_STORAGE_BUFFER, 8, voxelArena.getBufferObject().handle());
+
         this.stagingBuffer.flip();
 
         try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
@@ -59,8 +74,17 @@ public class RenderRegionManager {
         }
     }
 
+    public int[] to3D( int idx ) {
+        final int z = idx / (16 * 16);
+        idx -= (z * 16 * 16);
+        final int y = idx / 16;
+        final int x = idx % 16;
+        return new int[]{ x, y, z };
+    }
+
     private void uploadResults(CommandList commandList, RenderRegion region, Collection<BuilderTaskOutput> results) {
         var uploads = new ArrayList<PendingSectionMeshUpload>();
+        var voxelUpload = new ArrayList<PendingSectionVoxelUpload>();
         var indexUploads = new ArrayList<PendingSectionIndexBufferUpload>();
 
         for (BuilderTaskOutput result : results) {
@@ -83,6 +107,12 @@ public class RenderRegionManager {
                     if (mesh != null) {
                         uploads.add(new PendingSectionMeshUpload(result.render, mesh, pass,
                         new PendingUpload(mesh.getVertexData())));
+                    }
+
+                    NativeBuffer voxels = chunkBuildOutput.getVoxels();
+
+                    if (voxels != null) {
+                        voxelUpload.add(new PendingSectionVoxelUpload(result.render, voxels, new PendingUpload(voxels)));
                     }
                 }
             }
@@ -107,7 +137,7 @@ public class RenderRegionManager {
         ProfilerFiller profiler = Profiler.get();
 
         // If we have nothing to upload, abort!
-        if (uploads.isEmpty() && indexUploads.isEmpty()) {
+        if (uploads.isEmpty() && indexUploads.isEmpty() && voxelUpload.isEmpty()) {
             return;
         }
 
@@ -131,6 +161,30 @@ public class RenderRegionManager {
                 var storage = region.createStorage(upload.pass);
                 storage.setVertexData(upload.section.getSectionIndex(),
                         upload.vertexUpload.getResult(), upload.meshData.getVertexCounts());
+            }
+        }
+
+        profiler.popPush("upload_voxels");
+
+        if (!voxelUpload.isEmpty()) {
+            boolean bufferChanged = voxelArena.upload(commandList, voxelUpload.stream()
+                    .map(upload -> upload.upload));
+
+            // Collect the upload results
+            for (PendingSectionVoxelUpload upload : voxelUpload) {
+                if (SectionPos.of(Minecraft.getInstance().player.blockPosition()).equals(SectionPos.of(upload.section.getChunkX(), upload.section.getChunkY(), upload.section.getChunkZ()))) {
+                    System.out.println("Chunk " + upload.section.toString());
+                    DefaultShaderInterface.VOXEL = (int) upload.upload.getResult().getOffset();
+                    for (int x = 0; x < 4096; x++) {
+                        boolean hasBlock = MemoryUtil.memGetInt(upload.data.getAddress() + (x * 4)) != 0;
+                        if (!hasBlock) {
+                            int[] v = to3D(x);
+                            System.out.println("Block " + (upload.section.getOriginX() + v[0]) + ", " + (upload.section.getOriginY() + v[1]) + ", " + (upload.section.getOriginZ() + v[2]) + " is missing");
+                        }
+                    }
+                }
+
+                upload.section.setVoxelOffset(upload.upload.getResult().getOffset());
             }
         }
 
@@ -207,6 +261,9 @@ public class RenderRegionManager {
     }
 
     private record PendingSectionMeshUpload(RenderSection section, BuiltSectionMeshParts meshData, TerrainRenderPass pass, PendingUpload vertexUpload) {
+    }
+
+    private record PendingSectionVoxelUpload(RenderSection section, NativeBuffer data, PendingUpload upload) {
     }
 
     private record PendingSectionIndexBufferUpload(RenderSection section, PendingUpload indexBufferUpload) {
