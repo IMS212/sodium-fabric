@@ -3,7 +3,7 @@
 #import <sodium:include/fog.glsl>
 
 struct Chunk {
-    uint blocks[4096];
+    uvec2 blocks[4096];
 };
 
 layout(binding = 8, std430) buffer Voxels {
@@ -43,8 +43,8 @@ void main() {
     }
 #endif
 
-    if (ids[u_Test].blocks[to1D(11, 15, 5)] == 0u) {
-    fragColor = diffuseColor.rrra;
+    if (ids[u_Test].blocks[to1D(10, 4, 3)].y > 10u) {
+    fragColor = v_Color;
     } else {
 
     fragColor = _linearFog(diffuseColor, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);

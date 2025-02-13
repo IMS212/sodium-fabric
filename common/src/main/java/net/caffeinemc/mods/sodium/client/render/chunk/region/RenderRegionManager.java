@@ -38,6 +38,7 @@ public class RenderRegionManager {
 
     private final StagingBuffer stagingBuffer;
     private final GlBufferArena voxelArena;
+    private PendingSectionVoxelUpload upcomingUpload;
 
     public RenderRegionManager(CommandList commandList) {
         this.stagingBuffer = createStagingBuffer(commandList);
@@ -63,6 +64,26 @@ public class RenderRegionManager {
                     region.delete(commandList);
 
                     it.remove();
+                }
+            }
+        }
+
+        if (this.upcomingUpload != null) {
+            PendingSectionVoxelUpload upload = this.upcomingUpload;
+            this.upcomingUpload = null;
+            GL46C.glFinish();
+            System.out.println("Chunk " + upload.section.toString());
+            long addr = MemoryUtil.nmemAlloc(32768);
+            GL46C.nglGetNamedBufferSubData(voxelArena.getBufferObject().handle(), upload.upload.getResult().getOffset() * 32768, 32768, addr);
+            GL46C.glFinish();
+            DefaultShaderInterface.VOXEL = (int) (upload.upload.getResult().getOffset());
+            for (int x = 0; x < 4096; x++) {
+                boolean hasBlock = MemoryUtil.memGetInt(addr + (x * 8)) != 0;
+                int[] v = to3D(x);
+                if (!hasBlock) {
+                    System.out.println("Block " + (upload.section.getOriginX() + v[0]) + ", " + (upload.section.getOriginY() + v[1]) + ", " + (upload.section.getOriginZ() + v[2]) + " is missing");
+                } else {
+                    System.out.println("Block " + (upload.section.getOriginX() + v[0]) + ", " + (upload.section.getOriginY() + v[1]) + ", " + (upload.section.getOriginZ() + v[2]) + " exists");
                 }
             }
         }
@@ -173,15 +194,7 @@ public class RenderRegionManager {
             // Collect the upload results
             for (PendingSectionVoxelUpload upload : voxelUpload) {
                 if (SectionPos.of(Minecraft.getInstance().player.blockPosition()).equals(SectionPos.of(upload.section.getChunkX(), upload.section.getChunkY(), upload.section.getChunkZ()))) {
-                    System.out.println("Chunk " + upload.section.toString());
-                    DefaultShaderInterface.VOXEL = (int) upload.upload.getResult().getOffset();
-                    for (int x = 0; x < 4096; x++) {
-                        boolean hasBlock = MemoryUtil.memGetInt(upload.data.getAddress() + (x * 4)) != 0;
-                        if (!hasBlock) {
-                            int[] v = to3D(x);
-                            System.out.println("Block " + (upload.section.getOriginX() + v[0]) + ", " + (upload.section.getOriginY() + v[1]) + ", " + (upload.section.getOriginZ() + v[2]) + " is missing");
-                        }
-                    }
+                    this.upcomingUpload = upload;
                 }
 
                 upload.section.setVoxelOffset(upload.upload.getResult().getOffset());

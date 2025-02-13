@@ -35,6 +35,7 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -116,14 +117,18 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
                 for (int z = minZ; z < maxZ; z++) {
                     for (int x = minX; x < maxX; x++) {
                         BlockState blockState = slice.getBlockState(x, y, z);
+                        blockPos.set(x, y, z);
 
                         if (blockState.isAir() && !blockState.hasBlockEntity()) {
+                            MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8), 0);
+                            MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8) + 4, cache.getWorldSlice().getBrightness(LightLayer.SKY, blockPos));
+
                             continue;
                         }
 
-                        blockPos.set(x, y, z);
                         modelOffset.set(x & 15, y & 15, z & 15);
-                        MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * Integer.BYTES), 1);
+                        MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8), 1);
+                        MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8) + 4, cache.getWorldSlice().getBrightness(LightLayer.SKY, blockPos));
 
                         if (blockState.getRenderShape() == RenderShape.MODEL) {
                             BakedModel model = cache.getBlockModels()
