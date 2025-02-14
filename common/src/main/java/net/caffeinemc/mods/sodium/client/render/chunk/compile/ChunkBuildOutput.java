@@ -44,7 +44,7 @@ public class ChunkBuildOutput extends ChunkSortOutput {
         }
 
         if (this.voxels != null) {
-            this.voxels.free();
+           // this.voxels.free();
         }
     }
 

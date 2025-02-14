@@ -1224,6 +1224,8 @@ public class RenderSectionManager {
             count++;
         }
 
+        list.add(String.format("Voxel buffer: %d/%d MiB", MathUtil.toMib(regions.voxelArena.getDeviceUsedMemory()), MathUtil.toMib(regions.voxelArena.getDeviceAllocatedMemory())));
+
         list.add(String.format("Geometry Pool: %d/%d MiB (%d buffers)", MathUtil.toMib(deviceUsed), MathUtil.toMib(deviceAllocated), count));
         list.add(String.format("Transfer Queue: %s", this.regions.getStagingBuffer().toString()));
 

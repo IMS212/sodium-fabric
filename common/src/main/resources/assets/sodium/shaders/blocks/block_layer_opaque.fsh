@@ -14,6 +14,10 @@ int to1D( int x, int y, int z ) {
         return (z * 16 * 16) + (y * 16) + x;
 }
 
+layout(binding = 5, std430) buffer Moment {
+    bool found;
+};
+
 uniform int u_Test;
 
 in vec4 v_Color; // The interpolated vertex color
@@ -43,7 +47,7 @@ void main() {
     }
 #endif
 
-    if (ids[u_Test].blocks[to1D(10, 4, 3)].y > 10u) {
+    if (found) {
     fragColor = v_Color;
     } else {
 

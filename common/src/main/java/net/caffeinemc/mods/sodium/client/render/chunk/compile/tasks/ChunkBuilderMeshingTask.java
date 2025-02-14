@@ -29,6 +29,7 @@ import net.minecraft.CrashReport;
 import net.minecraft.CrashReportCategory;
 import net.minecraft.ReportedException;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.chunk.VisGraph;
 import net.minecraft.client.resources.model.BakedModel;
@@ -119,16 +120,17 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
                         BlockState blockState = slice.getBlockState(x, y, z);
                         blockPos.set(x, y, z);
 
+                        int light = LightTexture.pack(cache.getWorldSlice().getBrightness(LightLayer.BLOCK, blockPos), cache.getWorldSlice().getBrightness(LightLayer.SKY, blockPos));
+                        MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8) + 4, light);
+
                         if (blockState.isAir() && !blockState.hasBlockEntity()) {
                             MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8), 0);
-                            MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8) + 4, cache.getWorldSlice().getBrightness(LightLayer.SKY, blockPos));
 
                             continue;
                         }
 
                         modelOffset.set(x & 15, y & 15, z & 15);
                         MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8), 1);
-                        MemoryUtil.memPutInt(addr + (to1D(x & 15, y & 15, z & 15) * 8) + 4, cache.getWorldSlice().getBrightness(LightLayer.SKY, blockPos));
 
                         if (blockState.getRenderShape() == RenderShape.MODEL) {
                             BakedModel model = cache.getBlockModels()

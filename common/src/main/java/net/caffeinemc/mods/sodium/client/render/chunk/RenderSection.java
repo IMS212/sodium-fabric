@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
+import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferSegment;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.estimation.MeshResultSize;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionInfo;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.GraphDirection;
@@ -57,7 +58,7 @@ public class RenderSection {
 
     // Lifetime state
     private boolean disposed;
-    private long voxelOffset;
+    private GlBufferSegment voxelOffset;
 
     public RenderSection(RenderRegion region, int chunkX, int chunkY, int chunkZ) {
         this.chunkX = chunkX;
@@ -264,10 +265,10 @@ public class RenderSection {
     }
 
     public long getVoxelOffset() {
-        return this.voxelOffset;
+        return this.voxelOffset.getOffset();
     }
 
-    public void setVoxelOffset(long voxelOffset) {
+    public void setVoxelOffset(GlBufferSegment voxelOffset) {
         this.voxelOffset = voxelOffset;
     }
 
