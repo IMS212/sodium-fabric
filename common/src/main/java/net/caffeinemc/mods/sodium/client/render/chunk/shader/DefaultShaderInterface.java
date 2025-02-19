@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.client.render.chunk.shader;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.textures.GpuTexture;
+import net.caffeinemc.mods.sodium.client.gl.device.GLRenderDevice;
 import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformFloat2v;
 import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformFloat3v;
 import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformInt;
@@ -21,11 +22,6 @@ import java.util.Map;
  * A forward-rendering shader program for chunks.
  */
 public class DefaultShaderInterface implements ChunkShaderInterface {
-    // Direct3D specifies at least 8 bits of sub-texel precision for texture fetches. OpenGL specifies at least
-    // 4 bits of sub-texel precision. Most OpenGL-capable graphics are Direct3D-capable as well, so we can
-    // *probably* assume 8 bits of precision.
-    private static final int SUB_TEXEL_PRECISION_BITS = 8;
-
     private final Map<ChunkShaderTextureSlot, GlUniformInt> uniformTextures;
 
     private final GlUniformMatrix4f uniformModelViewMatrix;
@@ -62,12 +58,12 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
         // There is a limited amount of sub-texel precision when using hardware texture sampling. The mapped texture
         // area must be "shrunk" by at least one sub-texel to avoid bleed between textures in the atlas. And since we
         // offset texture coordinates in the vertex format by one texel, we also need to undo that here.
-        double subTexelPrecision = (1 << SUB_TEXEL_PRECISION_BITS);
+        double subTexelPrecision = (1 << GLRenderDevice.INSTANCE.getSubTexelPrecisionBits());
         double subTexelOffset = 1.0f / CompactChunkVertex.TEXTURE_MAX_VALUE;
 
         this.uniformTexCoordShrink.set(
-                (float) (subTexelOffset + ((1.0D / textureAtlas.getWidth()) / subTexelPrecision)),
-                (float) (subTexelOffset + ((1.0D / textureAtlas.getHeight()) / subTexelPrecision))
+                (float) (subTexelOffset - (((1.0D / textureAtlas.getWidth()) / subTexelPrecision))),
+                (float) (subTexelOffset - (((1.0D / textureAtlas.getHeight()) / subTexelPrecision)))
         );
 
         this.fogShader.setup();

@@ -101,7 +101,7 @@ public class CompactChunkVertex implements ChunkVertexType {
         // This makes it possible to use much smaller epsilons for avoiding texture bleed, since the epsilon is no
         // longer encoded into the vertex data (instead, we only store the sign.)
         int bias = (x < center) ? 1 : -1;
-        int quantized = floorInt(x * TEXTURE_MAX_VALUE) + bias;
+        int quantized = Math.round(x * TEXTURE_MAX_VALUE) + bias;
 
         return (quantized & 0x7FFF) | (sign(bias) << 15);
     }
@@ -125,7 +125,4 @@ public class CompactChunkVertex implements ChunkVertexType {
         return (x >>> 31);
     }
 
-    private static int floorInt(float x) {
-        return (int) Math.floor(x);
-    }
 }
