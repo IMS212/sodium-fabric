@@ -1,7 +1,7 @@
 plugins {
     id("multiloader-platform")
 
-    id("fabric-loom") version ("1.9.2")
+    id("fabric-loom") version ("1.10.1")
 }
 
 base {
@@ -75,10 +75,7 @@ loom {
     runs {
         named("client") {
             client()
-            configName = "Fabric/Client"
-            appendProjectPathToConfigName = false
-            ideConfigGenerated(true)
-            environmentVariable("LD_PRELOAD", "/usr/lib/librenderdoc.so")
+            ideConfigGenerated(false)
             runDir("run")
         }
     }

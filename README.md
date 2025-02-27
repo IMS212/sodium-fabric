@@ -77,8 +77,8 @@ not work with future versions of Sodium.
 
 #### OpenGL Compatibility Layers
 
-Devices which need to use OpenGL translation layers (such as GL4ES, ANGLE, etc) are not supported and will very likely
-not work with Sodium. These translation layers do not implement required functionality and they suffer from underlying
+Devices which need to use OpenGL translation layers (such as GL4ES, ANGLE, etc.) are not supported and will very likely
+not work with Sodium. These translation layers do not implement required functionality, and they suffer from underlying
 driver bugs which cannot be worked around.
 
 ## 🛠️ Building from sources

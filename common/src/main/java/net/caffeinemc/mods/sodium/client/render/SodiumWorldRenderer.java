@@ -475,7 +475,7 @@ public class SodiumWorldRenderer {
     private static final double MAX_ENTITY_CHECK_VOLUME = 16 * 16 * 16 * 15;
 
     /**
-     * Returns whether or not the entity intersects with any visible chunks in the graph.
+     * Returns whether the entity intersects with any visible chunks in the graph.
      * @return True if the entity is visible, otherwise false
      */
     public <T extends Entity, S extends EntityRenderState> boolean isEntityVisible(EntityRenderer<T, S> renderer, T entity) {

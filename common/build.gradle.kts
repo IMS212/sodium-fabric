@@ -2,7 +2,7 @@ plugins {
     id("multiloader-base")
     id("java-library")
 
-    id("fabric-loom") version ("1.9.2")
+    id("fabric-loom") version ("1.10.1")
 }
 
 base {

@@ -316,7 +316,7 @@ public class SodiumOptionsGUI extends Screen implements ScreenPromptable {
         int boxYLimit = boxY + boxHeight;
         int boxYCutoff = this.height - 40;
 
-        // If the box is going to be cutoff on the Y-axis, move it back up the difference
+        // If the box is going to be cut off on the Y-axis, move it back up the difference
         if (boxYLimit > boxYCutoff) {
             boxY -= boxYLimit - boxYCutoff;
         }

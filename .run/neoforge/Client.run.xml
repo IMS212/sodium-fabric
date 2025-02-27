@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="NeoForge/Client" type="Application" factoryName="Application">
+    <module name="sodium.neoforge.main" />
+    <option name="MAIN_CLASS_NAME" value="net.neoforged.devlaunch.Main" />
+    <option name="PROGRAM_PARAMETERS" value="@$PROJECT_DIR$/neoforge/build/moddev/clientRunProgramArgs.txt" />
+    <option name="VM_PARAMETERS" value="@$PROJECT_DIR$/.run/clientRunVmArgs.txt @$PROJECT_DIR$/neoforge/build/moddev/clientRunVmArgs.txt -Dfml.modFolders=sodium%%$PROJECT_DIR$/neoforge/build/classes/java/main:sodium%%$PROJECT_DIR$/neoforge/build/resources/main:sodium%%$PROJECT_DIR$/common/build/classes/java/main:sodium%%$PROJECT_DIR$/common/build/resources/main:sodium%%$PROJECT_DIR$/common/build/classes/java/api:sodium%%$PROJECT_DIR$/common/build/resources/api:sodium-service%%$PROJECT_DIR$/neoforge/build/classes/java/service:sodium-service%%$PROJECT_DIR$/neoforge/build/resources/service:sodium-service%%$PROJECT_DIR$/common/build/classes/java/workarounds:sodium-service%%$PROJECT_DIR$/common/build/resources/workarounds" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/neoforge/run" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

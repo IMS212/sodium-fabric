@@ -16,7 +16,7 @@ tasks {
         inputs.property("version", version)
 
         filesMatching(listOf("fabric.mod.json", "META-INF/neoforge.mods.toml")) {
-            expand(mapOf("version" to version))
+            expand(mapOf("version" to inputs.properties["version"]))
         }
     }
 

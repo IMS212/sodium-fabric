@@ -111,7 +111,7 @@ neoForge {
     runs {
         create("Client") {
             client()
-            ideName = "NeoForge/Client"
+            disableIdeRun()
         }
     }
 
