@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.shader;
 
+import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.textures.GpuTexture;
 import net.caffeinemc.mods.sodium.client.gl.device.GLRenderDevice;
@@ -51,6 +52,7 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
         this.bindTexture(ChunkShaderTextureSlot.BLOCK, TextureUtil.getBlockTexture());
         this.bindTexture(ChunkShaderTextureSlot.LIGHT, TextureUtil.getLightTexture());
 
+
         var textureAtlas = (TextureAtlasAccessor) Minecraft.getInstance()
                 .getTextureManager()
                 .getTexture(TextureAtlas.LOCATION_BLOCKS);
@@ -77,7 +79,8 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
     @Deprecated(forRemoval = true) // should be handled properly in GFX instead.
     private void bindTexture(ChunkShaderTextureSlot slot, GpuTexture textureId) {
         GlStateManager._activeTexture(GL32C.GL_TEXTURE0 + slot.ordinal());
-        textureId.bind();
+        GlStateManager._bindTexture(((GlTexture) textureId).glId());
+        ((GlTexture) textureId).flushModeChanges();
 
         var uniform = this.uniformTextures.get(slot);
         uniform.setInt(slot.ordinal());

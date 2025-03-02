@@ -11,8 +11,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(RenderTarget.class)
 public class RenderTargetMixin {
-    @Shadow
-    public int frameBufferId;
 
     @Shadow
     public int width;

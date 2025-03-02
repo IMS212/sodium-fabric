@@ -129,7 +129,7 @@ public class ItemRenderContext extends AbstractRenderContext {
         defaultLayer = layer;
         defaultGlint = glint;
 
-        ((FabricBakedModel) model).emitItemQuads(getEmitter(), randomSupplier);
+        //((FabricBakedModel) model).emitItemQuads(getEmitter(), randomSupplier);
 
         this.poseStack = null;
         this.bufferSource = null;
@@ -245,7 +245,7 @@ public class ItemRenderContext extends AbstractRenderContext {
 
     public void bufferDefaultModel(QuadEmitter quadEmitter, BlockStateModel model, @Nullable BlockState state) {
         if (vanillaBufferer == null) {
-            VanillaModelEncoder.emitItemQuads(quadEmitter, model, null, randomSupplier);
+            //VanillaModelEncoder.emitItemQuads(quadEmitter, model, null, randomSupplier);
         } else {
             VertexConsumer vertexConsumer;
             if (defaultGlint == ItemStackRenderState.FoilType.SPECIAL) {

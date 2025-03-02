@@ -8,6 +8,7 @@ import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -29,8 +30,8 @@ public class FabricModelAccess implements PlatformModelAccess {
     }
 
     @Override
-    public List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BlockStateModel model, BlockState state, Direction face, RandomSource random, RenderType renderType, SodiumModelData modelData) {
-        return model.getQuads(state, face, random);
+    public List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BlockModelPart model, BlockState state, Direction face, RandomSource random, RenderType renderType, SodiumModelData modelData) {
+        return model.getQuads(face);
     }
 
     @Override

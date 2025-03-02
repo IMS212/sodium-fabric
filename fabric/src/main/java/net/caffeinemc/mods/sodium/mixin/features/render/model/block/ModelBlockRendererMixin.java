@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.mixin.features.render.model.block;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
@@ -11,6 +12,7 @@ import net.caffeinemc.mods.sodium.client.render.vertex.VertexConsumerUtils;
 import net.caffeinemc.mods.sodium.client.util.DirectionUtil;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -52,12 +54,13 @@ public class ModelBlockRendererMixin {
         }
     }
 
+    private final ObjectArrayList<BlockModelPart> parts = new ObjectArrayList<>();
     /**
      * @reason Use optimized vertex writer intrinsics, avoid allocations
      * @author JellySquid
      */
     @Inject(method = "renderModel", at = @At("HEAD"), cancellable = true)
-    private void renderFast(PoseStack.Pose entry, VertexConsumer vertexConsumer, BlockState blockState, BlockStateModel bakedModel, float red, float green, float blue, int light, int overlay, CallbackInfo ci) {
+    private void renderFast(PoseStack.Pose entry, VertexConsumer vertexConsumer, BlockStateModel bakedModel, float red, float green, float blue, int light, int overlay, CallbackInfo ci) {
         var writer = VertexConsumerUtils.convertOrLog(vertexConsumer);
         if (writer == null) {
             return;
@@ -73,21 +76,23 @@ public class ModelBlockRendererMixin {
         blue = Mth.clamp(blue, 0.0F, 1.0F);
 
         int defaultColor = ColorABGR.pack(red, green, blue, 1.0F);
+        random.setSeed(42L);
+        parts.clear();
+        bakedModel.collectParts(random, parts);
+        for (BlockModelPart part : parts) {
+            for (Direction direction : DirectionUtil.ALL_DIRECTIONS) {
+                List<BakedQuad> quads = part.getQuads(direction);
 
-        for (Direction direction : DirectionUtil.ALL_DIRECTIONS) {
-            random.setSeed(42L);
-            List<BakedQuad> quads = bakedModel.getQuads(blockState, direction, random);
+                if (!quads.isEmpty()) {
+                    renderQuads(entry, writer, defaultColor, quads, light, overlay);
+                }
+            }
+
+            List<BakedQuad> quads = part.getQuads(null);
 
             if (!quads.isEmpty()) {
                 renderQuads(entry, writer, defaultColor, quads, light, overlay);
             }
-        }
-
-        random.setSeed(42L);
-        List<BakedQuad> quads = bakedModel.getQuads(blockState, null, random);
-
-        if (!quads.isEmpty()) {
-            renderQuads(entry, writer, defaultColor, quads, light, overlay);
         }
     }
 }

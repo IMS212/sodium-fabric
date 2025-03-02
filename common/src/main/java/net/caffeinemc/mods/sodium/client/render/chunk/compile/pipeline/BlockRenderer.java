@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.api.util.ColorMixer;
@@ -34,6 +35,7 @@ import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
@@ -44,6 +46,7 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
 import java.util.Iterator;
+import java.util.List;
 
 public class BlockRenderer extends AbstractBlockRenderContext {
     private final ColorProviderRegistry colorProviderRegistry;
@@ -80,11 +83,16 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         this.slice = null;
     }
 
+    private final ObjectArrayList<BlockModelPart> partList = new ObjectArrayList<>();
+
     public void renderModel(BlockStateModel model, BlockState state, BlockPos pos, BlockPos origin) {
         this.state = state;
         this.pos = pos;
-
         this.randomSeed = state.getSeed(pos);
+        this.random.setSeed(this.randomSeed);
+        partList.clear();
+        model.collectParts(random, partList);
+
 
         this.posOffset.set(origin.getX(), origin.getY(), origin.getZ());
         if (state.hasOffsetFunction()) {
@@ -97,28 +105,31 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         type = ItemBlockRenderTypes.getChunkRenderType(state);
 
         this.prepareCulling(true);
-        this.prepareAoInfo(model.useAmbientOcclusion());
 
         modelData = PlatformModelAccess.getInstance().getModelData(slice, model, state, pos, slice.getPlatformModelData(pos));
 
         Iterable<RenderType> renderTypes = PlatformModelAccess.getInstance().getModelRenderTypes(level, model, state, pos, random, modelData);
         this.allowDowngrade = true;
 
-        Iterator<RenderType> it = renderTypes.iterator();
         var defaultType = ItemBlockRenderTypes.getChunkRenderType(state);
 
-        while (it.hasNext()) {
-            this.type = it.next();
+        for (BlockModelPart part : partList) {
+            Iterator<RenderType> it = renderTypes.iterator();
 
-            // TODO: This can be removed once we have a better solution for https://github.com/CaffeineMC/sodium/issues/2868
-            // If the model contains any materials that are not the default, we can't allow the block to be downgraded. This avoids a potentially incorrect render order if there are overlapping quads.
-            if (it.hasNext() || this.type != defaultType) {
-                this.allowDowngrade = false;
+            while (it.hasNext()) {
+                this.prepareAoInfo(part.useAmbientOcclusion());
+                this.type = it.next();
+
+                // TODO: This can be removed once we have a better solution for https://github.com/CaffeineMC/sodium/issues/2868
+                // If the model contains any materials that are not the default, we can't allow the block to be downgraded. This avoids a potentially incorrect render order if there are overlapping quads.
+                if (it.hasNext() || this.type != defaultType) {
+                    this.allowDowngrade = false;
+                }
+
+                ((FabricBakedModel) part).emitBlockQuads(getEmitter(), this.level, state, pos, this.randomSupplier, this::isFaceCulled);
             }
 
-            ((FabricBakedModel) model).emitBlockQuads(getEmitter(), this.level, state, pos, this.randomSupplier, this::isFaceCulled);
         }
-
         type = null;
         modelData = SodiumModelData.EMPTY;
     }

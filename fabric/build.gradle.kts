@@ -15,6 +15,9 @@ val configurationCommonModResources: Configuration = configurations.create("comm
     isCanBeResolved = true
 }
 
+repositories {
+    mavenLocal()
+}
 dependencies {
     configurationCommonModJava(project(path = ":common", configuration = "commonMainJava"))
     configurationCommonModJava(project(path = ":common", configuration = "commonApiJava"))
@@ -59,10 +62,11 @@ dependencies {
     // Fabric API modules
     addEmbeddedFabricModule("fabric-api-base")
     addEmbeddedFabricModule("fabric-block-view-api-v2")
-    modImplementation(files("fabric-renderer-api-v1-5.0.6+c327076a88.jar"))
+    modImplementation(files(rootDir.resolve("fabric-renderer-api-v1-5.0.6+local.jar")))
+    include("net.fabricmc.fabric-api:fabric-renderer-api-v1:6.0.6+local")
     addEmbeddedFabricModule("fabric-rendering-data-attachment-v1")
     addEmbeddedFabricModule("fabric-rendering-fluids-v1")
-    addEmbeddedFabricModule("fabric-resource-loader-v0")
+    include("net.fabricmc.fabric-api:fabric-resource-loader-v0:3.1.5+local")
 }
 
 loom {

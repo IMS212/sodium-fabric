@@ -18,6 +18,7 @@ package net.caffeinemc.mods.sodium.client.render.frapi.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.api.util.ColorMixer;
@@ -33,6 +34,7 @@ import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -40,6 +42,8 @@ import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+
+import java.util.List;
 
 public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
     private final BlockColors colorMap;
@@ -50,6 +54,8 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
     private boolean trustedNormals;
     private Matrix3f matNormal;
     private int overlay;
+
+    private final ObjectArrayList<BlockModelPart> partList = new ObjectArrayList<>();
 
     public NonTerrainBlockRenderContext(BlockColors colorMap) {
         this.colorMap = colorMap;
@@ -74,10 +80,14 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
 
         this.lightDataCache.reset(pos, blockView);
         this.prepareCulling(cull);
-        this.prepareAoInfo(model.useAmbientOcclusion());
 
-        ((FabricBakedModel) model).emitBlockQuads(getEmitter(), blockView, state, pos, this.randomSupplier, this::isFaceCulled);
+        random.setSeed(randomSeed);
+        partList.clear();
+        model.collectParts(random, partList);
 
+        for (BlockModelPart part : partList) {
+            ((FabricBakedModel) part).emitBlockQuads(getEmitter(), this.level, state, pos, this.randomSupplier, this::isFaceCulled);
+        }
         this.level = null;
         this.type = null;
         this.modelData = null;

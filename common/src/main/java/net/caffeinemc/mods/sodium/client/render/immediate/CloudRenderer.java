@@ -1,12 +1,17 @@
 package net.caffeinemc.mods.sodium.client.render.immediate;
 
+import com.mojang.blaze3d.buffers.BufferType;
 import com.mojang.blaze3d.buffers.BufferUsage;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.shaders.Uniform;
+import com.mojang.blaze3d.shaders.UniformType;
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.vertex.*;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
@@ -17,7 +22,6 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.CloudStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.DepthTestFunction;
 import net.minecraft.client.renderer.FogParameters;
 import net.minecraft.client.renderer.FogRenderer;
 import net.minecraft.resources.ResourceLocation;
@@ -36,19 +40,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 public class CloudRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Sodium-CloudRenderer");
 
     private static final RenderPipeline.Snippet CLOUD_SNIPPET = RenderPipeline.builder().withBlend(BlendFunction.TRANSLUCENT).withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-            .withUniform("ColorModulator", Uniform.Type.VEC4)
-            .withUniform("FogStart", Uniform.Type.FLOAT)
-            .withUniform("FogEnd", Uniform.Type.FLOAT)
-            .withUniform("FogShape", Uniform.Type.INT)
-            .withUniform("FogColor", Uniform.Type.VEC4)
-            .withUniform("ModelViewMat", Uniform.Type.MATRIX4X4)
-            .withUniform("ProjMat", Uniform.Type.MATRIX4X4)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST) // TODO this should be GL_LESS apparently?
+            .withUniform("ColorModulator", UniformType.VEC4)
+            .withUniform("FogStart", UniformType.FLOAT)
+            .withUniform("FogEnd", UniformType.FLOAT)
+            .withUniform("FogShape", UniformType.INT)
+            .withUniform("FogColor", UniformType.VEC4)
+            .withUniform("ModelViewMat", UniformType.MATRIX4X4)
+            .withUniform("ProjMat", UniformType.MATRIX4X4)
+            .withDepthTestFunction(DepthTestFunction.LESS_DEPTH_TEST)
             .withVertexShader(ResourceLocation.fromNamespaceAndPath("sodium", "clouds"))
             .withFragmentShader(ResourceLocation.fromNamespaceAndPath("sodium", "clouds")).buildSnippet();
 
@@ -78,6 +84,8 @@ public class CloudRenderer {
 
     private @Nullable CloudTextureData textureData;
     private @Nullable CloudGeometry builtGeometry;
+
+    private final RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
 
     public CloudRenderer(ResourceProvider resourceProvider) {
         this.reload(resourceProvider);
@@ -143,7 +151,8 @@ public class CloudRenderer {
             this.builtGeometry = (geometry = rebuildGeometry(geometry, parameters, this.textureData));
         }
 
-        VertexBuffer vertexBuffer = geometry.vertexBuffer();
+        GpuBuffer vertexBuffer = geometry.vertexBuffer();
+        int indexCount= geometry.indexCount();
 
         // The vertex buffer can be empty when there are no clouds to render
         if (vertexBuffer == null) {
@@ -168,34 +177,29 @@ public class CloudRenderer {
         RenderSystem.setShaderColor(ARGB.redFloat(color), ARGB.greenFloat(color), ARGB.blueFloat(color), 0.8F);
         RenderSystem.setShaderFog(fogParameters);
 
-        RenderTarget renderTarget = Minecraft.getInstance().levelRenderer.getCloudsTarget();
-
-        if (renderTarget != null) {
-            renderTarget.bindWrite(false);
+        RenderTarget renderTarget = Minecraft.getInstance().getMainRenderTarget();
+        RenderTarget renderTarget2 = Minecraft.getInstance().levelRenderer.getCloudsTarget();
+        GpuTexture gpuTexture;
+        GpuTexture gpuTexture2;
+        if (renderTarget2 != null) {
+            gpuTexture = renderTarget2.getColorTexture();
+            gpuTexture2 = renderTarget2.getDepthTexture();
         } else {
-            Minecraft.getInstance()
-                    .getMainRenderTarget()
-                    .bindWrite(false);
-        }
-
-        if (flat) {
-            RenderSystem.disableCull();
+            gpuTexture = renderTarget.getColorTexture();
+            gpuTexture2 = renderTarget.getDepthTexture();
         }
 
         RenderSystem.getModelViewStack().pushMatrix();
         RenderSystem.getModelViewStack().set(modelViewMatrix);
 
         // Draw
-        vertexBuffer.bind();
-        vertexBuffer.drawWithRenderPipeline(flat ? CLOUDS_FLAT : CLOUDS_FULL, s -> {
-            RenderSystem.depthFunc(GL46C.GL_LESS);
-        });
-        VertexBuffer.unbind();
-
-        if (renderTarget != null) {
-            Minecraft.getInstance()
-                    .getMainRenderTarget()
-                    .bindWrite(false);
+        try (RenderPass renderPass = RenderSystem.getDevice()
+                .createCommandEncoder()
+                .createRenderPass(gpuTexture, OptionalInt.empty(), gpuTexture2, OptionalDouble.empty())) {
+            renderPass.setPipeline(flat ? CLOUDS_FLAT : CLOUDS_FULL);
+            renderPass.setIndexBuffer(this.indices.getBuffer(indexCount), this.indices.type());
+            renderPass.setVertexBuffer(0, vertexBuffer);
+            renderPass.drawIndexed(0, indexCount);
         }
 
         RenderSystem.getModelViewStack().popMatrix();
@@ -260,7 +264,7 @@ public class CloudRenderer {
         }
 
         @Nullable MeshData meshData = bufferBuilder.build();
-        @Nullable VertexBuffer vertexBuffer = null;
+        @Nullable GpuBuffer vertexBuffer = null;
 
         if (existingGeometry != null) {
             vertexBuffer = existingGeometry.vertexBuffer();
@@ -268,10 +272,17 @@ public class CloudRenderer {
 
         if (meshData != null) {
             if (vertexBuffer == null) {
-                vertexBuffer = new VertexBuffer(BufferUsage.DYNAMIC_WRITE);
+                vertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Clouds", BufferType.VERTICES, BufferUsage.DYNAMIC_WRITE, meshData.vertexBuffer());
+            } else if (vertexBuffer.size() < meshData.vertexBuffer().remaining()) {
+                vertexBuffer.close();
+                vertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Clouds", BufferType.VERTICES, BufferUsage.DYNAMIC_WRITE, meshData.vertexBuffer());
+            } else {
+                RenderSystem.getDevice().createCommandEncoder().writeToBuffer(vertexBuffer, meshData.vertexBuffer(), 0);
             }
 
-            uploadToVertexBuffer(vertexBuffer, meshData);
+            meshData.close();
+
+            Tesselator.getInstance().clear();
         } else {
             if (vertexBuffer != null) {
                 vertexBuffer.close();
@@ -279,9 +290,7 @@ public class CloudRenderer {
             }
         }
 
-        Tesselator.getInstance().clear();
-
-        return new CloudGeometry(vertexBuffer, parameters);
+        return new CloudGeometry(vertexBuffer, meshData.drawState().indexCount(), parameters);
     }
 
     private static void addCellGeometryToBuffer(VertexBufferWriter writer,
@@ -522,13 +531,6 @@ public class CloudRenderer {
         return buffer + ColorVertex.STRIDE;
     }
 
-    private static void uploadToVertexBuffer(VertexBuffer vertexBuffer, MeshData builtBuffer) {
-        vertexBuffer.bind();
-        vertexBuffer.upload(builtBuffer);
-
-        VertexBuffer.unbind();
-    }
-
     public void reload(ResourceProvider resourceProvider) {
         this.destroy();
         this.textureData = loadTextureData(resourceProvider);
@@ -765,7 +767,7 @@ public class CloudRenderer {
         }
     }
 
-    public record CloudGeometry(@Nullable VertexBuffer vertexBuffer, CloudGeometryParameters params) {
+    public record CloudGeometry(@Nullable GpuBuffer vertexBuffer, int indexCount, CloudGeometryParameters params) {
 
     }
 
