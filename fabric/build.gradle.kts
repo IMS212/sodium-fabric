@@ -70,9 +70,7 @@ loom {
     runs {
         named("client") {
             client()
-            configName = "Fabric/Client"
-            appendProjectPathToConfigName = false
-            ideConfigGenerated(true)
+            ideConfigGenerated(false)
             runDir("run")
         }
     }

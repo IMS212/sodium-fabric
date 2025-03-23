@@ -128,7 +128,7 @@ public class NvidiaWorkarounds {
         var capabilities = GL.getCapabilities();
 
         if (capabilities.GL_KHR_debug) {
-            LOGGER.info("Enabling GL_DEBUG_OUTPUT_SYNCHRONOUS to force the NVIDIA driver to disable threaded" +
+            LOGGER.info("Enabling GL_DEBUG_OUTPUT_SYNCHRONOUS to force the NVIDIA driver to disable threaded " +
                     "command submission");
             GL32C.glEnable(KHRDebug.GL_DEBUG_OUTPUT_SYNCHRONOUS);
         } else {

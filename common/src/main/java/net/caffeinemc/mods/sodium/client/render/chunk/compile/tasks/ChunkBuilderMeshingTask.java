@@ -3,11 +3,12 @@ package net.caffeinemc.mods.sodium.client.render.chunk.compile.tasks;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.render.chunk.ExtendedBlockEntityType;
+import net.caffeinemc.mods.sodium.client.render.chunk.DefaultChunkRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildBuffers;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildContext;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildOutput;
-import net.caffeinemc.mods.sodium.client.render.chunk.compile.executor.ChunkBuilder;
+import net.caffeinemc.mods.sodium.client.render.chunk.compile.estimation.MeshTaskSizeEstimator;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderCache;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionInfo;
@@ -51,10 +52,12 @@ import java.util.Map;
  */
 public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> {
     private final ChunkRenderContext renderContext;
+    private final boolean forceSort;
 
-    public ChunkBuilderMeshingTask(RenderSection render, int buildTime, Vector3dc absoluteCameraPos, ChunkRenderContext renderContext) {
+    public ChunkBuilderMeshingTask(RenderSection render, int buildTime, Vector3dc absoluteCameraPos, ChunkRenderContext renderContext, boolean forceSort) {
         super(render, buildTime, absoluteCameraPos);
         this.renderContext = renderContext;
+        this.forceSort = forceSort;
     }
 
     @Override
@@ -85,7 +88,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
 
         TranslucentGeometryCollector collector;
         if (SodiumClientMod.options().performance.getSortBehavior() != SortBehavior.OFF) {
-            collector = new TranslucentGeometryCollector(render.getPosition());
+            collector = new TranslucentGeometryCollector(this.render.getPosition());
         } else {
             collector = null;
         }
@@ -149,7 +152,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         }
         profiler.popPush("mesh appenders");
 
-        PlatformLevelRenderHooks.INSTANCE.runChunkMeshAppenders(renderContext.getRenderers(), type -> buffers.get(DefaultMaterials.forRenderLayer(type)).asFallbackVertexConsumer(DefaultMaterials.forRenderLayer(type), collector),
+        PlatformLevelRenderHooks.INSTANCE.runChunkMeshAppenders(this.renderContext.getRenderers(), type -> buffers.get(DefaultMaterials.forRenderLayer(type)).asFallbackVertexConsumer(DefaultMaterials.forRenderLayer(type), collector),
                 slice);
 
         blockRenderer.release();
@@ -160,12 +163,18 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         }
 
         Map<TerrainRenderPass, BuiltSectionMeshParts> meshes = new Reference2ReferenceOpenHashMap<>();
+        var visibleSlices = DefaultChunkRenderer.getVisibleFaces(
+                (int) this.absoluteCameraPos.x(), (int) this.absoluteCameraPos.y(), (int) this.absoluteCameraPos.z(),
+                this.render.getChunkX(), this.render.getChunkY(), this.render.getChunkZ());
         profiler.popPush("meshing");
 
         for (TerrainRenderPass pass : DefaultTerrainRenderPasses.ALL) {
-            // consolidate all translucent geometry into UNASSIGNED so that it's rendered
-            // all together if it needs to share an index buffer between the directions
-            BuiltSectionMeshParts mesh = buffers.createMesh(pass, pass.isTranslucent() && sortType.needsDirectionMixing);
+            // if the translucent geometry needs to share an index buffer between the directions,
+            // consolidate all translucent geometry into UNASSIGNED
+            boolean translucentBehavior = collector != null && pass.isTranslucent();
+            boolean forceUnassigned = translucentBehavior && sortType.needsDirectionMixing;
+            boolean sliceReordering = !translucentBehavior || sortType.allowSliceReordering;
+            BuiltSectionMeshParts mesh = buffers.createMesh(pass, visibleSlices, forceUnassigned, sliceReordering);
 
             if (mesh != null) {
                 meshes.put(pass, mesh);
@@ -190,7 +199,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
             var oldData = this.render.getTranslucentData();
             translucentData = collector.getTranslucentData(
                     oldData, meshes.get(DefaultTerrainRenderPasses.TRANSLUCENT), this);
-            reuseUploadedData = translucentData == oldData;
+            reuseUploadedData = !this.forceSort && translucentData == oldData;
         }
 
         var output = new ChunkBuildOutput(this.render, this.submitTime, translucentData, renderData.build(), meshes);
@@ -201,7 +210,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
             } else if (translucentData instanceof PresentTranslucentData present) {
                 var sorter = present.getSorter();
                 sorter.writeIndexBuffer(this, true);
-                output.copyResultFrom(sorter);
+                output.setSorter(sorter);
             }
         }
 
@@ -228,7 +237,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
     }
 
     @Override
-    public int getEffort() {
-        return ChunkBuilder.HIGH_EFFORT;
+    public long estimateTaskSizeWith(MeshTaskSizeEstimator estimator) {
+        return estimator.estimateSize(this.render);
     }
 }

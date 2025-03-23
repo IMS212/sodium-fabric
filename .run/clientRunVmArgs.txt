@@ -1,0 +1,3 @@
+-XX:+IgnoreUnrecognizedVMOptions
+-XX:+AllowEnhancedClassRedefinition
+-XstartOnFirstThread

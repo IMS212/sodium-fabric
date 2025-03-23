@@ -28,7 +28,7 @@ public class PreLaunchChecks {
         if (isUsingPrismLauncher()) {
             advice = """
                     It appears you are using Prism Launcher to start the game. You can \
-                    likely fix this problem by opening your instance settings and navigating to the Version\
+                    likely fix this problem by opening your instance settings and navigating to the Version \
                     section in the sidebar.""";
         } else {
             advice = """

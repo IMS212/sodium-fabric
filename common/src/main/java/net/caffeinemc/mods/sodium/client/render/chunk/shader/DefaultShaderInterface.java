@@ -1,5 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.shader;
 
+import net.caffeinemc.mods.sodium.client.gl.device.GLRenderDevice;
+import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformFloat2v;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.textures.GpuTexture;
@@ -30,7 +32,7 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
     private final GlUniformFloat3v uniformRegionOffset;
     private final GlUniformFloat2v uniformTexCoordShrink;
 
-    // The fog shader component used by this program in order to setup the appropriate GL state
+    // The fog shader component used by this program in order to set up the appropriate GL state
     private final ChunkShaderFogComponent fogShader;
 
     public DefaultShaderInterface(ShaderBindingContext context, ChunkShaderOptions options) {

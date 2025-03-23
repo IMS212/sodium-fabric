@@ -16,7 +16,7 @@ tasks {
         inputs.property("version", version)
 
         filesMatching(listOf("fabric.mod.json", "META-INF/neoforge.mods.toml")) {
-            expand(mapOf("version" to version))
+            expand(mapOf("version" to inputs.properties["version"]))
         }
     }
 
@@ -34,7 +34,7 @@ publishing {
     publications {
         create<MavenPublication>("maven") {
             groupId = project.group as String
-            artifactId = project.name as String
+            artifactId = rootProject.name + "-" + project.name
             version = version
 
             from(components["java"])
