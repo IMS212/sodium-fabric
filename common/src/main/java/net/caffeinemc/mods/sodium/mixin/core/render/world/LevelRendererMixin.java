@@ -156,19 +156,6 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
     private FogParameters captureTerrainFogParameters(Camera camera, FogRenderer.FogMode fogMode, Vector4f fogColor, float renderDistance, boolean isFoggy, float partialTick, Operation<FogParameters> original) {
         return (this.sodium$terrainFogParmaeters = original.call(camera, fogMode, fogColor, renderDistance, isFoggy, partialTick));
     }
-
-    @WrapOperation(
-            method = "renderLevel",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/FogRenderer;setupFog(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/FogRenderer$FogMode;Lorg/joml/Vector4f;FZF)Lnet/minecraft/client/renderer/FogParameters;",
-                    ordinal = 0
-            )
-    )
-    private FogParameters captureTerrainFogParameters(Camera camera, FogRenderer.FogMode fogMode, Vector4f fogColor, float renderDistance, boolean isFoggy, float partialTick, Operation<FogParameters> original) {
-        return (this.sodium$terrainFogParmaeters = original.call(camera, fogMode, fogColor, renderDistance, isFoggy, partialTick));
-    }
-
     /**
      * @reason Redirect the terrain setup phase to our renderer
      * @author JellySquid
