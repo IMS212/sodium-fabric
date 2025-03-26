@@ -29,6 +29,20 @@ const uint TEXTURE_MAX_VALUE    = TEXTURE_MAX_COORD - 1u;
 const float VERTEX_SCALE = 32.0 / float(POSITION_MAX_COORD);
 const float VERTEX_OFFSET = -8.0;
 
+struct Chunk {
+    int blocks[4096];
+};
+
+layout(binding = 9, std430) buffer Chunks {
+    Chunk chunks[];
+} ch;
+
+layout(binding = 10, std430) buffer Indices {
+    int indices[];
+};
+
+uniform ivec3 cameraPos;
+
 in uvec2 a_Position;
 in vec4 a_Color;
 in uvec2 a_TexCoord;

@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 
 #import <sodium:include/fog.glsl>
 #import <sodium:include/chunk_vertex.glsl>
@@ -31,7 +31,24 @@ uvec3 _get_relative_chunk_coord(uint pos) {
 vec3 _get_draw_translation(uint pos) {
     return _get_relative_chunk_coord(pos) * vec3(16.0);
 }
+    int floorMod(int x, int y) {
+        int r = x % y;
+        return (x ^ y) < 0 && r != 0 ? r + y : r;
+    }
 
+
+uniform int rdInDiameter;
+uniform int sectionHeight;
+uniform int sectionsToReachZero;
+
+    int to1DChunk( int x, int y, int z ) {
+        return (z * rdInDiameter * sectionHeight) + (y * rdInDiameter) + x;
+    }
+
+    int to1DInChunk( int x, int y, int z ) {
+        return (z * 16 * 16) + (y * 16) + x;
+    }
+uniform ivec3 chunkPos;
 void main() {
     _vert_init();
 
@@ -43,11 +60,19 @@ void main() {
     v_FragDistance = getFragDistance(u_FogShape, position);
 #endif
 
+    int chunkIndexS = to1DChunk(floorMod(chunkPos.x, rdInDiameter), chunkPos.y + sectionsToReachZero, floorMod(chunkPos.z, rdInDiameter));
+
+    ivec3 inChunkPos = ivec3(cameraPos.x & 15, cameraPos.y & 15, cameraPos.z & 15);
+
+    int chnk = ch.chunks[indices[chunkIndexS]].blocks[to1DInChunk(inChunkPos.x, inChunkPos.y, inChunkPos.z)];
+
+
+
     // Transform the vertex position into model-view-projection space
     gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(position, 1.0);
 
     // Add the light color to the vertex color, and pass the texture coordinates to the fragment shader
-    v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord);
+    v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord) * max(0.25, float(chnk));
     v_TexCoord = (_vert_tex_diffuse_coord_bias * u_TexCoordShrink) + _vert_tex_diffuse_coord; // FMA for precision
 
     v_MaterialMipBias = _material_mip_bias(_material_params);

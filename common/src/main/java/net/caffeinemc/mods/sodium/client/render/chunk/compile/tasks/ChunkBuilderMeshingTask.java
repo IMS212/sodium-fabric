@@ -22,6 +22,7 @@ import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.Transl
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.PresentTranslucentData;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.TranslucentData;
 import net.caffeinemc.mods.sodium.client.services.PlatformLevelRenderHooks;
+import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
 import net.caffeinemc.mods.sodium.client.util.task.CancellationToken;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
@@ -60,6 +61,10 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         this.forceSort = forceSort;
     }
 
+    public static int to1D( int x, int y, int z ) {
+        return (z * 16 * 16) + (y * 16) + x;
+    }
+
     @Override
     public ChunkBuildOutput execute(ChunkBuildContext buildContext, CancellationToken cancellationToken) {
         ProfilerFiller profiler = Profiler.get();
@@ -95,10 +100,13 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         BlockRenderer blockRenderer = cache.getBlockRenderer();
         blockRenderer.prepare(buffers, slice, collector);
 
+        NativeBuffer voxelData = new NativeBuffer(16 * 16 * 16 * 4);
+
         profiler.push("render blocks");
         try {
             for (int y = minY; y < maxY; y++) {
                 if (cancellationToken.isCancelled()) {
+                    voxelData.free();
                     return null;
                 }
 
@@ -107,8 +115,10 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
                         BlockState blockState = slice.getBlockState(x, y, z);
 
                         if (blockState.isAir() && !blockState.hasBlockEntity()) {
+                            voxelData.write(to1D(x & 15, y & 15, z & 15) * 4, 0);
                             continue;
                         }
+                        voxelData.write(to1D(x & 15, y & 15, z & 15) * 4, 1);
 
                         blockPos.set(x, y, z);
                         modelOffset.set(x & 15, y & 15, z & 15);
@@ -186,6 +196,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         if (cancellationToken.isCancelled()) {
             meshes.forEach((pass, mesh) -> mesh.getVertexData().free());
             profiler.pop();
+            voxelData.free();
             return null;
         }
 
@@ -202,7 +213,8 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
             reuseUploadedData = !this.forceSort && translucentData == oldData;
         }
 
-        var output = new ChunkBuildOutput(this.render, this.submitTime, translucentData, renderData.build(), meshes);
+        voxelData.check();
+        var output = new ChunkBuildOutput(this.render, this.submitTime, voxelData, translucentData, renderData.build(), meshes);
 
         if (collector != null) {
             if (reuseUploadedData) {

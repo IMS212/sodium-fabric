@@ -4,6 +4,7 @@ import net.caffeinemc.mods.sodium.client.data.config.MixinConfig;
 import net.caffeinemc.mods.sodium.client.services.PlatformRuntimeInformation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lwjgl.system.Configuration;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;

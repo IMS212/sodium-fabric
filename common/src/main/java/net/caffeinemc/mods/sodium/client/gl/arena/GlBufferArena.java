@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class GlBufferArena {
-    static final boolean CHECK_ASSERTIONS = false;
+    static final boolean CHECK_ASSERTIONS = true;
 
     private static final GlBufferUsage BUFFER_USAGE = GlBufferUsage.STATIC_DRAW;
 

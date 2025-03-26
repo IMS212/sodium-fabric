@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.longs.*;
 import it.unimi.dsi.fastutil.objects.*;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferArena;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.async.*;
@@ -39,6 +40,7 @@ import net.caffeinemc.mods.sodium.client.render.viewport.CameraTransform;
 import net.caffeinemc.mods.sodium.client.render.viewport.Viewport;
 import net.caffeinemc.mods.sodium.client.services.PlatformRuntimeInformation;
 import net.caffeinemc.mods.sodium.client.util.MathUtil;
+import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
 import net.caffeinemc.mods.sodium.client.util.task.CancellationToken;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
@@ -78,6 +80,7 @@ public class RenderSectionManager {
     private final ConcurrentLinkedDeque<ChunkJobResult<? extends BuilderTaskOutput>> buildResults = new ConcurrentLinkedDeque<>();
     private final JobDurationEstimator jobDurationEstimator = new JobDurationEstimator();
     private final MeshTaskSizeEstimator meshTaskSizeEstimator = new MeshTaskSizeEstimator();
+    private final int renderDistanceInDiameter;
     private ChunkJobCollector lastBlockingCollector;
     private int thisFrameBlockingTasks;
     private int nextFrameBlockingTasks;
@@ -128,8 +131,11 @@ public class RenderSectionManager {
 
     private final AsyncCameraTimingControl cameraTimingControl = new AsyncCameraTimingControl();
 
+
+
     public RenderSectionManager(ClientLevel level, int renderDistance, CommandList commandList) {
         this.chunkRenderer = new DefaultChunkRenderer(RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
+        this.renderDistanceInDiameter = ((renderDistance + 1)) * 2;
 
         this.level = level;
         this.builder = new ChunkBuilder(level, ChunkMeshFormats.COMPACT);
@@ -138,13 +144,14 @@ public class RenderSectionManager {
 
         this.sortTriggering = new SortTriggering();
 
-        this.regions = new RenderRegionManager(commandList);
+        this.regions = new RenderRegionManager(renderDistance, level, commandList);
         this.sectionCache = new ClonedChunkSectionCache(this.level);
 
         this.renderLists = SortedRenderLists.empty();
         this.occlusionCuller = new OcclusionCuller(Long2ReferenceMaps.unmodifiable(this.sectionByPosition), this.level);
 
         this.renderableSectionTree = new RemovableMultiForest(renderDistance);
+
 
         this.importantTasks = new EnumMap<>(DeferMode.class);
         for (var deferMode : DeferMode.values()) {
@@ -688,6 +695,7 @@ public class RenderSectionManager {
             if (result instanceof ChunkBuildOutput chunkBuildOutput) {
                 touchedSectionInfo |= this.updateSectionInfo(result.render, chunkBuildOutput.info);
 
+
                 var resultSize = chunkBuildOutput.getResultSize();
                 result.render.setLastMeshResultSize(resultSize);
                 this.meshTaskSizeEstimator.addData(MeshResultSize.forSection(result.render, resultSize));
@@ -718,6 +726,10 @@ public class RenderSectionManager {
         this.meshTaskSizeEstimator.updateModels();
 
         return touchedSectionInfo;
+    }
+
+    private void writeVoxels(RenderSection render, NativeBuffer voxelData) {
+
     }
 
     private boolean updateSectionInfo(RenderSection render, BuiltSectionInfo info) {
@@ -980,7 +992,7 @@ public class RenderSectionManager {
                 // rebuild that must have happened in the meantime includes new non-dynamic
                 // index data.
                 var result = ChunkJobResult.successfully(new ChunkBuildOutput(
-                        section, this.frame, NoData.forEmptySection(section.getPosition()),
+                        section, this.frame, null, NoData.forEmptySection(section.getPosition()),
                         BuiltSectionInfo.EMPTY, Collections.emptyMap()));
                 this.buildResults.add(result);
 

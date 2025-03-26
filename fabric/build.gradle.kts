@@ -75,6 +75,7 @@ loom {
             client()
             ideConfigGenerated(false)
             runDir("run")
+            environmentVariable("LD_PRELOAD", "/usr/lib/librenderdoc.so")
         }
     }
 }

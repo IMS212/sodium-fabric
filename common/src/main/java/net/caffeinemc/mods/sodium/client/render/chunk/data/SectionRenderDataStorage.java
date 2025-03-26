@@ -42,9 +42,11 @@ public class SectionRenderDataStorage {
     private final int[] sharedIndexUsage = new int[RenderRegion.REGION_SIZE];
 
     private final long pMeshDataArray;
+    private GlBufferSegment[] voxelAllocations;
 
     public SectionRenderDataStorage(boolean storesIndices) {
         this.vertexAllocations = new GlBufferSegment[RenderRegion.REGION_SIZE];
+        this.voxelAllocations = new GlBufferSegment[RenderRegion.REGION_SIZE];
 
         if (storesIndices) {
             this.elementAllocations = new GlBufferSegment[RenderRegion.REGION_SIZE];
@@ -55,14 +57,21 @@ public class SectionRenderDataStorage {
         this.pMeshDataArray = SectionRenderDataUnsafe.allocateHeap(RenderRegion.REGION_SIZE);
     }
 
-    public void setVertexData(int localSectionIndex, GlBufferSegment allocation, int[] vertexSegments) {
+    public void setVertexData(int localSectionIndex, GlBufferSegment allocation, int[] vertexSegments, PendingUpload voxelData) {
         GlBufferSegment prev = this.vertexAllocations[localSectionIndex];
 
         if (prev != null) {
             prev.delete();
         }
 
+        prev = this.voxelAllocations[localSectionIndex];
+
+        if (prev != null) {
+            prev.delete();
+        }
+
         this.vertexAllocations[localSectionIndex] = allocation;
+        this.voxelAllocations[localSectionIndex] = voxelData == null ? null : voxelData.getResult();
 
         var pMeshData = this.getDataPointer(localSectionIndex);
 
@@ -220,6 +229,11 @@ public class SectionRenderDataStorage {
                 prev.delete();
                 this.vertexAllocations[localSectionIndex] = null;
             }
+            prev = this.voxelAllocations[localSectionIndex];
+            if (prev != null) {
+                prev.delete();
+                this.voxelAllocations[localSectionIndex] = null;
+            }
         }
         if (removeIndexData && this.storesIndexData()) {
             GlBufferSegment prev = this.elementAllocations[localSectionIndex];
@@ -287,6 +301,7 @@ public class SectionRenderDataStorage {
 
     public void delete() {
         deleteAllocations(this.vertexAllocations);
+        deleteAllocations(this.voxelAllocations);
 
         if (this.elementAllocations != null) {
             deleteAllocations(this.elementAllocations);

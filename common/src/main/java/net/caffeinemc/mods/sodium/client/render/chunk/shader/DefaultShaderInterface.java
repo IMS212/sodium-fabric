@@ -1,20 +1,21 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.shader;
 
 import net.caffeinemc.mods.sodium.client.gl.device.GLRenderDevice;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformFloat2v;
+import net.caffeinemc.mods.sodium.client.gl.shader.uniform.*;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.textures.GpuTexture;
 import net.caffeinemc.mods.sodium.client.gl.device.GLRenderDevice;
 import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformFloat2v;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformFloat3v;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformInt;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformMatrix4f;
+import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.impl.CompactChunkVertex;
 import net.caffeinemc.mods.sodium.client.util.TextureUtil;
 import net.caffeinemc.mods.sodium.mixin.core.render.texture.TextureAtlasAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.ChunkPos;
 import org.joml.Matrix4fc;
 import org.lwjgl.opengl.GL32C;
 
@@ -30,6 +31,11 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
     private final GlUniformMatrix4f uniformModelViewMatrix;
     private final GlUniformMatrix4f uniformProjectionMatrix;
     private final GlUniformFloat3v uniformRegionOffset;
+    private final GlUniformInt3v cameraPos;
+    private final GlUniformInt3v chunkPos;
+    private final GlUniformInt rdInDiameter;
+    private final GlUniformInt sectionHeight;
+    private final GlUniformInt sectionsToReachZero;
     private final GlUniformFloat2v uniformTexCoordShrink;
 
     // The fog shader component used by this program in order to set up the appropriate GL state
@@ -39,6 +45,11 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
         this.uniformModelViewMatrix = context.bindUniform("u_ModelViewMatrix", GlUniformMatrix4f::new);
         this.uniformProjectionMatrix = context.bindUniform("u_ProjectionMatrix", GlUniformMatrix4f::new);
         this.uniformRegionOffset = context.bindUniform("u_RegionOffset", GlUniformFloat3v::new);
+        this.cameraPos = context.bindUniform("cameraPos", GlUniformInt3v::new);
+        this.chunkPos = context.bindUniform("chunkPos", GlUniformInt3v::new);
+        this.rdInDiameter = context.bindUniform("rdInDiameter", GlUniformInt::new);
+        this.sectionHeight = context.bindUniform("sectionHeight", GlUniformInt::new);
+        this.sectionsToReachZero = context.bindUniform("sectionsToReachZero", GlUniformInt::new);
         this.uniformTexCoordShrink = context.bindUniform("u_TexCoordShrink", GlUniformFloat2v::new);
 
         this.uniformTextures = new EnumMap<>(ChunkShaderTextureSlot.class);
@@ -68,6 +79,14 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
                 (float) (subTexelOffset - (((1.0D / textureAtlas.getWidth()) / subTexelPrecision))),
                 (float) (subTexelOffset - (((1.0D / textureAtlas.getHeight()) / subTexelPrecision)))
         );
+
+        BlockPos p = Minecraft.getInstance().gameRenderer.getMainCamera().getBlockPosition();
+        SectionPos ps = SectionPos.of(p);
+        this.cameraPos.set(p.getX(), p.getY(), p.getZ());
+        this.chunkPos.set(ps.getX(), ps.getY(), ps.getZ());
+        this.rdInDiameter.set(RenderRegionManager.renderDistanceInDiameter);
+        this.sectionHeight.set(RenderRegionManager.sectionHeight);
+        this.sectionsToReachZero.set(RenderRegionManager.sectionsToReachZero);
 
         this.fogShader.setup();
     }

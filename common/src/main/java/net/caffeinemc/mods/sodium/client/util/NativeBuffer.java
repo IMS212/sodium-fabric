@@ -131,6 +131,25 @@ public class NativeBuffer {
         ALLOCATED -= ref.length;
     }
 
+    public void write(int i, int i1) {
+        this.ref.checkFreed();
+
+        if (i + 4 > ref.length) {
+            throw new IllegalStateException("Tried to write outside of buffer (" + i + ")");
+        }
+
+        MemoryUtil.memPutInt(this.ref.address + i, i1);
+    }
+
+    public void check() {
+        this.ref.checkFreed();
+    }
+
+    public void clearAll() {
+        this.ref.checkFreed();
+        MemoryUtil.memSet(ref.address, 0, ref.length);
+    }
+
     private static class BufferReference {
         public final long address;
         public final int length;

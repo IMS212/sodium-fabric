@@ -15,7 +15,7 @@ public class ShaderLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger("Sodium-ShaderLoader");
 
     private static final boolean OPTION_DEBUG_SHADERS =
-            Objects.equal(System.getProperty("sodium.debug.shaders.dump", "false"), "true");
+            Objects.equal(System.getProperty("sodium.debug.shaders.dump", "true"), "true");
 
     /**
      * Creates an OpenGL shader from GLSL sources. The GLSL source file should be made available on the classpath at the
