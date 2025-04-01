@@ -253,7 +253,7 @@ public class ItemRenderContext extends AbstractRenderContext {
             return ItemRendererAccessor.sodium$getCompassFoilBuffer(bufferSource, type, specialGlintEntry);
         }
 
-        return ItemRenderer.getFoilBuffer(bufferSource, type, true, glint != ItemStackRenderState.FoilType.NONE);
+        return ItemRenderer.getFoilBuffer(bufferSource, type, true, glint);
     }
 
     /** used to accept a method reference from the ItemRenderer. */

@@ -4,6 +4,7 @@ import net.caffeinemc.mods.sodium.client.world.biome.BiomeColorMaps;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSpecialEffects;
+import net.minecraft.world.level.biome.ClimateSettings;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -13,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class BiomeMixin {
     @Shadow
     @Final
-    private Biome.ClimateSettings climateSettings;
+    private ClimateSettings climateSettings;
 
     @Shadow
     @Final

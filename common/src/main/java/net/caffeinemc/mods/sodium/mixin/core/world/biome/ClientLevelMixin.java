@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 @Mixin(ClientLevel.class)
@@ -31,7 +32,7 @@ public class ClientLevelMixin implements BiomeSeedProvider {
                              int simulationDistance,
                              LevelRenderer renderer,
                              boolean isDebug,
-                             long biomeZoomSeed, int k,
+                             long biomeZoomSeed, int k, List list, List list2,
                              CallbackInfo ci) {
         this.biomeZoomSeed = biomeZoomSeed;
     }

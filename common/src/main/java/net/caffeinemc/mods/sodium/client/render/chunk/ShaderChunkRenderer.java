@@ -11,6 +11,7 @@ import net.caffeinemc.mods.sodium.client.gl.attribute.GlVertexFormat;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.*;
+import net.caffeinemc.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
 import net.caffeinemc.mods.sodium.client.gl.shader.*;
@@ -38,7 +39,7 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         GlProgram<ChunkShaderInterface> program = this.programs.get(options);
 
         if (program == null) {
-            this.programs.put(options, program = this.createShader("blocks/block_layer_opaque", options));
+            this.programs.put(options, program = this.createShader(options.pass() == DefaultTerrainRenderPasses.SKY_BLOCK ? "blocks/block_layer_sky" : "blocks/block_layer_opaque", options));
         }
 
         return program;
@@ -79,7 +80,7 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         ((GlCommandEncoderAccessor) RenderSystem.getDevice().createCommandEncoder()).sodium$applyPipelineState(pass.getPipeline());
         ((GlCommandEncoderAccessor) RenderSystem.getDevice().createCommandEncoder()).sodium$setLastProgram(null);
 
-        ChunkShaderOptions options = new ChunkShaderOptions(ChunkFogMode.SMOOTH, pass, this.vertexType);
+        ChunkShaderOptions options = new ChunkShaderOptions(pass == DefaultTerrainRenderPasses.SKY_BLOCK ? ChunkFogMode.NONE : ChunkFogMode.SMOOTH, pass, this.vertexType);
 
         this.activeProgram = this.compileProgram(options);
         this.activeProgram.bind();

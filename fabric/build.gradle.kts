@@ -60,7 +60,6 @@ dependencies {
     addEmbeddedFabricModule("fabric-renderer-api-v1")
     addEmbeddedFabricModule("fabric-rendering-data-attachment-v1")
     addEmbeddedFabricModule("fabric-rendering-fluids-v1")
-    addEmbeddedFabricModule("fabric-resource-loader-v0")
 }
 
 loom {
@@ -77,6 +76,7 @@ loom {
             appendProjectPathToConfigName = false
             ideConfigGenerated(true)
             runDir("run")
+            vmArgs("-Dfabric.gameVersion=1.21.5")
         }
     }
 }

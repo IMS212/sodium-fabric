@@ -11,7 +11,6 @@ accessible class net/minecraft/world/level/chunk/PalettedContainer$Configuration
 accessible class net/minecraft/client/renderer/FogRenderer$FogData
 accessible class net/minecraft/client/renderer/FogRenderer$MobEffectFogFunction
 accessible class net/minecraft/client/renderer/texture/Stitcher$Holder
-accessible class net/minecraft/world/level/biome/Biome$ClimateSettings
 accessible method net/minecraft/client/renderer/SectionBufferBuilderPool <init> (Ljava/util/List;)V
 accessible field com/mojang/blaze3d/vertex/PoseStack$Pose trustedNormals Z
 

@@ -266,6 +266,8 @@ public class SodiumWorldRenderer {
             this.renderSectionManager.renderLayer(matrices, DefaultTerrainRenderPasses.CUTOUT, x, y, z);
         } else if (renderLayer == RenderType.translucent()) {
             this.renderSectionManager.renderLayer(matrices, DefaultTerrainRenderPasses.TRANSLUCENT, x, y, z);
+        } else if (renderLayer == RenderType.skyBlock()) {
+            this.renderSectionManager.renderLayer(matrices, DefaultTerrainRenderPasses.SKY_BLOCK, x, y, z);
         }
     }
 
