@@ -16,9 +16,16 @@ val configurationPreLaunch = configurations.create("preLaunchDeps") {
 sourceSets {
     val main = getByName("main")
     val api = create("api")
+    val boot = create("boot")
     val workarounds = create("workarounds")
 
     api.apply {
+        java {
+            compileClasspath += main.compileClasspath
+        }
+    }
+
+    boot.apply {
         java {
             compileClasspath += main.compileClasspath
         }
@@ -33,6 +40,7 @@ sourceSets {
     main.apply {
         java {
             compileClasspath += api.output
+            compileClasspath += boot.output
             compileClasspath += workarounds.output
         }
     }
@@ -119,6 +127,7 @@ fun exportSourceSet(name: String, sourceSet: SourceSet) {
 }
 
 exportSourceSet("commonMain", sourceSets["main"])
+exportSourceSet("commonBoot", sourceSets["boot"])
 exportSourceSet("commonApi", sourceSets["api"])
 exportSourceSet("commonEarlyLaunch", sourceSets["workarounds"])
 exportSourceSet("commonDesktop", sourceSets["desktop"])

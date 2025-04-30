@@ -125,7 +125,6 @@ neoForge {
 
         create("sodium-service") {
             sourceSet(sourceSets["service"])
-            sourceSet(project(":common").sourceSets["boot"])
         }
     }
 }
