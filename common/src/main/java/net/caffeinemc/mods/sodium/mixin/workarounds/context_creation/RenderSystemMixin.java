@@ -10,6 +10,7 @@ import net.caffeinemc.mods.sodium.client.compatibility.checks.ModuleScanner;
 import net.caffeinemc.mods.sodium.client.compatibility.checks.PostLaunchChecks;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.GlContextInfo;
 import net.caffeinemc.mods.sodium.client.platform.NativeWindowHandle;
+import net.caffeinemc.mods.sodium.client.render.GLDebug;
 import net.minecraft.Util;
 import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFWNativeWin32;
@@ -53,6 +54,8 @@ public class RenderSystemMixin {
 
         PostLaunchChecks.onContextInitialized(handle, context);
         ModuleScanner.checkModules(handle);
+        GLDebug.reloadDebugState();
+        GLDebug.setupDebugMessageCallback();
     }
 
     @Inject(method = "flipFrame", at = @At(value = "RETURN"))

@@ -138,7 +138,7 @@ public class RenderSectionManager {
 
         this.sortTriggering = new SortTriggering();
 
-        this.regions = new RenderRegionManager(commandList);
+        this.regions = new RenderRegionManager(commandList, level, renderDistance);
         this.sectionCache = new ClonedChunkSectionCache(this.level);
 
         this.renderLists = SortedRenderLists.empty();
@@ -980,8 +980,9 @@ public class RenderSectionManager {
                 // rebuild that must have happened in the meantime includes new non-dynamic
                 // index data.
                 var result = ChunkJobResult.successfully(new ChunkBuildOutput(
-                        section, this.frame, NoData.forEmptySection(section.getPosition()),
+                        section, this.frame, null, NoData.forEmptySection(section.getPosition()),
                         BuiltSectionInfo.EMPTY, Collections.emptyMap()));
+                regions.setEmpty(section);
                 this.buildResults.add(result);
 
                 section.setTaskCancellationToken(null);

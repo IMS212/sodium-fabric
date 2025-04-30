@@ -4,12 +4,15 @@ import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferArena;
+import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferSegment;
 import net.caffeinemc.mods.sodium.client.gl.arena.PendingUpload;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.FallbackStagingBuffer;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.MappedStagingBuffer;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.render.VoxelHelpers;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.BuilderTaskOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildOutput;
@@ -18,9 +21,13 @@ import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionMeshParts
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.SharedIndexSorter;
+import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
 import org.jetbrains.annotations.NotNull;
+import org.lwjgl.opengl.GL46C;
+import org.lwjgl.system.MemoryUtil;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,13 +38,38 @@ public class RenderRegionManager {
     private final Long2ReferenceOpenHashMap<RenderRegion> regions = new Long2ReferenceOpenHashMap<>();
 
     private final StagingBuffer stagingBuffer;
+    private final StagingBuffer stagingBuffer2;
+    public static int verticalDistance;
+    public static int diameter;
+    public static  GlBufferArena voxelArena;
+    public static int voxelB;
+    public static  long voxelLoc;
 
-    public RenderRegionManager(CommandList commandList) {
+    private static final int CHUNK_SIZE = (16 * 16 * 16 * 8);
+
+    public RenderRegionManager(CommandList commandList, ClientLevel level, int renderDistance) {
         this.stagingBuffer = createStagingBuffer(commandList);
+        this.stagingBuffer2 = createStagingBuffer(commandList);
+        this.verticalDistance = Math.abs(level.getMinSectionY() - level.getMaxSectionY()) + 1;
+        this.diameter = renderDistance * 2 + 1;
+        this.voxelArena = new GlBufferArena(commandList, (verticalDistance * diameter), CHUNK_SIZE, stagingBuffer2);
+        voxelB = GL46C.glCreateBuffers();
+        int chunkAmount = diameter * diameter * verticalDistance;
+        int indicesSize = chunkAmount * 4;
+        GL46C.glNamedBufferStorage(voxelB, indicesSize, GL46C.GL_MAP_WRITE_BIT | GL46C.GL_MAP_PERSISTENT_BIT);
+        voxelLoc = GL46C.nglMapNamedBufferRange(voxelB, 0, indicesSize, GL46C.GL_MAP_PERSISTENT_BIT | GL46C.GL_MAP_FLUSH_EXPLICIT_BIT | GL46C.GL_MAP_WRITE_BIT);
+
+        for (int i = 0; i < chunkAmount; i++) {
+            MemoryUtil.memPutInt(voxelLoc + (i * 4L), -1);
+        }
     }
 
     public void update() {
         this.stagingBuffer.flip();
+        this.stagingBuffer2.flip();
+
+        GL46C.glBindBufferBase(GL46C.GL_SHADER_STORAGE_BUFFER, 10, voxelB);
+        GL46C.glBindBufferBase(GL46C.GL_SHADER_STORAGE_BUFFER, 11, voxelArena.getBufferObject().handle());
 
         try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
             Iterator<RenderRegion> it = this.regions.values()
@@ -64,6 +96,7 @@ public class RenderRegionManager {
 
     private void uploadResults(CommandList commandList, RenderRegion region, Collection<BuilderTaskOutput> results) {
         var uploads = new ArrayList<PendingSectionMeshUpload>();
+        var voxelUploads = new ArrayList<PendingSectionVoxelUpload>();
         var indexUploads = new ArrayList<PendingSectionIndexBufferUpload>();
 
         for (BuilderTaskOutput result : results) {
@@ -88,6 +121,11 @@ public class RenderRegionManager {
                         uploads.add(new PendingSectionMeshUpload(result.render, mesh, pass,
                                 new PendingUpload(mesh.getVertexData())));
                     }
+                }
+
+                if (chunkBuildOutput.voxelData != null) {
+                    voxelUploads.add(new PendingSectionVoxelUpload(result.render, chunkBuildOutput.voxelData,
+                            new PendingUpload(chunkBuildOutput.voxelData)));
                 }
             }
 
@@ -159,6 +197,19 @@ public class RenderRegionManager {
             }
         }
 
+        profiler.push("upload_voxels");
+
+        if (!voxelUploads.isEmpty()) {
+            boolean bufferChanged = voxelArena.upload(commandList, voxelUploads.stream()
+                    .map(upload -> upload.voxelUpload));
+
+            // Collect the upload results
+            for (PendingSectionVoxelUpload upload : voxelUploads) {
+                setVoxelData(upload.section,
+                        upload.voxelUpload.getResult());
+            }
+        }
+
         profiler.popPush("upload_indices");
         var indexBufferChanged = false;
 
@@ -185,6 +236,27 @@ public class RenderRegionManager {
         profiler.pop();
     }
 
+    private long minIndex = Long.MAX_VALUE;
+    private long maxIndex = -1;
+
+    private void setVoxelData(RenderSection section, GlBufferSegment result) {
+        // TODO: is offset in elements, or in bytes?
+       // System.out.println(section + " resolved to " + VoxelHelpers.convertSection(verticalDistance, diameter, section));
+        long index = (VoxelHelpers.convertSection(verticalDistance, diameter, section) * 4L);
+        minIndex = Math.min(minIndex, index);
+        maxIndex = Math.max(maxIndex, index);
+
+        MemoryUtil.memPutInt(voxelLoc + index, result.getOffsetPure());
+    }
+
+    public void setEmpty(@NotNull RenderSection section) {
+        //System.out.println(section + " resolved to " + VoxelHelpers.convertSection(verticalDistance, diameter, section));
+        long index = (VoxelHelpers.convertSection(verticalDistance, diameter, section) * 4L);
+        minIndex = Math.min(minIndex, index);
+        maxIndex = Math.max(maxIndex, index);
+        MemoryUtil.memPutInt(voxelLoc + index, -1);
+    }
+
     private Reference2ReferenceMap.FastEntrySet<RenderRegion, List<BuilderTaskOutput>> createMeshUploadQueues(Collection<BuilderTaskOutput> results) {
         var map = new Reference2ReferenceOpenHashMap<RenderRegion, List<BuilderTaskOutput>>();
 
@@ -202,7 +274,13 @@ public class RenderRegionManager {
         }
 
         this.regions.clear();
+        this.voxelArena.delete(commandList);
+
         this.stagingBuffer.delete(commandList);
+        this.stagingBuffer2.delete(commandList);
+
+        GL46C.glUnmapNamedBuffer(voxelB);
+        GL46C.glDeleteBuffers(voxelB);
     }
 
     public Collection<RenderRegion> getLoadedRegions() {
@@ -238,6 +316,9 @@ public class RenderRegionManager {
     }
 
     private record PendingSectionMeshUpload(RenderSection section, BuiltSectionMeshParts meshData, TerrainRenderPass pass, PendingUpload vertexUpload) {
+    }
+
+    private record PendingSectionVoxelUpload(RenderSection section, NativeBuffer voxelData, PendingUpload voxelUpload) {
     }
 
     private record PendingSectionIndexBufferUpload(RenderSection section, PendingUpload indexBufferUpload) {

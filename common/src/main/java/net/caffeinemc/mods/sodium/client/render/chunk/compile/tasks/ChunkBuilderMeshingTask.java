@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.client.render.chunk.compile.tasks;
 
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+import net.caffeinemc.mods.sodium.client.render.VoxelHelpers;
 import net.caffeinemc.mods.sodium.client.render.chunk.ExtendedBlockEntityType;
 import net.caffeinemc.mods.sodium.client.render.chunk.DefaultChunkRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
@@ -22,6 +23,7 @@ import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.Transl
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.PresentTranslucentData;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.TranslucentData;
 import net.caffeinemc.mods.sodium.client.services.PlatformLevelRenderHooks;
+import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
 import net.caffeinemc.mods.sodium.client.util.task.CancellationToken;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
@@ -40,6 +42,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import org.joml.Vector3dc;
+import org.lwjgl.system.MemoryUtil;
 
 import java.util.Map;
 
@@ -58,6 +61,9 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         super(render, buildTime, absoluteCameraPos);
         this.renderContext = renderContext;
         this.forceSort = forceSort;
+    }
+    public static long to1D( int x, int y, int z ) {
+        return (z * 16L * 16L) + (y * 16L) + x;
     }
 
     @Override
@@ -82,6 +88,9 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         int maxY = minY + 16;
         int maxZ = minZ + 16;
 
+        NativeBuffer voxelData = new NativeBuffer((16 * 16 * 16) * 8);
+        MemoryUtil.memSet(voxelData.getAddress(), 0, (16 * 16 * 16) * 8);
+
         // Initialise with minX/minY/minZ so initial getBlockState crash context is correct
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos(minX, minY, minZ);
         BlockPos.MutableBlockPos modelOffset = new BlockPos.MutableBlockPos();
@@ -99,17 +108,23 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         try {
             for (int y = minY; y < maxY; y++) {
                 if (cancellationToken.isCancelled()) {
+                    voxelData.free();
                     return null;
                 }
 
                 for (int z = minZ; z < maxZ; z++) {
                     for (int x = minX; x < maxX; x++) {
+                        long oneIndex = to1D(x & 15, y & 15, z & 15) * 8;
                         BlockState blockState = slice.getBlockState(x, y, z);
 
                         if (blockState.isAir() && !blockState.hasBlockEntity()) {
+                            MemoryUtil.memPutInt(voxelData.getAddress() + oneIndex, 0);
+                            MemoryUtil.memPutInt(voxelData.getAddress() + oneIndex + 4, 0);
                             continue;
                         }
 
+                        MemoryUtil.memPutInt(voxelData.getAddress() + oneIndex, 1);
+                        MemoryUtil.memPutInt(voxelData.getAddress() + oneIndex + 4, 0);
                         blockPos.set(x, y, z);
                         modelOffset.set(x & 15, y & 15, z & 15);
 
@@ -185,6 +200,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         // cancellation opportunity right before translucent sorting
         if (cancellationToken.isCancelled()) {
             meshes.forEach((pass, mesh) -> mesh.getVertexData().free());
+            voxelData.free();
             profiler.pop();
             return null;
         }
@@ -202,7 +218,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
             reuseUploadedData = !this.forceSort && translucentData == oldData;
         }
 
-        var output = new ChunkBuildOutput(this.render, this.submitTime, translucentData, renderData.build(), meshes);
+        var output = new ChunkBuildOutput(this.render, this.submitTime, voxelData, translucentData, renderData.build(), meshes);
 
         if (collector != null) {
             if (reuseUploadedData) {

@@ -7,7 +7,7 @@ object BuildConfig {
     val FABRIC_API_VERSION: String = "0.119.5+1.21.5"
 
     // This value can be set to null to disable Parchment.
-    val PARCHMENT_VERSION: String? = null
+    val PARCHMENT_VERSION: String? = "2025.04.19"
 
     // https://semver.org/
     var MOD_VERSION: String = "0.6.13"

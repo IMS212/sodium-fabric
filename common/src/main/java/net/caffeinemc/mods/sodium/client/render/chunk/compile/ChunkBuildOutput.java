@@ -5,6 +5,7 @@ import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionInfo;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionMeshParts;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.data.TranslucentData;
+import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
 
 import java.util.Map;
 
@@ -18,12 +19,14 @@ public class ChunkBuildOutput extends ChunkSortOutput {
     public final BuiltSectionInfo info;
     public final TranslucentData translucentData;
     public final Map<TerrainRenderPass, BuiltSectionMeshParts> meshes;
+    public final NativeBuffer voxelData;
 
-    public ChunkBuildOutput(RenderSection render, int buildTime, TranslucentData translucentData, BuiltSectionInfo info,
-            Map<TerrainRenderPass, BuiltSectionMeshParts> meshes) {
+    public ChunkBuildOutput(RenderSection render, int buildTime, NativeBuffer voxelData, TranslucentData translucentData, BuiltSectionInfo info,
+                            Map<TerrainRenderPass, BuiltSectionMeshParts> meshes) {
         super(render, buildTime);
 
         this.info = info;
+        this.voxelData = voxelData;
         this.translucentData = translucentData;
         this.meshes = meshes;
     }
@@ -35,6 +38,8 @@ public class ChunkBuildOutput extends ChunkSortOutput {
     @Override
     public void destroy() {
         super.destroy();
+
+        if (this.voxelData != null) voxelData.free();
 
         for (BuiltSectionMeshParts data : this.meshes.values()) {
             data.getVertexData().free();

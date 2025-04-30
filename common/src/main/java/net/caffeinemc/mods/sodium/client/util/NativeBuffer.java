@@ -131,6 +131,12 @@ public class NativeBuffer {
         ALLOCATED -= ref.length;
     }
 
+    public long getAddress() {
+        ref.checkFreed();
+
+        return ref.address;
+    }
+
     private static class BufferReference {
         public final long address;
         public final int length;

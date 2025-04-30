@@ -79,4 +79,8 @@ public class GlBufferSegment {
                     .setPrev(this);
         }
     }
+
+    public int getOffsetPure() {
+        return this.offset;
+    }
 }

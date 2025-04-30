@@ -4,10 +4,8 @@ import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.textures.GpuTexture;
 import net.caffeinemc.mods.sodium.client.gl.device.GLRenderDevice;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformFloat2v;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformFloat3v;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformInt;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformMatrix4f;
+import net.caffeinemc.mods.sodium.client.gl.shader.uniform.*;
+import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.impl.CompactChunkVertex;
 import net.caffeinemc.mods.sodium.client.util.TextureUtil;
 import net.caffeinemc.mods.sodium.mixin.core.render.texture.TextureAtlasAccessor;
@@ -32,12 +30,14 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
 
     // The fog shader component used by this program in order to set up the appropriate GL state
     private final ChunkShaderFogComponent fogShader;
+    private final GlUniformInt2v chunkDiameter;
 
     public DefaultShaderInterface(ShaderBindingContext context, ChunkShaderOptions options) {
         this.uniformModelViewMatrix = context.bindUniform("u_ModelViewMatrix", GlUniformMatrix4f::new);
         this.uniformProjectionMatrix = context.bindUniform("u_ProjectionMatrix", GlUniformMatrix4f::new);
         this.uniformRegionOffset = context.bindUniform("u_RegionOffset", GlUniformFloat3v::new);
         this.uniformTexCoordShrink = context.bindUniform("u_TexCoordShrink", GlUniformFloat2v::new);
+        this.chunkDiameter = context.bindUniformOptional("chunkDiameter", GlUniformInt2v::new);
 
         this.uniformTextures = new EnumMap<>(ChunkShaderTextureSlot.class);
         this.uniformTextures.put(ChunkShaderTextureSlot.BLOCK, context.bindUniform("u_BlockTex", GlUniformInt::new));
@@ -66,6 +66,10 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
                 (float) (subTexelOffset - (((1.0D / textureAtlas.getWidth()) / subTexelPrecision))),
                 (float) (subTexelOffset - (((1.0D / textureAtlas.getHeight()) / subTexelPrecision)))
         );
+
+        if (this.chunkDiameter != null) {
+            this.chunkDiameter.set(RenderRegionManager.diameter, RenderRegionManager.verticalDistance);
+        }
 
         this.fogShader.setup();
     }
