@@ -2,7 +2,7 @@ plugins {
     id("multiloader-base")
     id("java-library")
 
-    id("fabric-loom") version ("1.9.2")
+    id("fabric-loom") version ("1.10.1")
 }
 
 base {
@@ -16,7 +16,7 @@ val configurationPreLaunch = configurations.create("preLaunchDeps") {
 sourceSets {
     val main = getByName("main")
     val api = create("api")
-    val boot = create("boot")
+    val workarounds = create("workarounds")
 
     api.apply {
         java {
@@ -24,7 +24,7 @@ sourceSets {
         }
     }
 
-    boot.apply {
+    workarounds.apply {
         java {
             compileClasspath += configurationPreLaunch
         }
@@ -33,7 +33,7 @@ sourceSets {
     main.apply {
         java {
             compileClasspath += api.output
-            compileClasspath += boot.output
+            compileClasspath += workarounds.output
         }
     }
 
@@ -120,7 +120,7 @@ fun exportSourceSet(name: String, sourceSet: SourceSet) {
 
 exportSourceSet("commonMain", sourceSets["main"])
 exportSourceSet("commonApi", sourceSets["api"])
-exportSourceSet("commonBoot", sourceSets["boot"])
+exportSourceSet("commonEarlyLaunch", sourceSets["workarounds"])
 exportSourceSet("commonDesktop", sourceSets["desktop"])
 
 tasks.jar { enabled = false }

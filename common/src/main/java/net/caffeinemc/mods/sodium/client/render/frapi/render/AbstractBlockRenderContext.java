@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.frapi.render;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.caffeinemc.mods.sodium.client.model.light.LightMode;
 import net.caffeinemc.mods.sodium.client.model.light.LightPipeline;
 import net.caffeinemc.mods.sodium.client.model.light.LightPipelineProvider;
@@ -20,10 +21,12 @@ import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.model.ModelHelper;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -32,6 +35,7 @@ import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -43,10 +47,11 @@ import java.util.function.Supplier;
  */
 public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
     private static final RenderMaterial[] STANDARD_MATERIALS;
-    private static final RenderMaterial TRANSLUCENT_MATERIAL = SodiumRenderer.INSTANCE.materialFinder().blendMode(BlendMode.TRANSLUCENT).find();
+    private static final RenderMaterial[] TRANSLUCENT_MATERIALS;
 
     static {
         STANDARD_MATERIALS = new RenderMaterial[AmbientOcclusionMode.values().length];
+        TRANSLUCENT_MATERIALS = new RenderMaterial[AmbientOcclusionMode.values().length];
 
         AmbientOcclusionMode[] values = AmbientOcclusionMode.values();
         for (int i = 0; i < values.length; i++) {
@@ -57,25 +62,33 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
             };
 
             STANDARD_MATERIALS[i] = SodiumRenderer.INSTANCE.materialFinder().ambientOcclusion(state).find();
+            TRANSLUCENT_MATERIALS[i] = SodiumRenderer.INSTANCE.materialFinder().ambientOcclusion(state).blendMode(BlendMode.TRANSLUCENT).find();
         }
     }
 
     public class BlockEmitter extends MutableQuadViewImpl {
+        private final List<BlockModelPart> cachedList = new ObjectArrayList<>();
+
         {
             data = new int[EncodingFormat.TOTAL_STRIDE];
             clear();
         }
 
-        public void bufferDefaultModel(BakedModel model, BlockState state, Predicate<Direction> cullTest) {
-            AbstractBlockRenderContext.this.bufferDefaultModel(model, state, cullTest);
-        }
-
         @Override
         public void emitDirectly() {
-            if (type == null) {
-                throw new IllegalStateException("No render type is set but an FRAPI object was asked to render!");
-            }
             renderQuad(this);
+        }
+
+        public void markInvalidToDowngrade() {
+            AbstractBlockRenderContext.this.allowDowngrade = false;
+        }
+
+        public void emitPart(BlockModelPart part, Predicate<@Nullable Direction> cullTest) {
+            AbstractBlockRenderContext.this.bufferDefaultModel(part, cullTest);
+        }
+
+        public List<BlockModelPart> cachedList() {
+            return cachedList;
         }
     }
 
@@ -100,15 +113,9 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
      */
     protected BlockPos pos;
 
-    /**
-     * The current render type being rendered.
-     */
-    protected RenderType type;
+    protected RenderType defaultRenderType;
 
-    /**
-     * The current model's model data.
-     */
-    protected SodiumModelData modelData;
+    protected boolean allowDowngrade;
 
     private final BlockOcclusionCache occlusionCache = new BlockOcclusionCache();
     private boolean enableCulling = true;
@@ -117,11 +124,6 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
     private int cullResultFlags;
 
     protected RandomSource random;
-    protected long randomSeed;
-    protected final Supplier<RandomSource> randomSupplier = () -> {
-        random.setSeed(randomSeed);
-        return random;
-    };
 
     /**
      * Must be set by the subclass constructor.
@@ -185,7 +187,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
     protected void prepareAoInfo(boolean modelAo) {
         this.useAmbientOcclusion = Minecraft.useAmbientOcclusion();
         // Ignore the incorrect IDEA warning here.
-        this.defaultLightMode = this.useAmbientOcclusion && modelAo && PlatformBlockAccess.getInstance().getLightEmission(state, level, pos) == 0 ? LightMode.SMOOTH : LightMode.FLAT;
+        this.defaultLightMode = this.useAmbientOcclusion && modelAo && (state != null && PlatformBlockAccess.getInstance().getLightEmission(state, level, pos) == 0) ? LightMode.SMOOTH : LightMode.FLAT;
     }
 
     protected void shadeQuad(MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, ShadeMode shadeMode) {
@@ -206,13 +208,16 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
         }
     }
 
+    private List<BlockModelPart> parts = new ObjectArrayList<>();
+
     /* Handling of vanilla models - this is the hot path for non-modded models */
-    public void bufferDefaultModel(BakedModel model, @Nullable BlockState state, Predicate<Direction> cullTest) {
+    public void bufferDefaultModel(BlockModelPart part, Predicate<Direction> cullTest) {
         MutableQuadViewImpl editorQuad = this.editorQuad;
+        this.prepareAoInfo(part.useAmbientOcclusion());
 
-
-        // If there is no transform, we can check the culling face once for all the quads,
-        // and we don't need to check for transforms per-quad.
+        RenderType renderType = PlatformModelAccess.getInstance().getPartRenderType(part, state, this.defaultRenderType);
+        RenderType defaultType = this.defaultRenderType;
+        this.defaultRenderType = renderType;
 
         for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
             final Direction cullFace = ModelHelper.faceFromIndex(i);
@@ -221,15 +226,15 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
                 continue;
             }
 
-            RandomSource random = this.randomSupplier.get();
-            AmbientOcclusionMode ao = PlatformBlockAccess.getInstance().usesAmbientOcclusion(model, state, modelData, type, slice, pos);
+            // TODO NeoForge 1.21.5
+            AmbientOcclusionMode ao = PlatformBlockAccess.getInstance().usesAmbientOcclusion(part, state, renderType, slice, pos);
 
-            final List<BakedQuad> quads = PlatformModelAccess.getInstance().getQuads(level, pos, model, state, cullFace, random, type, modelData);
+            final List<BakedQuad> quads = PlatformModelAccess.getInstance().getQuads(level, pos, part, state, cullFace, random, renderType);
             final int count = quads.size();
 
             for (int j = 0; j < count; j++) {
                 final BakedQuad q = quads.get(j);
-                editorQuad.fromVanilla(q, (type == RenderType.tripwire() || type == RenderType.translucent()) ? TRANSLUCENT_MATERIAL : STANDARD_MATERIALS[ao.ordinal()], cullFace);
+                editorQuad.fromVanilla(q, (renderType == RenderType.tripwire() || renderType == RenderType.translucent()) ? TRANSLUCENT_MATERIALS[ao.ordinal()] : STANDARD_MATERIALS[ao.ordinal()], cullFace);
                 // Call processQuad instead of emit for efficiency
                 // (avoid unnecessarily clearing data, trying to apply transforms, and performing cull check again)
 
@@ -238,13 +243,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
         }
 
         editorQuad.clear();
-    }
 
-    public SodiumModelData getModelData() {
-        return modelData;
-    }
-
-    public RenderType getRenderType() {
-        return type;
+        this.defaultRenderType = defaultType;
     }
 }

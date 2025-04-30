@@ -9,7 +9,7 @@ base {
 }
 
 repositories {
-    maven("https://maven.pkg.github.com/ims212/ForgifiedFabricAPI") {
+    maven("https://maven.pkg.github.com/ims212/FRAPI-Testing") {
         credentials {
             username = "IMS212"
             // Read only token
@@ -54,7 +54,8 @@ dependencies {
     }
 
     addEmbeddedFabricModule("org.sinytra.forgified-fabric-api:fabric-api-base:0.4.42+d1308ded19")
-    addEmbeddedFabricModule("org.sinytra.forgified-fabric-api:fabric-renderer-api-v1:5.0.0+babc52e504")
+    implementation("net.caffeinemc:fabric-renderer-api-v1:6.0.0")
+    jarJar("net.caffeinemc:fabric-renderer-api-v1:6.0.0")
     addEmbeddedFabricModule("org.sinytra.forgified-fabric-api:fabric-rendering-data-attachment-v1:0.3.48+73761d2e19")
     addEmbeddedFabricModule("org.sinytra.forgified-fabric-api:fabric-block-view-api-v2:1.0.10+9afaaf8c19")
 

@@ -4,7 +4,6 @@ import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRender
 import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.minecraft.client.renderer.RenderType;
-import net.neoforged.neoforge.client.model.data.ModelData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,15 +22,5 @@ public abstract class AbstractBlockRenderContextMixin implements QuadEmitter {
     @Inject(method = "<init>", at = @At("RETURN"))
     public void assignParent(AbstractBlockRenderContext parent, CallbackInfo ci) {
         this.parent = parent;
-    }
-
-    @Override
-    public ModelData getModelData() {
-        return (ModelData) (Object) this.parent.getModelData();
-    }
-
-    @Override
-    public RenderType getRenderType() {
-        return this.parent.getRenderType();
     }
 }

@@ -10,6 +10,7 @@
     "conformVisibility": true
   },
   "client": [
+    "core.GlCommandEncoderAccessor",
     "core.MinecraftMixin",
     "core.WindowMixin",
     "core.gui.LevelLoadStatusManagerMixin",
@@ -45,14 +46,17 @@
     "features.options.render_layers.LeavesBlockMixin",
     "features.options.render_layers.ItemBlockRenderTypesMixin",
     "features.options.weather.LevelRendererMixin",
-    "features.render.compositing.RenderTargetMixin",
     "features.render.entity.CubeMixin",
     "features.render.entity.ModelPartMixin",
     "features.render.entity.cull.EntityRendererMixin",
     "features.render.entity.shadows.EntityRenderDispatcherMixin",
     "features.render.frapi.BakedModelMixin",
+    "features.render.frapi.BlockRenderDispatcherAccessor",
+    "features.render.frapi.BlockRenderDispatcherMixin",
     "features.render.frapi.ModelBlockRendererMixin",
-    "features.render.frapi.ItemRendererMixin",
+    "features.render.frapi.ModelBlockRendererAccessor",
+    "features.render.frapi.ItemRenderStateMixin",
+    "features.render.frapi.ItemLayerRenderStateMixin",
     "features.render.frapi.ItemRendererAccessor",
     "features.render.gui.font.BakedGlyphMixin",
     "features.render.gui.outlines.LevelRendererMixin",
@@ -61,7 +65,6 @@
     "features.render.immediate.buffer_builder.sorting.MeshDataAccessor",
     "features.render.immediate.buffer_builder.sorting.MultiBufferSourceMixin",
     "features.render.immediate.buffer_builder.sorting.VertexSortingMixin",
-    "features.render.immediate.matrix_stack.PoseStackMixin",
     "features.render.immediate.matrix_stack.VertexConsumerMixin",
     "features.render.model.ItemBlockRenderTypesMixin",
     "features.render.model.item.ItemRendererMixin",
@@ -70,7 +73,6 @@
     "features.render.world.sky.FogRendererMixin",
     "features.render.world.sky.ClientLevelMixin",
     "features.render.world.sky.LevelRendererMixin",
-    "features.shader.uniform.ShaderInstanceMixin",
     "features.textures.NativeImageAccessor",
     "features.textures.SpriteContentsInvoker",
     "features.textures.animations.tracking.ModelBlockRendererMixin",
@@ -91,6 +93,7 @@
     "features.textures.scan.SpriteContentsMixin",
     "features.textures.scan.TextureAtlasSpriteMixin",
     "workarounds.context_creation.WindowMixin",
+    "workarounds.context_creation.RenderSystemMixin",
     "workarounds.event_loop.RenderSystemMixin"
   ]
 }

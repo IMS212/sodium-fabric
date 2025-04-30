@@ -1,14 +1,17 @@
 package net.caffeinemc.mods.sodium.fabric.model;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.services.PlatformModelAccess;
 import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
 import net.caffeinemc.mods.sodium.client.services.SodiumModelDataContainer;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
@@ -24,13 +27,8 @@ public class FabricModelAccess implements PlatformModelAccess {
     private static final SodiumModelDataContainer EMPTY_CONTAINER = new SodiumModelDataContainer(Long2ObjectMaps.emptyMap());
 
     @Override
-    public Iterable<RenderType> getModelRenderTypes(BlockAndTintGetter level, BakedModel model, BlockState state, BlockPos pos, RandomSource random, SodiumModelData modelData) {
-        return Collections.singleton(ItemBlockRenderTypes.getChunkRenderType(state));
-    }
-
-    @Override
-    public List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BakedModel model, BlockState state, Direction face, RandomSource random, RenderType renderType, SodiumModelData modelData) {
-        return model.getQuads(state, face, random);
+    public List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BlockModelPart model, BlockState state, Direction face, RandomSource random, RenderType renderType) {
+        return model.getQuads(face);
     }
 
     @Override
@@ -39,12 +37,23 @@ public class FabricModelAccess implements PlatformModelAccess {
     }
 
     @Override
-    public SodiumModelData getModelData(LevelSlice slice, BakedModel model, BlockState state, BlockPos pos, SodiumModelData originalData) {
+    public SodiumModelData getEmptyModelData() {
         return null;
     }
 
     @Override
-    public SodiumModelData getEmptyModelData() {
-        return null;
+    public RenderType getPartRenderType(BlockModelPart part, BlockState state, RenderType renderType) {
+        return renderType;
+    }
+
+    @Override
+    public List<BlockModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, QuadEmitter emitter) {
+       if (emitter instanceof AbstractBlockRenderContext.BlockEmitter be) {
+           be.cachedList().clear();
+           blockStateModel.collectParts(random, be.cachedList());
+           return be.cachedList();
+       } else {
+           return blockStateModel.collectParts(random);
+       }
     }
 }

@@ -1,7 +1,7 @@
 plugins {
     id("multiloader-platform")
 
-    id("fabric-loom") version ("1.9.2")
+    id("fabric-loom") version ("1.10.1")
 }
 
 base {
@@ -18,11 +18,11 @@ val configurationCommonModResources: Configuration = configurations.create("comm
 dependencies {
     configurationCommonModJava(project(path = ":common", configuration = "commonMainJava"))
     configurationCommonModJava(project(path = ":common", configuration = "commonApiJava"))
-    configurationCommonModJava(project(path = ":common", configuration = "commonBootJava"))
+    configurationCommonModJava(project(path = ":common", configuration = "commonEarlyLaunchJava"))
 
     configurationCommonModResources(project(path = ":common", configuration = "commonMainResources"))
     configurationCommonModResources(project(path = ":common", configuration = "commonApiResources"))
-    configurationCommonModResources(project(path = ":common", configuration = "commonBootResources"))
+    configurationCommonModResources(project(path = ":common", configuration = "commonEarlyLaunchResources"))
 }
 
 sourceSets.apply {
@@ -30,6 +30,10 @@ sourceSets.apply {
         compileClasspath += configurationCommonModJava
         runtimeClasspath += configurationCommonModJava
     }
+}
+
+repositories {
+    mavenLocal()
 }
 
 dependencies {

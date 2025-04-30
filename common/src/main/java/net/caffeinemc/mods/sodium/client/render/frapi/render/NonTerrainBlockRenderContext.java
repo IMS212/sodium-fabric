@@ -27,62 +27,64 @@ import net.caffeinemc.mods.sodium.client.model.light.data.SingleBlockLightDataCa
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
 import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
+import net.fabricmc.fabric.api.renderer.v1.material.BlendMode;
+import net.fabricmc.fabric.api.renderer.v1.material.GlintMode;
 import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial;
 import net.fabricmc.fabric.api.renderer.v1.material.ShadeMode;
-import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel;
+import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
-    private final BlockColors colorMap;
+    public static final ThreadLocal<NonTerrainBlockRenderContext> POOL = ThreadLocal.withInitial(NonTerrainBlockRenderContext::new);
+
+    private BlockColors colorMap;
     private final SingleBlockLightDataCache lightDataCache = new SingleBlockLightDataCache();
 
-    private VertexConsumer vertexConsumer;
+    private MultiBufferSource vertexConsumer;
     private Matrix4f matPosition;
     private boolean trustedNormals;
     private Matrix3f matNormal;
     private int overlay;
 
-    public NonTerrainBlockRenderContext(BlockColors colorMap) {
-        this.colorMap = colorMap;
+    public NonTerrainBlockRenderContext() {
         this.lighters = new LightPipelineProvider(this.lightDataCache);
+        this.random = new SingleThreadedRandomSource(42L);
     }
 
-    public void renderModel(BlockAndTintGetter blockView, BakedModel model, BlockState state, BlockPos pos, PoseStack poseStack, VertexConsumer buffer, boolean cull, RandomSource random, long seed, int overlay) {
+    public void renderModel(BlockAndTintGetter blockView, BlockColors blockColors, BlockStateModel model, BlockState state, BlockPos pos, PoseStack poseStack, MultiBufferSource buffer, boolean cull, long seed, int overlay) {
         this.level = blockView;
         this.state = state;
         this.pos = pos;
+        this.colorMap = blockColors;
 
-        this.random = random;
-        this.randomSeed = seed;
 
         this.vertexConsumer = buffer;
         this.matPosition = poseStack.last().pose();
         this.trustedNormals = poseStack.last().trustedNormals;
         this.matNormal = poseStack.last().normal();
         this.overlay = overlay;
-        this.type = ItemBlockRenderTypes.getChunkRenderType(state);
-        this.modelData = SodiumModelData.EMPTY;
+        this.defaultRenderType = ItemBlockRenderTypes.getChunkRenderType(state);
 
         this.lightDataCache.reset(pos, blockView);
         this.prepareCulling(cull);
-        this.prepareAoInfo(model.useAmbientOcclusion());
 
-        ((FabricBakedModel) model).emitBlockQuads(getEmitter(), blockView, state, pos, this.randomSupplier, this::isFaceCulled);
+        random.setSeed(state.getSeed(pos));
+        ((FabricBlockStateModel) model).emitQuads(getEmitter(), blockView, pos, state, this.random, this::isFaceCulled);
 
+        this.defaultRenderType = null;
         this.level = null;
-        this.type = null;
-        this.modelData = null;
         this.lightDataCache.release();
-        this.random = null;
         this.vertexConsumer = null;
     }
 
@@ -99,9 +101,15 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
         }
         final boolean emissive = mat.emissive();
 
+        VertexConsumer vertexConsumer = getVertexConsumer(mat.blendMode());
+
         tintQuad(quad);
         shadeQuad(quad, lightMode, emissive, shadeMode);
-        bufferQuad(quad);
+        bufferQuad(quad, vertexConsumer);
+    }
+
+    private VertexConsumer getVertexConsumer(BlendMode blendMode) {
+        return vertexConsumer.getBuffer(blendMode == BlendMode.DEFAULT ? defaultRenderType : blendMode.blockRenderLayer);
     }
 
     private void tintQuad(MutableQuadViewImpl quad) {
@@ -125,7 +133,7 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
         }
     }
 
-    private void bufferQuad(MutableQuadViewImpl quad) {
+    private void bufferQuad(MutableQuadViewImpl quad, VertexConsumer vertexConsumer) {
         QuadEncoder.writeQuadVertices(quad, vertexConsumer, overlay, matPosition, trustedNormals, matNormal);
         var sprite = quad.sprite(SpriteFinderCache.forBlockAtlas());
         if (sprite != null) {

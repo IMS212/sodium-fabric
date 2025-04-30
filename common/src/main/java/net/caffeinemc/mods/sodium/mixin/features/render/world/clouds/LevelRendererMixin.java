@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.mixin.features.render.world.clouds;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.resource.ResourceHandle;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.caffeinemc.mods.sodium.client.render.immediate.CloudRenderer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CloudStatus;
@@ -40,29 +41,28 @@ public class LevelRendererMixin {
      * @reason Optimize cloud rendering
      */
     @Group(name = "sodium$cloudsOverride", min = 1, max = 1)
-    @Dynamic
     @Inject(
             method = "method_62205",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/CloudRenderer;render(ILnet/minecraft/client/CloudStatus;FLorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lnet/minecraft/world/phys/Vec3;F)V"
+                    target = "Lnet/minecraft/client/renderer/CloudRenderer;render(ILnet/minecraft/client/CloudStatus;FLnet/minecraft/world/phys/Vec3;F)V"
             ),
             require = 0,
             cancellable = true
     )
-    public void renderCloudsFabric(ResourceHandle<RenderTarget> resourceHandle, int cloudColor, CloudStatus cloudStatus, float cloudHeight, Matrix4f matModelView, Matrix4f matProjection, Vec3 camera, float partialTicks, CallbackInfo ci) {
+    public void renderCloudsFabric(int i, CloudStatus cloudStatus, float f, Vec3 vec3, float g, CallbackInfo ci) {
         ci.cancel();
 
-        this.sodium$renderClouds(matModelView, matProjection, cloudColor);
+        this.sodium$renderClouds(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix(), i);
     }
 
     @Group(name = "sodium$cloudsOverride", min = 1, max = 1)
     @Dynamic
-    @Inject(method = { "lambda$addCloudsPass$6" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/CloudRenderer;render(ILnet/minecraft/client/CloudStatus;FLorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lnet/minecraft/world/phys/Vec3;F)V"), cancellable = true, require = 0) // Inject after Forge checks dimension support
-    public void renderCloudsNeo(ResourceHandle<?> resourcehandle, float p_365209_, Vec3 p_362985_, Matrix4f modelView, Matrix4f projectionMatrix, int color, CloudStatus p_364196_, float p_362337_, CallbackInfo ci) {
+    @Inject(method = { "lambda$addCloudsPass$6" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/CloudRenderer;render(ILnet/minecraft/client/CloudStatus;FLnet/minecraft/world/phys/Vec3;F)V"), cancellable = true, require = 0) // Inject after Forge checks dimension support
+    public void renderCloudsNeo(float f, Vec3 vec3, Matrix4f modelView, Matrix4f proj, int i, CloudStatus status, float g, CallbackInfo ci) {
         ci.cancel();
 
-        this.sodium$renderClouds(modelView, projectionMatrix, color);
+        this.sodium$renderClouds(modelView, proj, i);
     }
 
     @Unique
