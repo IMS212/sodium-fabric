@@ -10,12 +10,19 @@ public class TerrainRenderPass {
 
     private final boolean isTranslucent;
     private final boolean fragmentDiscard;
+    private final String name;
 
-    public TerrainRenderPass(RenderType renderType, boolean isTranslucent, boolean allowFragmentDiscard) {
+    public TerrainRenderPass(String name, RenderType renderType, boolean isTranslucent, boolean allowFragmentDiscard) {
+        this.name = name;
         this.renderType = renderType;
 
         this.isTranslucent = isTranslucent;
         this.fragmentDiscard = allowFragmentDiscard;
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 
     public boolean isTranslucent() {

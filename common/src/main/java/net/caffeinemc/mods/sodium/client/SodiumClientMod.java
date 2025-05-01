@@ -1,5 +1,8 @@
 package net.caffeinemc.mods.sodium.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import graphics.cinnabar.core.b3d.CinnabarDevice;
+import graphics.cinnabar.core.b3d.command.CinnabarCommandEncoder;
 import net.caffeinemc.mods.sodium.client.console.Console;
 import net.caffeinemc.mods.sodium.client.console.message.MessageLevel;
 import net.caffeinemc.mods.sodium.client.data.fingerprint.FingerprintMeasure;
@@ -110,5 +113,13 @@ public class SodiumClientMod {
 
     public static boolean allowDebuggingOptions() {
         return PlatformRuntimeInformation.getInstance().isDevelopmentEnvironment();
+    }
+
+    public static CinnabarDevice getDevice() {
+        return ((CinnabarDevice) RenderSystem.getDevice());
+    }
+
+    public static CinnabarCommandEncoder getCommandEncoder() {
+        return ((CinnabarDevice) RenderSystem.getDevice()).createCommandEncoder();
     }
 }

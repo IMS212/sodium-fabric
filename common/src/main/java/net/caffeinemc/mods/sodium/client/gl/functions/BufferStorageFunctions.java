@@ -29,15 +29,8 @@ public enum BufferStorageFunctions {
     };
 
     public static BufferStorageFunctions pickBest(RenderDevice device) {
-        GLCapabilities capabilities = device.getCapabilities();
+        return CORE;
 
-        if (capabilities.OpenGL44) {
-            return CORE;
-        } else if (capabilities.GL_ARB_buffer_storage) {
-            return ARB;
-        } else {
-            return NONE;
-        }
     }
 
 

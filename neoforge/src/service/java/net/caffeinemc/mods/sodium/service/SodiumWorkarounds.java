@@ -5,6 +5,7 @@ import net.caffeinemc.mods.sodium.client.compatibility.environment.probe.Graphic
 import net.caffeinemc.mods.sodium.client.compatibility.workarounds.Workarounds;
 import net.caffeinemc.mods.sodium.client.compatibility.workarounds.nvidia.NvidiaWorkarounds;
 import net.neoforged.neoforgespi.earlywindow.GraphicsBootstrapper;
+import org.lwjgl.system.Configuration;
 
 public class SodiumWorkarounds implements GraphicsBootstrapper {
     @Override
@@ -14,6 +15,7 @@ public class SodiumWorkarounds implements GraphicsBootstrapper {
 
     @Override
     public void bootstrap(String[] arguments) {
+        Configuration.STACK_SIZE.set(128);
         PreLaunchChecks.checkEnvironment();
         GraphicsAdapterProbe.findAdapters();
         Workarounds.init();

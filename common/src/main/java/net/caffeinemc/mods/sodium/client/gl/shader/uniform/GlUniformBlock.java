@@ -1,6 +1,6 @@
 package net.caffeinemc.mods.sodium.client.gl.shader.uniform;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
+import graphics.cinnabar.core.vk.memory.VkBuffer;
 import org.lwjgl.opengl.GL32C;
 
 public class GlUniformBlock {
@@ -10,7 +10,6 @@ public class GlUniformBlock {
         this.binding = uniformBlockBinding;
     }
 
-    public void bindBuffer(GlBuffer buffer) {
-        GL32C.glBindBufferBase(GL32C.GL_UNIFORM_BUFFER, this.binding, buffer.handle());
+    public void bindBuffer(VkBuffer buffer) {
     }
 }

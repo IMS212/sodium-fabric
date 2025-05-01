@@ -16,7 +16,10 @@ repositories {
             password = "ghp_" + "DEuGv0Z56vnSOYKLCXdsS9svK4nb9K39C1Hn"
         }
     }
-
+    maven {
+        name = "TauMC"
+        url = uri("https://maven.taumc.org/releases")
+    }
     maven("https://maven.su5ed.dev/releases")
     maven("https://maven.neoforged.net/releases/")
 }
@@ -58,8 +61,16 @@ dependencies {
     jarJar("net.caffeinemc:fabric-renderer-api-v1:6.0.0")
     addEmbeddedFabricModule("org.sinytra.forgified-fabric-api:fabric-rendering-data-attachment-v1:0.3.48+73761d2e19")
     addEmbeddedFabricModule("org.sinytra.forgified-fabric-api:fabric-block-view-api-v2:1.0.10+9afaaf8c19")
-
+    compileOnly("org.lwjgl:lwjgl-vulkan:3.3.3")
+    additionalRuntimeClasspath("org.lwjgl:lwjgl-vulkan:3.3.3")
+    compileOnly("org.lwjgl:lwjgl-spvc:3.3.3")
+    additionalRuntimeClasspath("org.lwjgl:lwjgl-spvc:3.3.3")
+    additionalRuntimeClasspath("org.lwjgl:lwjgl-spvc:3.3.3:natives-linux")
+    additionalRuntimeClasspath("org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux")
+    compileOnly("org.lwjgl:lwjgl-shaderc:3.3.3")
+    additionalRuntimeClasspath("org.lwjgl:lwjgl-shaderc:3.3.3")
     jarJar(project(":neoforge", "service"))
+    additionalRuntimeClasspath("org.taumc:glsl-transformation-lib:0.2.0-20.ge3cb096")
 }
 
 val serviceJar = tasks.register<Jar>("serviceJar") {
@@ -113,6 +124,11 @@ neoForge {
         create("Client") {
             client()
             ideName = "NeoForge/Client"
+        }
+        create("ClientRD") {
+            client()
+            ideName = "NeoForge/Client"
+            environment("LD_PRELOAD", "/usr/lib/librenderdoc.so")
         }
     }
 

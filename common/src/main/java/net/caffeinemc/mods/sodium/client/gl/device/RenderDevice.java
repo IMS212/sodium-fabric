@@ -19,7 +19,6 @@ public interface RenderDevice {
     void makeActive();
     void makeInactive();
 
-    GLCapabilities getCapabilities();
 
     DeviceFunctions getDeviceFunctions();
 

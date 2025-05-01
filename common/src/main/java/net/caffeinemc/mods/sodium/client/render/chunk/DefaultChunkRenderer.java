@@ -1,11 +1,10 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.systems.RenderSystem;
+import graphics.cinnabar.core.b3d.renderpass.CinnabarRenderPass;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
-import net.caffeinemc.mods.sodium.client.gl.attribute.GlVertexAttributeBinding;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.DrawCommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.MultiDrawBatch;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.gl.device.*;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlIndexType;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlPrimitiveType;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlTessellation;
@@ -16,18 +15,27 @@ import net.caffeinemc.mods.sodium.client.render.chunk.data.SectionRenderDataUnsa
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderList;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderListIterable;
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
-import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
+import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkFogMode;
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
+import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkShaderOptions;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.SortBehavior;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
+import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.impl.CompactChunkVertex;
 import net.caffeinemc.mods.sodium.client.render.viewport.CameraTransform;
 import net.caffeinemc.mods.sodium.client.util.BitwiseMath;
 import net.caffeinemc.mods.sodium.client.util.UInt32;
-import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.system.Pointer;
+import net.caffeinemc.mods.sodium.mixin.core.render.texture.TextureAtlasAccessor;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import org.joml.Matrix4f;
 
 import java.util.Iterator;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
+
+import static org.lwjgl.vulkan.VK10.*;
+import static org.lwjgl.vulkan.VK10.VK_INDEX_TYPE_UINT32;
 
 public class DefaultChunkRenderer extends ShaderChunkRenderer {
     private final MultiDrawBatch batch;
@@ -52,14 +60,44 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                        ChunkRenderListIterable renderLists,
                        TerrainRenderPass renderPass,
                        CameraTransform camera) {
+        ChunkShaderOptions options = new ChunkShaderOptions(ChunkFogMode.SMOOTH, renderPass, this.vertexType);
         super.begin(renderPass);
+
+        try (RenderPass pass = SodiumClientMod.getCommandEncoder().createRenderPass(Minecraft.getInstance().getMainRenderTarget().getColorTexture(), OptionalInt.empty(), Minecraft.getInstance().getMainRenderTarget().getDepthTexture(), OptionalDouble.empty())) {
+            ((CinnabarRenderPass) pass).setPipelineCinna(this.compileProgram(options));
+
+            pass.setUniform("u_ModelViewMatrix", (Matrix4f) matrices.modelView());
+        pass.setUniform("u_ProjectionMatrix", (Matrix4f) matrices.projection());
+        pass.setUniform("u_FogStart", RenderSystem.getShaderFog().start());
+        pass.setUniform("u_FogEnd", RenderSystem.getShaderFog().end());
+        pass.setUniform("u_FogShape", RenderSystem.getShaderFog().shape().getIndex());
+        pass.setUniform("u_FogColor", RenderSystem.getShaderFog().red(), RenderSystem.getShaderFog().green(), RenderSystem.getShaderFog().blue(), RenderSystem.getShaderFog().alpha());
+
+            var textureAtlas = (TextureAtlasAccessor) Minecraft.getInstance()
+                    .getTextureManager()
+                    .getTexture(TextureAtlas.LOCATION_BLOCKS);
+
+            // There is a limited amount of sub-texel precision when using hardware texture sampling. The mapped texture
+            // area must be "shrunk" by at least one sub-texel to avoid bleed between textures in the atlas. And since we
+            // offset texture coordinates in the vertex format by one texel, we also need to undo that here.
+            double subTexelPrecision = (1 << GLRenderDevice.INSTANCE.getSubTexelPrecisionBits());
+            double subTexelOffset = 1.0f / CompactChunkVertex.TEXTURE_MAX_VALUE;
+
+            pass.setUniform("u_TexCoordShrink",
+                    (float) (subTexelOffset - (((1.0D / textureAtlas.getWidth()) / subTexelPrecision))),
+                    (float) (subTexelOffset - (((1.0D / textureAtlas.getHeight()) / subTexelPrecision)))
+            );
+
+
+            pass.bindSampler("u_BlockTex", RenderSystem.getShaderTexture(0));
+        pass.bindSampler("u_LightTex", RenderSystem.getShaderTexture(2));
 
         final boolean useBlockFaceCulling = SodiumClientMod.options().performance.useBlockFaceCulling;
         final boolean useIndexedTessellation = isTranslucentRenderPass(renderPass);
 
-        ChunkShaderInterface shader = this.activeProgram.getInterface();
-        shader.setProjectionMatrix(matrices.projection());
-        shader.setModelViewMatrix(matrices.modelView());
+        ChunkShaderInterface shader = null;
+        //shader.setProjectionMatrix(matrices.projection());
+        //shader.setModelViewMatrix(matrices.modelView());
 
         Iterator<ChunkRenderList> iterator = renderLists.iterator(renderPass.isTranslucent());
 
@@ -93,11 +131,26 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                 tessellation = this.prepareTessellation(commandList, region);
             }
 
-            setModelMatrixUniforms(shader, region, camera);
+            /*
+            TessellationBinding.forVertexBuffer(resources.getGeometryBuffer(), this.vertexFormat.getShaderBindings()),
+                TessellationBinding.forElementBuffer(useSharedIndexBuffer
+                        ? this.sharedIndexBuffer.getBufferObject()
+                        : resources.getIndexBuffer())
+             */
+            vkCmdBindVertexBuffers(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, 0, new long[]{region.getResources().getGeometryBuffer().handle}, new long[]{0});
+            // TODO: Always U32, right?
+            vkCmdBindIndexBuffer(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, (renderPass.isTranslucent() ? region.getResources().getIndexBuffer() : this.sharedIndexBuffer.getBufferObject()).handle, 0, VK_INDEX_TYPE_UINT32);
+
+            setModelMatrixUniforms(pass, region, camera);
+
+            ((CinnabarRenderPass) pass).updateUniforms();
+
             executeDrawBatch(commandList, tessellation, this.batch);
         }
 
+        }
         super.end(renderPass);
+
     }
 
     private static boolean isTranslucentRenderPass(TerrainRenderPass renderPass) {
@@ -163,19 +216,18 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
      */
     @SuppressWarnings("IntegerMultiplicationImplicitCastToLong")
     private static void addNonIndexedDrawCommands(MultiDrawBatch batch, long pMeshData, int mask) {
-        final var pElementPointer = batch.pElementPointer;
-        final var pBaseVertex = batch.pBaseVertex;
-        final var pElementCount = batch.pElementCount;
-
         int size = batch.size;
 
         for (int facing = 0; facing < ModelQuadFacing.COUNT; facing++) {
             // Uint32 -> Int32 cast is always safe and should be optimized away
-            MemoryUtil.memPutInt(pBaseVertex + (size << 2), (int) SectionRenderDataUnsafe.getVertexOffset(pMeshData, facing));
-            MemoryUtil.memPutInt(pElementCount + (size << 2), (int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing));
-            MemoryUtil.memPutAddress(pElementPointer + (size << Pointer.POINTER_SHIFT), 0 /* using a shared index buffer */);
+            // TODO: I DO NOT MATH
+            batch.info.position((size)).indexCount((int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing))
+                    .vertexOffset((int) SectionRenderDataUnsafe.getVertexOffset(pMeshData, facing)).firstIndex(0);
+            //MemoryUtil.memPutInt(pBaseVertex + (size << 2), (int) SectionRenderDataUnsafe.getVertexOffset(pMeshData, facing));
+            //MemoryUtil.memPutInt(pElementCount + (size << 2), (int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing));
+           // MemoryUtil.memPutAddress(pElementPointer + (size << Pointer.POINTER_SHIFT), 0 /* using a shared index buffer */);
 
-            size += (mask >> facing) & 1;
+            size++;
         }
 
         batch.size = size;
@@ -187,9 +239,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
      */
     @SuppressWarnings("IntegerMultiplicationImplicitCastToLong")
     private static void addIndexedDrawCommands(MultiDrawBatch batch, long pMeshData, int mask) {
-        final var pElementPointer = batch.pElementPointer;
-        final var pBaseVertex = batch.pBaseVertex;
-        final var pElementCount = batch.pElementCount;
+
 
         int size = batch.size;
 
@@ -199,17 +249,14 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             final long vertexOffset = SectionRenderDataUnsafe.getVertexOffset(pMeshData, facing);
             final long elementCount = SectionRenderDataUnsafe.getElementCount(pMeshData, facing);
 
-            // Uint32 -> Int32 cast is always safe and should be optimized away
-            MemoryUtil.memPutInt(pBaseVertex + (size << 2), UInt32.uncheckedDowncast(vertexOffset));
-            MemoryUtil.memPutInt(pElementCount + (size << 2), UInt32.uncheckedDowncast(elementCount));
+            // TODO: I DO NOT MATH
+            batch.info.position((size)).indexCount(UInt32.uncheckedDowncast(elementCount))
+                    .vertexOffset(UInt32.uncheckedDowncast(vertexOffset)).firstIndex(Math.toIntExact(elementOffset));
 
-            // * 4 to convert to bytes (the index buffer contains integers)
-            // the section render data storage for the indices stores the offset in indices (also called elements)
-            MemoryUtil.memPutAddress(pElementPointer + (size << Pointer.POINTER_SHIFT), elementOffset << 2);
 
             // adding the number of elements works because the index data has one index per element (which are the indices)
             elementOffset += elementCount;
-            size += (mask >> facing) & 1;
+            size++;
         }
 
         batch.size = size;
@@ -266,12 +313,12 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         return planes;
     }
 
-    private static void setModelMatrixUniforms(ChunkShaderInterface shader, RenderRegion region, CameraTransform camera) {
+    private static void setModelMatrixUniforms(RenderPass shader, RenderRegion region, CameraTransform camera) {
         float x = getCameraTranslation(region.getOriginX(), camera.intX, camera.fracX);
         float y = getCameraTranslation(region.getOriginY(), camera.intY, camera.fracY);
         float z = getCameraTranslation(region.getOriginZ(), camera.intZ, camera.fracZ);
 
-        shader.setRegionOffset(x, y, z);
+        shader.setUniform("u_RegionOffset", x, y, z);
     }
 
     private static float getCameraTranslation(int chunkBlockPos, int cameraBlockPos, float cameraPos) {

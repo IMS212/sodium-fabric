@@ -1,7 +1,11 @@
 package net.caffeinemc.mods.sodium.client.gl.arena.staging;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import graphics.cinnabar.core.b3d.CinnabarDevice;
+import graphics.cinnabar.core.vk.memory.VkBuffer;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
+import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.gl.functions.BufferStorageFunctions;
@@ -9,10 +13,18 @@ import net.caffeinemc.mods.sodium.client.gl.sync.GlFence;
 import net.caffeinemc.mods.sodium.client.gl.util.EnumBitField;
 import net.caffeinemc.mods.sodium.client.util.MathUtil;
 import net.caffeinemc.mods.sodium.client.gl.buffer.*;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.vulkan.*;
 
 import java.nio.ByteBuffer;
+import java.nio.LongBuffer;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+import static org.lwjgl.vulkan.VK10.vkCmdCopyBuffer;
 
 public class MappedStagingBuffer implements StagingBuffer {
     private static final EnumBitField<GlBufferStorageFlags> STORAGE_FLAGS =
@@ -21,9 +33,7 @@ public class MappedStagingBuffer implements StagingBuffer {
     private static final EnumBitField<GlBufferMapFlags> MAP_FLAGS =
             EnumBitField.of(GlBufferMapFlags.PERSISTENT, GlBufferMapFlags.INVALIDATE_BUFFER, GlBufferMapFlags.WRITE, GlBufferMapFlags.EXPLICIT_FLUSH);
 
-    private final FallbackStagingBuffer fallbackStagingBuffer;
-
-    private final MappedBuffer mappedBuffer;
+    private MappedBuffer mappedBuffer;
     private final PriorityQueue<CopyCommand> pendingCopies = new ObjectArrayFIFOQueue<>();
     private final PriorityQueue<FencedMemoryRegion> fencedRegions = new ObjectArrayFIFOQueue<>();
 
@@ -38,13 +48,15 @@ public class MappedStagingBuffer implements StagingBuffer {
     }
 
     public MappedStagingBuffer(CommandList commandList, int capacity) {
-        GlImmutableBuffer buffer = commandList.createImmutableBuffer(capacity, STORAGE_FLAGS);
-        GlBufferMapping map = commandList.mapBuffer(buffer, 0, capacity, MAP_FLAGS);
+        VkBuffer buffer = new VkBuffer(SodiumClientMod.getDevice(), capacity, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, ((CinnabarDevice) RenderSystem.getDevice()).hostPersistentMemoryPool);
 
-        this.mappedBuffer = new MappedBuffer(buffer, map);
-        this.fallbackStagingBuffer = new FallbackStagingBuffer(commandList);
+        this.mappedBuffer = new MappedBuffer(buffer, mapBuffer(buffer, 0, capacity));
         this.capacity = capacity;
         this.remaining = this.capacity;
+    }
+
+    private GlBufferMapping mapBuffer(VkBuffer buffer, int i, int capacity) {
+        return new GlBufferMapping(buffer, MemoryUtil.memByteBuffer(buffer.allocation.cpu().hostPointer.pointer(), capacity));
     }
 
     public static boolean isSupported(RenderDevice instance) {
@@ -52,11 +64,11 @@ public class MappedStagingBuffer implements StagingBuffer {
     }
 
     @Override
-    public void enqueueCopy(CommandList commandList, ByteBuffer data, GlBuffer dst, long writeOffset) {
+    public void enqueueCopy(CommandList commandList, ByteBuffer data, VkBuffer dst, long writeOffset) {
         int length = data.remaining();
 
         if (length > this.remaining) {
-            this.fallbackStagingBuffer.enqueueCopy(commandList, data, dst, writeOffset);
+            this.resizeBuffer(length);
 
             return;
         }
@@ -79,7 +91,15 @@ public class MappedStagingBuffer implements StagingBuffer {
         this.remaining -= length;
     }
 
-    private void addTransfer(ByteBuffer data, GlBuffer dst, long readOffset, long writeOffset) {
+    private void resizeBuffer(int length) {
+        VkBuffer b = mappedBuffer.buffer;
+        VkBuffer buffer = new VkBuffer(SodiumClientMod.getDevice(), capacity, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, ((CinnabarDevice) RenderSystem.getDevice()).hostPersistentMemoryPool);
+        SodiumClientMod.getCommandEncoder().copyBufferToBuffer(b, buffer);
+
+        this.mappedBuffer = new MappedBuffer(buffer, mapBuffer(buffer, 0, capacity));
+    }
+
+    private void addTransfer(ByteBuffer data, VkBuffer dst, long readOffset, long writeOffset) {
         this.mappedBuffer.map.write(data, (int) readOffset);
         this.pendingCopies.enqueue(new CopyCommand(dst, readOffset, writeOffset, data.remaining()));
     }
@@ -90,6 +110,12 @@ public class MappedStagingBuffer implements StagingBuffer {
             return;
         }
 
+        VkCommandBuffer commandBuffer = SodiumClientMod.getCommandEncoder().commandPools.get(SodiumClientMod.getDevice().currentFrameIndex()).alloc("sodiumTransfer" + SodiumClientMod.getDevice().currentFrameIndex());
+
+        try (var stack = MemoryStack.stackPush()) {
+            VK10.vkBeginCommandBuffer(commandBuffer, VkCommandBufferBeginInfo.calloc(stack).sType(VK10.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO).flags(VK10.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT));
+        }
+
         if (this.pos < this.start) {
             commandList.flushMappedRange(this.mappedBuffer.map, this.start, this.capacity - this.start);
             commandList.flushMappedRange(this.mappedBuffer.map, 0, this.pos);
@@ -98,14 +124,31 @@ public class MappedStagingBuffer implements StagingBuffer {
         }
 
         int bytes = 0;
+        long fence;
+        try (final var stack = MemoryStack.stackPush()) {
+            LongBuffer b = stack.callocLong(1);
+            VK10.vkCreateFence(SodiumClientMod.getDevice().vkDevice, VkFenceCreateInfo.calloc(stack).sType$Default().flags(0), null, b);
+            fence = b.get(0);
+        }
 
         for (CopyCommand command : consolidateCopies(this.pendingCopies)) {
             bytes += command.bytes;
 
-            commandList.copyBufferSubData(this.mappedBuffer.buffer, command.buffer, command.readOffset, command.writeOffset, command.bytes);
+            try (final var stack = MemoryStack.stackPush()) {
+                final var copyRange = VkBufferCopy.calloc(1, stack);
+                copyRange.srcOffset(command.readOffset);
+                copyRange.dstOffset(command.writeOffset);
+                copyRange.size(command.bytes);
+                vkCmdCopyBuffer(commandBuffer, this.mappedBuffer.buffer.handle, command.buffer.handle, copyRange);
+            }
         }
 
-        this.fencedRegions.enqueue(new FencedMemoryRegion(commandList.createFence(), bytes));
+        try (final var stack = MemoryStack.stackPush()) {
+            VK10.vkEndCommandBuffer(commandBuffer);
+            VK10.vkQueueSubmit(SodiumClientMod.getDevice().graphicsQueue, VkSubmitInfo.calloc(stack).sType$Default().pCommandBuffers(stack.pointers(commandBuffer)), fence);
+        }
+
+        this.fencedRegions.enqueue(new FencedMemoryRegion(fence, bytes));
 
         this.start = this.pos;
     }
@@ -135,7 +178,6 @@ public class MappedStagingBuffer implements StagingBuffer {
     @Override
     public void delete(CommandList commandList) {
         this.mappedBuffer.delete(commandList);
-        this.fallbackStagingBuffer.delete(commandList);
         this.pendingCopies.clear();
     }
 
@@ -145,11 +187,11 @@ public class MappedStagingBuffer implements StagingBuffer {
             var region = this.fencedRegions.first();
             var fence = region.fence();
 
-            if (!fence.isCompleted()) {
+            if (VK10.vkGetFenceStatus(SodiumClientMod.getDevice().vkDevice, fence) == VK10.VK_NOT_READY) {
                 break;
             }
 
-            fence.delete();
+            VK10.vkDestroyFence(SodiumClientMod.getDevice().vkDevice, fence, null);
 
             this.fencedRegions.dequeue();
             this.remaining += region.length();
@@ -157,13 +199,13 @@ public class MappedStagingBuffer implements StagingBuffer {
     }
 
     private static final class CopyCommand {
-        private final GlBuffer buffer;
+        private final VkBuffer buffer;
         private final long readOffset;
         private final long writeOffset;
 
         private long bytes;
 
-        private CopyCommand(GlBuffer buffer, long readOffset, long writeOffset, long bytes) {
+        private CopyCommand(VkBuffer buffer, long readOffset, long writeOffset, long bytes) {
             this.buffer = buffer;
             this.readOffset = readOffset;
             this.writeOffset = writeOffset;
@@ -178,15 +220,14 @@ public class MappedStagingBuffer implements StagingBuffer {
         }
     }
 
-    private record MappedBuffer(GlImmutableBuffer buffer,
+    private record MappedBuffer(VkBuffer buffer,
                                 GlBufferMapping map) {
         public void delete(CommandList commandList) {
-            commandList.unmap(this.map);
-            commandList.deleteBuffer(this.buffer);
+            SodiumClientMod.getDevice().destroyEndOfFrame(this.buffer);
         }
     }
 
-    private record FencedMemoryRegion(GlFence fence, int length) {
+    private record FencedMemoryRegion(long fence, int length) {
 
     }
 

@@ -1,28 +1,35 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
+import graphics.cinnabar.core.vk.memory.VkBuffer;
+import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferMapFlags;
+import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferMapping;
 import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferUsage;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlIndexType;
 import net.caffeinemc.mods.sodium.client.gl.util.EnumBitField;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.vulkan.VK10;
+import org.lwjgl.vulkan.VkBufferCopy;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
+import static org.lwjgl.vulkan.VK10.vkCmdCopyBuffer;
+
 public class SharedQuadIndexBuffer {
     private static final int ELEMENTS_PER_PRIMITIVE = 6;
     private static final int VERTICES_PER_PRIMITIVE = 4;
 
-    private final GlMutableBuffer buffer;
+    private VkBuffer buffer;
     private final IndexType indexType;
 
     private int maxPrimitives;
+    private long maxSize;
 
     public SharedQuadIndexBuffer(CommandList commandList, IndexType indexType) {
-        this.buffer = commandList.createMutableBuffer();
         this.indexType = indexType;
     }
 
@@ -44,19 +51,31 @@ public class SharedQuadIndexBuffer {
 
     private void grow(CommandList commandList, int primitiveCount) {
         var bufferSize = primitiveCount * this.indexType.getBytesPerElement() * ELEMENTS_PER_PRIMITIVE;
+        VkBuffer oldBuffer = this.buffer;
+        this.buffer = new VkBuffer(SodiumClientMod.getDevice(), bufferSize, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, SodiumClientMod.getDevice().hostPersistentMemoryPool);
 
-        commandList.allocateStorage(this.buffer, bufferSize, GlBufferUsage.STATIC_DRAW);
+        if (oldBuffer != null) {
+            try (final var stack = MemoryStack.stackPush()) {
+                final var copyRange = VkBufferCopy.calloc(1, stack);
+                copyRange.srcOffset(0);
+                copyRange.dstOffset(0);
+                copyRange.size( maxSize);
+                vkCmdCopyBuffer(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, oldBuffer.handle, buffer.handle, copyRange);
+            }
 
-        var mapped = commandList.mapBuffer(this.buffer, 0, bufferSize, EnumBitField.of(GlBufferMapFlags.INVALIDATE_BUFFER, GlBufferMapFlags.WRITE, GlBufferMapFlags.UNSYNCHRONIZED));
+            oldBuffer.destroy();
+        }
+
+        var mapped = new GlBufferMapping(buffer, MemoryUtil.memByteBuffer(buffer.allocation.cpu().hostPointer.pointer(), bufferSize));
         this.indexType.createIndexBuffer(mapped.getMemoryBuffer(), primitiveCount);
 
-        commandList.unmap(mapped);
+        this.maxSize = bufferSize;
 
         this.maxPrimitives = primitiveCount;
     }
 
 
-    public GlBuffer getBufferObject() {
+    public VkBuffer getBufferObject() {
         return this.buffer;
     }
 

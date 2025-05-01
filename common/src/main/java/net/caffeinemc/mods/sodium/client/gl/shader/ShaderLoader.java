@@ -18,8 +18,8 @@ public class ShaderLoader {
      * @param constants A list of constants for shader specialization
      * @return An OpenGL shader object compiled with the given user defines
      */
-    public static GlShader loadShader(ShaderType type, ResourceLocation name, ShaderConstants constants) {
-        return new GlShader(type, name, ShaderParser.parseShader(getShaderSource(name), constants));
+    public static String loadShader(ShaderType type, ResourceLocation name, ShaderConstants constants) {
+        return ShaderParser.parseShader(getShaderSource(name), constants);
     }
 
     public static String getShaderSource(ResourceLocation name) {

@@ -1,9 +1,12 @@
 package net.caffeinemc.mods.sodium.client.gl.attribute;
 
+import graphics.cinnabar.core.vk.shaders.vertex.VertexInputState;
 import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import net.caffeinemc.mods.sodium.client.render.vertex.VertexFormatAttribute;
+import org.lwjgl.vulkan.VK10;
+import org.lwjgl.vulkan.VkVertexInputBindingDescription;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -17,11 +20,23 @@ public class GlVertexFormat {
 
     private final int stride;
     private final GlVertexAttributeBinding[] bindings;
+    private final VertexInputState desc;
 
     public GlVertexFormat(Map<VertexFormatAttribute, GlVertexAttribute> attributesKeyed, GlVertexAttributeBinding[] bindings, int stride) {
         this.attributesKeyed = attributesKeyed;
         this.bindings = bindings;
         this.stride = stride;
+        VertexInputState.Attrib[] attribs = new VertexInputState.Attrib[bindings.length];
+        for (int i = 0; i < attribs.length; i++) {
+            System.out.println("Binding " + bindings[i].getIndex() + " to " + bindings[i].getPointer() + " with format " + bindings[i].getFormat());
+           attribs[i] = new VertexInputState.Attrib(bindings[i].getIndex(), 0, bindings[i].getFormat(), bindings[i].getPointer());
+        }
+        this.desc = new VertexInputState(new VertexInputState.Buffer(0, stride, false),
+                attribs);
+    }
+
+    public VertexInputState getDesc() {
+        return desc;
     }
 
     public static Builder builder(int stride) {

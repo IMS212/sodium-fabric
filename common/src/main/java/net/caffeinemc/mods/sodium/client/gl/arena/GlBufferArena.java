@@ -1,10 +1,15 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
+import graphics.cinnabar.core.vk.memory.VkBuffer;
+import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
 import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferUsage;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.vulkan.VK10;
+import org.lwjgl.vulkan.VkBufferCopy;
+import org.lwjgl.vulkan.VkCommandBuffer;
+import org.lwjgl.vulkan.VkMemoryBarrier;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -14,6 +19,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.lwjgl.vulkan.VK10.*;
+import static org.lwjgl.vulkan.VK10.VK_ACCESS_MEMORY_READ_BIT;
+import static org.lwjgl.vulkan.VK10.VK_ACCESS_MEMORY_WRITE_BIT;
+import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+import static org.lwjgl.vulkan.VK10.vkCmdPipelineBarrier;
+
 public class GlBufferArena {
     static final boolean CHECK_ASSERTIONS = false;
 
@@ -22,7 +33,8 @@ public class GlBufferArena {
     private final int resizeIncrement;
 
     private final StagingBuffer stagingBuffer;
-    private GlMutableBuffer arenaBuffer;
+    private final boolean isIndexBuffer;
+    private VkBuffer arenaBuffer;
 
     private GlBufferSegment head;
 
@@ -31,17 +43,17 @@ public class GlBufferArena {
 
     private final int stride;
 
-    public GlBufferArena(CommandList commands, int initialCapacity, int stride, StagingBuffer stagingBuffer) {
+    public GlBufferArena(CommandList commands, int initialCapacity, int stride, StagingBuffer stagingBuffer, boolean isIndexBuffer) {
         this.capacity = initialCapacity;
         this.resizeIncrement = initialCapacity / 16;
+        this.isIndexBuffer =isIndexBuffer;
 
         this.stride = stride;
 
         this.head = new GlBufferSegment(this, 0, initialCapacity);
         this.head.setFree(true);
 
-        this.arenaBuffer = commands.createMutableBuffer();
-        commands.allocateStorage(this.arenaBuffer, this.capacity * stride, BUFFER_USAGE);
+        this.arenaBuffer = new VkBuffer(SodiumClientMod.getDevice(), this.capacity * stride, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK10.VK_BUFFER_USAGE_TRANSFER_SRC_BIT | (isIndexBuffer ? VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT : VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), SodiumClientMod.getDevice().devicePersistentMemoryPool);
 
         this.stagingBuffer = stagingBuffer;
     }
@@ -116,23 +128,35 @@ public class GlBufferArena {
 
         return pendingCopies;
     }
-
+    private void fullBarrier(VkCommandBuffer commandBuffer) {
+        try (final var stack = MemoryStack.stackPush()) {
+            final var barrier = VkMemoryBarrier.calloc(1, stack).sType$Default();
+            barrier.srcAccessMask(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+            barrier.dstAccessMask(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+            vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, barrier, null, null);
+        }
+    }
     private void transferSegments(CommandList commandList, Collection<PendingBufferCopyCommand> list, long capacity) {
         if (capacity >= (1L << 32)) {
             throw new IllegalArgumentException("Maximum arena buffer size is 4 GiB");
         }
 
-        GlMutableBuffer srcBufferObj = this.arenaBuffer;
-        GlMutableBuffer dstBufferObj = commandList.createMutableBuffer();
-
-        commandList.allocateStorage(dstBufferObj, capacity * this.stride, BUFFER_USAGE);
+        VkBuffer srcBufferObj = this.arenaBuffer;
+        VkBuffer dstBufferObj = new VkBuffer(SodiumClientMod.getDevice(), capacity * stride, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK10.VK_BUFFER_USAGE_TRANSFER_SRC_BIT | (isIndexBuffer ? VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT : VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), SodiumClientMod.getDevice().devicePersistentMemoryPool);
 
         for (PendingBufferCopyCommand cmd : list) {
-            commandList.copyBufferSubData(srcBufferObj, dstBufferObj,
-                    cmd.getReadOffset() * this.stride,
-                    cmd.getWriteOffset() * this.stride,
-                    cmd.getLength() * this.stride);
+            try (final var stack = MemoryStack.stackPush()) {
+                final var copyRange = VkBufferCopy.calloc(1, stack);
+                copyRange.srcOffset(cmd.getReadOffset() * this.stride);
+                copyRange.dstOffset(cmd.getWriteOffset() * this.stride);
+                copyRange.size( cmd.getLength() * this.stride);
+                copyRange.limit(1);
+                fullBarrier(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer);
+
+                vkCmdCopyBuffer(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, srcBufferObj.handle, dstBufferObj.handle, copyRange);
+            }
         }
+        fullBarrier(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer);
 
         commandList.deleteBuffer(srcBufferObj);
 
@@ -253,14 +277,14 @@ public class GlBufferArena {
         return this.used <= 0;
     }
 
-    public GlBuffer getBufferObject() {
+    public VkBuffer getBufferObject() {
         return this.arenaBuffer;
     }
 
     public boolean upload(CommandList commandList, Stream<PendingUpload> stream) {
         // Record the buffer object before we start any work
         // If the arena needs to re-allocate a buffer, this will allow us to check and return an appropriate flag
-        GlBuffer buffer = this.arenaBuffer;
+        VkBuffer buffer = this.arenaBuffer;
 
         // A linked list is used as we'll be randomly removing elements and want O(1) performance
         List<PendingUpload> queue = stream.collect(Collectors.toCollection(LinkedList::new));

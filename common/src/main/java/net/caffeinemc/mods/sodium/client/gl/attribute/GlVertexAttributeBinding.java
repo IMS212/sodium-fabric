@@ -1,5 +1,7 @@
 package net.caffeinemc.mods.sodium.client.gl.attribute;
 
+import org.lwjgl.vulkan.VkVertexInputAttributeDescription;
+
 public class GlVertexAttributeBinding extends GlVertexAttribute {
     private final int index;
 
@@ -11,5 +13,13 @@ public class GlVertexAttributeBinding extends GlVertexAttribute {
 
     public int getIndex() {
         return this.index;
+    }
+
+    public VkVertexInputAttributeDescription getDescription() {
+        return VkVertexInputAttributeDescription.create()
+                .binding(0)
+                .location(this.index)
+                .format(this.getFormat())
+                .offset(this.getPointer());
     }
 }

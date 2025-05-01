@@ -1,9 +1,9 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.region;
 
+import graphics.cinnabar.core.vk.memory.VkBuffer;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferArena;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlTessellation;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
@@ -229,9 +229,9 @@ public class RenderRegion {
 
             // the magic number 756 for the initial size is arbitrary, it was made up.
             var initialVertices = 756;
-            this.geometryArena = new GlBufferArena(commandList, REGION_SIZE * initialVertices, stride, stagingBuffer);
+            this.geometryArena = new GlBufferArena(commandList, REGION_SIZE * initialVertices, stride, stagingBuffer, false);
             var initialIndices = (initialVertices / 4) * 6;
-            this.indexArena = new GlBufferArena(commandList, REGION_SIZE * initialIndices, Integer.BYTES, stagingBuffer);
+            this.indexArena = new GlBufferArena(commandList, REGION_SIZE * initialIndices, Integer.BYTES, stagingBuffer, true);
         }
 
         public void updateTessellation(CommandList commandList, GlTessellation tessellation) {
@@ -272,11 +272,11 @@ public class RenderRegion {
             }
         }
 
-        public GlBuffer getGeometryBuffer() {
+        public VkBuffer getGeometryBuffer() {
             return this.geometryArena.getBufferObject();
         }
 
-        public GlBuffer getIndexBuffer() {
+        public VkBuffer getIndexBuffer() {
             return this.indexArena.getBufferObject();
         }
 

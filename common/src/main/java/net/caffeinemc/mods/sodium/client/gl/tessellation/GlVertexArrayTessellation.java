@@ -13,23 +13,6 @@ public class GlVertexArrayTessellation extends GlAbstractTessellation {
     }
 
     public void init(CommandList commandList) {
-        this.bind(commandList);
         this.bindAttributes(commandList);
-        this.unbind(commandList);
-    }
-
-    @Override
-    public void delete(CommandList commandList) {
-        commandList.deleteVertexArray(this.array);
-    }
-
-    @Override
-    public void bind(CommandList commandList) {
-        commandList.bindVertexArray(this.array);
-    }
-
-    @Override
-    public void unbind(CommandList commandList) {
-        commandList.unbindVertexArray();
     }
 }

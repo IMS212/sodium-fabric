@@ -37,10 +37,7 @@ public class RenderSystemMixin {
     
     @Inject(method = "initRenderer", at = @At(value = "RETURN"))
     private static void postContextReady(long window, int i, boolean bl, BiFunction<ResourceLocation, ShaderType, String> biFunction, boolean bl2, CallbackInfo ci) {
-        GlContextInfo context = GlContextInfo.create();
-        LOGGER.info("OpenGL Vendor: {}", context.vendor());
-        LOGGER.info("OpenGL Renderer: {}", context.renderer());
-        LOGGER.info("OpenGL Version: {}", context.version());
+
 
         // Capture the current WGL context so that we can detect it being replaced later.
         if (Util.getPlatform() == Util.OS.WINDOWS) {
@@ -51,7 +48,6 @@ public class RenderSystemMixin {
 
         NativeWindowHandle handle = () -> GLFWNativeWin32.glfwGetWin32Window(window);
 
-        PostLaunchChecks.onContextInitialized(handle, context);
         ModuleScanner.checkModules(handle);
     }
 

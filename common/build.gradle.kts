@@ -65,6 +65,12 @@ dependencies {
     addDependentFabricModule("fabric-renderer-api-v1")
     addDependentFabricModule("fabric-rendering-data-attachment-v1")
 
+    compileOnly("org.lwjgl:lwjgl-vulkan:3.3.3")
+    compileOnly("org.lwjgl:lwjgl-spvc:3.3.3")
+    compileOnly("org.lwjgl:lwjgl-shaderc:3.3.3")
+
+    compileOnly(files(rootDir.resolve("cinnabar.jar")))
+
     // We need to be careful during pre-launch that we don't touch any Minecraft classes, since other mods
     // will not yet have an opportunity to apply transformations.
     configurationPreLaunch("org.lwjgl:lwjgl:3.3.3")

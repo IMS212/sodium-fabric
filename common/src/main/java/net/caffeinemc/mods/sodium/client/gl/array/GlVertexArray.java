@@ -10,6 +10,5 @@ public class GlVertexArray extends GlObject {
     public static final int NULL_ARRAY_ID = 0;
 
     public GlVertexArray() {
-        this.setHandle(GL30C.glGenVertexArrays());
     }
 }
