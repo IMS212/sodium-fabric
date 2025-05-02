@@ -19,7 +19,7 @@ uniform ivec2 chunkDiameter;
 
 out vec4 fragColor; // The output fragment for the color framebuffer
 int wrap(int v, int s) {
-    int m = v % s;
+    int m = int(mod(v, s));
     return m < 0 ? m + s : m;
 }
 uint to1DBlock( uint x, uint y, uint z ) {
@@ -77,16 +77,6 @@ void main() {
         discard;
     }
 #endif
-
-    uint sect = packSectionIndex(ivec3(0, 0, 0), chunkDiameter.x, chunkDiameter.y);
-    if (!checkObjectExistence(ivec3(1024, 64, 1024))) {
-        if (!sectionLoaded(ivec3(1024, 64, 1024))) {
-                diffuseColor = vec4(0.0, 1.0, 0.0, 1.0) * diffuseColor;
-
-        } else {
-        diffuseColor = vec4(1.0, 0.0, 0.0, 1.0) * diffuseColor;
-        }
-    }
 
     fragColor = _linearFog(diffuseColor, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);
 }

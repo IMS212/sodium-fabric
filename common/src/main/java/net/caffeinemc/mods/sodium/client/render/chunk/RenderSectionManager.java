@@ -599,6 +599,8 @@ public class RenderSectionManager {
         this.disconnectNeighborNodes(section);
         this.updateSectionInfo(section, null);
 
+        regions.setEmpty(section);
+
         section.delete();
 
         // force update to remove section from render lists

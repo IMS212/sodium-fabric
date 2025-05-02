@@ -29,10 +29,7 @@ import org.jetbrains.annotations.NotNull;
 import org.lwjgl.opengl.GL46C;
 import org.lwjgl.system.MemoryUtil;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class RenderRegionManager {
     private final Long2ReferenceOpenHashMap<RenderRegion> regions = new Long2ReferenceOpenHashMap<>();
@@ -46,6 +43,7 @@ public class RenderRegionManager {
     public static  long voxelLoc;
 
     private static final int CHUNK_SIZE = (16 * 16 * 16 * 8);
+    private Map<RenderSection, GlBufferSegment> voxelStructs = new Reference2ReferenceOpenHashMap<>();
 
     public RenderRegionManager(CommandList commandList, ClientLevel level, int renderDistance) {
         this.stagingBuffer = createStagingBuffer(commandList);
@@ -203,6 +201,9 @@ public class RenderRegionManager {
             boolean bufferChanged = voxelArena.upload(commandList, voxelUploads.stream()
                     .map(upload -> upload.voxelUpload));
 
+            if (bufferChanged) {
+                resetAllVoxelData();
+            }
             // Collect the upload results
             for (PendingSectionVoxelUpload upload : voxelUploads) {
                 setVoxelData(upload.section,
@@ -236,20 +237,44 @@ public class RenderRegionManager {
         profiler.pop();
     }
 
+    private void resetAllVoxelData() {
+        for (Map.Entry<RenderSection, GlBufferSegment> entry : this.voxelStructs.entrySet()) {
+            RenderSection section = entry.getKey();
+            GlBufferSegment segment = entry.getValue();
+
+            long index = (VoxelHelpers.convertSection(verticalDistance, diameter, section) * 4L);
+            MemoryUtil.memPutInt(voxelLoc + index, segment.getOffsetPure());
+        }
+    }
+
     private long minIndex = Long.MAX_VALUE;
     private long maxIndex = -1;
 
     private void setVoxelData(RenderSection section, GlBufferSegment result) {
+        GlBufferSegment oldSec = this.voxelStructs.remove(section);
+
+        if (oldSec != null) {
+            voxelArena.free(oldSec);
+        }
+
         // TODO: is offset in elements, or in bytes?
        // System.out.println(section + " resolved to " + VoxelHelpers.convertSection(verticalDistance, diameter, section));
         long index = (VoxelHelpers.convertSection(verticalDistance, diameter, section) * 4L);
         minIndex = Math.min(minIndex, index);
         maxIndex = Math.max(maxIndex, index);
 
+        this.voxelStructs.put(section, result);
+
         MemoryUtil.memPutInt(voxelLoc + index, result.getOffsetPure());
     }
 
     public void setEmpty(@NotNull RenderSection section) {
+        GlBufferSegment oldSec = this.voxelStructs.remove(section);
+
+        if (oldSec != null) {
+            voxelArena.free(oldSec);
+        }
+
         //System.out.println(section + " resolved to " + VoxelHelpers.convertSection(verticalDistance, diameter, section));
         long index = (VoxelHelpers.convertSection(verticalDistance, diameter, section) * 4L);
         minIndex = Math.min(minIndex, index);
