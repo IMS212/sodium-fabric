@@ -115,7 +115,7 @@ public class GLRenderDevice implements RenderDevice {
             VkBuffer buffer = map.getBufferObject();
 
             try (final var stack = MemoryStack.stackPush()) {
-                VK10.vkFlushMappedMemoryRanges(SodiumClientMod.getDevice().vkDevice, VkMappedMemoryRange.calloc(stack).sType$Default().memory(buffer.allocation.memoryHandle).size(length).offset(offset));
+                //VK10.vkFlushMappedMemoryRanges(SodiumClientMod.getDevice().vkDevice, VkMappedMemoryRange.calloc(stack).sType$Default().memory(buffer.allocation.memoryHandle).size(length).offset(offset));
             }
         }
 

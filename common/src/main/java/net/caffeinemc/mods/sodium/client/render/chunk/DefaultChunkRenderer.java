@@ -223,6 +223,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             // TODO: I DO NOT MATH
             batch.info.position((size)).indexCount((int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing))
                     .vertexOffset((int) SectionRenderDataUnsafe.getVertexOffset(pMeshData, facing)).firstIndex(0);
+            batch.indexCount[size] = (int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing);
             //MemoryUtil.memPutInt(pBaseVertex + (size << 2), (int) SectionRenderDataUnsafe.getVertexOffset(pMeshData, facing));
             //MemoryUtil.memPutInt(pElementCount + (size << 2), (int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing));
            // MemoryUtil.memPutAddress(pElementPointer + (size << Pointer.POINTER_SHIFT), 0 /* using a shared index buffer */);
@@ -253,6 +254,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             batch.info.position((size)).indexCount(UInt32.uncheckedDowncast(elementCount))
                     .vertexOffset(UInt32.uncheckedDowncast(vertexOffset)).firstIndex(Math.toIntExact(elementOffset));
 
+            batch.indexCount[size] = UInt32.uncheckedDowncast(elementCount);
 
             // adding the number of elements works because the index data has one index per element (which are the indices)
             elementOffset += elementCount;

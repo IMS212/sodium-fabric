@@ -17,11 +17,13 @@ public final class MultiDrawBatch {
     private final int capacity;
 
     public int size;
+    public int[] indexCount;
 
     public MultiDrawBatch(int capacity) {
         this.info = VkMultiDrawIndexedInfoEXT.calloc(capacity);
 
         this.capacity = capacity;
+        this.indexCount = new int[capacity];
     }
 
     public int size() {
@@ -48,7 +50,7 @@ public final class MultiDrawBatch {
         int elements = 0;
 
         for (var index = 0; index < this.size; index++) {
-            elements = Math.max(elements, this.info.position(index).indexCount());
+            elements = Math.max(elements, this.indexCount[index]);
         }
 
         return elements;

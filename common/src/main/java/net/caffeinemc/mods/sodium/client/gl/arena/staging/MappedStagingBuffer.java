@@ -110,12 +110,6 @@ public class MappedStagingBuffer implements StagingBuffer {
             return;
         }
 
-        VkCommandBuffer commandBuffer = SodiumClientMod.getCommandEncoder().commandPools.get(SodiumClientMod.getDevice().currentFrameIndex()).alloc("sodiumTransfer" + SodiumClientMod.getDevice().currentFrameIndex());
-
-        try (var stack = MemoryStack.stackPush()) {
-            VK10.vkBeginCommandBuffer(commandBuffer, VkCommandBufferBeginInfo.calloc(stack).sType(VK10.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO).flags(VK10.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT));
-        }
-
         if (this.pos < this.start) {
             commandList.flushMappedRange(this.mappedBuffer.map, this.start, this.capacity - this.start);
             commandList.flushMappedRange(this.mappedBuffer.map, 0, this.pos);
@@ -127,7 +121,6 @@ public class MappedStagingBuffer implements StagingBuffer {
         long fence;
         try (final var stack = MemoryStack.stackPush()) {
             LongBuffer b = stack.callocLong(1);
-            VK10.vkCreateFence(SodiumClientMod.getDevice().vkDevice, VkFenceCreateInfo.calloc(stack).sType$Default().flags(0), null, b);
             fence = b.get(0);
         }
 
@@ -139,13 +132,8 @@ public class MappedStagingBuffer implements StagingBuffer {
                 copyRange.srcOffset(command.readOffset);
                 copyRange.dstOffset(command.writeOffset);
                 copyRange.size(command.bytes);
-                vkCmdCopyBuffer(commandBuffer, this.mappedBuffer.buffer.handle, command.buffer.handle, copyRange);
+                vkCmdCopyBuffer(SodiumClientMod.getCommandEncoder().beginFrameTransferCommandBuffer, this.mappedBuffer.buffer.handle, command.buffer.handle, copyRange);
             }
-        }
-
-        try (final var stack = MemoryStack.stackPush()) {
-            VK10.vkEndCommandBuffer(commandBuffer);
-            VK10.vkQueueSubmit(SodiumClientMod.getDevice().graphicsQueue, VkSubmitInfo.calloc(stack).sType$Default().pCommandBuffers(stack.pointers(commandBuffer)), fence);
         }
 
         this.fencedRegions.enqueue(new FencedMemoryRegion(fence, bytes));
@@ -187,11 +175,7 @@ public class MappedStagingBuffer implements StagingBuffer {
             var region = this.fencedRegions.first();
             var fence = region.fence();
 
-            if (VK10.vkGetFenceStatus(SodiumClientMod.getDevice().vkDevice, fence) == VK10.VK_NOT_READY) {
-                break;
-            }
 
-            VK10.vkDestroyFence(SodiumClientMod.getDevice().vkDevice, fence, null);
 
             this.fencedRegions.dequeue();
             this.remaining += region.length();
