@@ -8,4 +8,6 @@ public interface ChunkRenderListIterable {
     default Iterator<ChunkRenderList> iterator() {
         return this.iterator(false);
     }
+
+    int size();
 }

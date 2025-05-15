@@ -98,6 +98,7 @@ public class RenderSectionManager {
 
     private @Nullable BlockPos cameraBlockPos;
     private @Nullable Vector3dc cameraPosition;
+    private int frame = 0;
 
     public RenderSectionManager(ClientLevel level, int renderDistance, CommandList commandList) {
         this.chunkRenderer = new DefaultChunkRenderer(RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
@@ -244,7 +245,7 @@ public class RenderSectionManager {
         RenderDevice device = RenderDevice.INSTANCE;
         CommandList commandList = device.createCommandList();
 
-        this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z));
+        this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z), frame);
 
         commandList.flush();
     }
@@ -738,5 +739,9 @@ public class RenderSectionManager {
 
     public Collection<RenderSection> getSectionsWithGlobalEntities() {
         return ReferenceSets.unmodifiable(this.sectionsWithGlobalEntities);
+    }
+
+    public void setupFrame() {
+        this.frame++;
     }
 }

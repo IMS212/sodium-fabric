@@ -54,6 +54,7 @@ public class GlBufferArena {
         this.head.setFree(true);
 
         this.arenaBuffer = new VkBuffer(SodiumClientMod.getDevice(), this.capacity * stride, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK10.VK_BUFFER_USAGE_TRANSFER_SRC_BIT | (isIndexBuffer ? VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT : VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), SodiumClientMod.getDevice().devicePersistentMemoryPool);
+        this.arenaBuffer.setVulkanName("Arena  " + this.capacity  +  " * " + stride + " bytes");
 
         this.stagingBuffer = stagingBuffer;
     }
@@ -136,26 +137,31 @@ public class GlBufferArena {
             vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, barrier, null, null);
         }
     }
-    private void transferSegments(CommandList commandList, Collection<PendingBufferCopyCommand> list, long capacity) {
+    private void transferSegments(CommandList commandList, List<PendingBufferCopyCommand> list, long capacity) {
         if (capacity >= (1L << 32)) {
             throw new IllegalArgumentException("Maximum arena buffer size is 4 GiB");
         }
 
         VkBuffer srcBufferObj = this.arenaBuffer;
         VkBuffer dstBufferObj = new VkBuffer(SodiumClientMod.getDevice(), capacity * stride, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK10.VK_BUFFER_USAGE_TRANSFER_SRC_BIT | (isIndexBuffer ? VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT : VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), SodiumClientMod.getDevice().devicePersistentMemoryPool);
+        dstBufferObj.setVulkanName("Arena  " + capacity  +  " * " + stride + " bytes");
 
-        for (PendingBufferCopyCommand cmd : list) {
-            try (final var stack = MemoryStack.stackPush()) {
-                final var copyRange = VkBufferCopy.calloc(1, stack);
+        try (final var stack = MemoryStack.stackPush()) {
+            final var copyRange = VkBufferCopy.calloc(list.size(), stack);
+
+            for (int i = 0; i < list.size(); i++) {
+                PendingBufferCopyCommand cmd = list.get(i);
+
+                copyRange.position(i);
                 copyRange.srcOffset(cmd.getReadOffset() * this.stride);
                 copyRange.dstOffset(cmd.getWriteOffset() * this.stride);
-                copyRange.size( cmd.getLength() * this.stride);
-                copyRange.limit(1);
-                fullBarrier(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer);
-
-                vkCmdCopyBuffer(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, srcBufferObj.handle, dstBufferObj.handle, copyRange);
+                copyRange.size(cmd.getLength() * this.stride);
             }
+
+            fullBarrier(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer);
+            vkCmdCopyBuffer(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, srcBufferObj.handle, dstBufferObj.handle, copyRange);
         }
+
         fullBarrier(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer);
 
         commandList.deleteBuffer(srcBufferObj);

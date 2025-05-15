@@ -22,6 +22,11 @@ public class SortedRenderLists implements ChunkRenderListIterable {
         return new ReversibleObjectArrayIterator<>(this.lists, reverse);
     }
 
+    @Override
+    public int size() {
+        return lists.size();
+    }
+
     public static SortedRenderLists empty() {
         return EMPTY;
     }

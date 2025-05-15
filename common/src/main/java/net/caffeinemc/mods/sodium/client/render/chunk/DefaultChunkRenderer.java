@@ -38,14 +38,11 @@ import static org.lwjgl.vulkan.VK10.*;
 import static org.lwjgl.vulkan.VK10.VK_INDEX_TYPE_UINT32;
 
 public class DefaultChunkRenderer extends ShaderChunkRenderer {
-    private final MultiDrawBatch batch;
-
     private final SharedQuadIndexBuffer sharedIndexBuffer;
 
     public DefaultChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
         super(device, vertexType);
 
-        this.batch = new MultiDrawBatch((ModelQuadFacing.COUNT * RenderRegion.REGION_SIZE) + 1);
         this.sharedIndexBuffer = new SharedQuadIndexBuffer(device.createCommandList(), SharedQuadIndexBuffer.IndexType.INTEGER);
     }
 
@@ -59,7 +56,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                        CommandList commandList,
                        ChunkRenderListIterable renderLists,
                        TerrainRenderPass renderPass,
-                       CameraTransform camera) {
+                       CameraTransform camera, int frame) {
         ChunkShaderOptions options = new ChunkShaderOptions(ChunkFogMode.SMOOTH, renderPass, this.vertexType);
         super.begin(renderPass);
 
@@ -100,8 +97,11 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         //shader.setModelViewMatrix(matrices.modelView());
 
         Iterator<ChunkRenderList> iterator = renderLists.iterator(renderPass.isTranslucent());
+        int size = renderLists.size();
 
         while (iterator.hasNext()) {
+            MultiDrawBatch batch = new MultiDrawBatch(((ModelQuadFacing.COUNT * RenderRegion.REGION_SIZE) + 1));
+            SodiumClientMod.getDevice().destroyEndOfFrame(batch);
             ChunkRenderList renderList = iterator.next();
 
             var region = renderList.getRegion();
@@ -111,16 +111,16 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                 continue;
             }
 
-            fillCommandBuffer(this.batch, region, storage, renderList, camera, renderPass, useBlockFaceCulling);
+            fillCommandBuffer(batch, region, storage, renderList, camera, renderPass, useBlockFaceCulling);
 
-            if (this.batch.isEmpty()) {
+            if (batch.isEmpty()) {
                 continue;
             }
 
             // When the shared index buffer is being used, we must ensure the storage has been allocated *before*
             // the tessellation is prepared.
             if (!useIndexedTessellation) {
-                this.sharedIndexBuffer.ensureCapacity(commandList, this.batch.getIndexBufferSize());
+                this.sharedIndexBuffer.ensureCapacity(commandList, batch.getIndexBufferSize());
             }
 
             GlTessellation tessellation;
@@ -137,15 +137,15 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                         ? this.sharedIndexBuffer.getBufferObject()
                         : resources.getIndexBuffer())
              */
-            vkCmdBindVertexBuffers(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, 0, new long[]{region.getResources().getGeometryBuffer().handle}, new long[]{0});
-            // TODO: Always U32, right?
-            vkCmdBindIndexBuffer(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, (renderPass.isTranslucent() ? region.getResources().getIndexBuffer() : this.sharedIndexBuffer.getBufferObject()).handle, 0, VK_INDEX_TYPE_UINT32);
 
             setModelMatrixUniforms(pass, region, camera);
 
             ((CinnabarRenderPass) pass).updateUniforms();
+            vkCmdBindVertexBuffers(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, 0, new long[]{region.getResources().getGeometryBuffer().handle}, new long[]{0});
+            // TODO: Always U32, right?
+            vkCmdBindIndexBuffer(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, (renderPass.isTranslucent() ? region.getResources().getIndexBuffer() : this.sharedIndexBuffer.getBufferObject()).handle, 0, VK_INDEX_TYPE_UINT32);
 
-            executeDrawBatch(commandList, tessellation, this.batch);
+            executeDrawBatch(commandList, tessellation, batch);
         }
 
         }
@@ -219,11 +219,12 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         int size = batch.size;
 
         for (int facing = 0; facing < ModelQuadFacing.COUNT; facing++) {
+            if  (((mask>>facing)&1) ==0) continue;
             // Uint32 -> Int32 cast is always safe and should be optimized away
             // TODO: I DO NOT MATH
-            batch.info.position((size)).indexCount((int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing))
+            batch.wrapper.position((size)).firstInstance(0).instanceCount(1).indexCount((int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing))
                     .vertexOffset((int) SectionRenderDataUnsafe.getVertexOffset(pMeshData, facing)).firstIndex(0);
-            batch.indexCount[size] = (int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing);
+            batch.arrayIndexCount[size] = (int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing);
             //MemoryUtil.memPutInt(pBaseVertex + (size << 2), (int) SectionRenderDataUnsafe.getVertexOffset(pMeshData, facing));
             //MemoryUtil.memPutInt(pElementCount + (size << 2), (int) SectionRenderDataUnsafe.getElementCount(pMeshData, facing));
            // MemoryUtil.memPutAddress(pElementPointer + (size << Pointer.POINTER_SHIFT), 0 /* using a shared index buffer */);
@@ -251,10 +252,10 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             final long elementCount = SectionRenderDataUnsafe.getElementCount(pMeshData, facing);
 
             // TODO: I DO NOT MATH
-            batch.info.position((size)).indexCount(UInt32.uncheckedDowncast(elementCount))
+            batch.wrapper.position((size)).firstInstance(0).instanceCount(1).indexCount(UInt32.uncheckedDowncast(elementCount))
                     .vertexOffset(UInt32.uncheckedDowncast(vertexOffset)).firstIndex(Math.toIntExact(elementOffset));
 
-            batch.indexCount[size] = UInt32.uncheckedDowncast(elementCount);
+            batch.arrayIndexCount[size] = UInt32.uncheckedDowncast(elementCount);
 
             // adding the number of elements works because the index data has one index per element (which are the indices)
             elementOffset += elementCount;
@@ -371,6 +372,5 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         super.delete(commandList);
 
         this.sharedIndexBuffer.delete(commandList);
-        this.batch.delete();
     }
 }

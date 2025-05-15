@@ -52,14 +52,15 @@ public class SharedQuadIndexBuffer {
     private void grow(CommandList commandList, int primitiveCount) {
         var bufferSize = primitiveCount * this.indexType.getBytesPerElement() * ELEMENTS_PER_PRIMITIVE;
         VkBuffer oldBuffer = this.buffer;
-        this.buffer = new VkBuffer(SodiumClientMod.getDevice(), bufferSize, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, SodiumClientMod.getDevice().hostPersistentMemoryPool);
 
+        this.buffer = new VkBuffer(SodiumClientMod.getDevice(), bufferSize, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT, SodiumClientMod.getDevice().hostPersistentMemoryPool);
+        this.buffer.setVulkanName("Index buffer");
         if (oldBuffer != null) {
             try (final var stack = MemoryStack.stackPush()) {
                 final var copyRange = VkBufferCopy.calloc(1, stack);
                 copyRange.srcOffset(0);
                 copyRange.dstOffset(0);
-                copyRange.size( maxSize);
+                copyRange.size(maxSize);
                 vkCmdCopyBuffer(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, oldBuffer.handle, buffer.handle, copyRange);
             }
 

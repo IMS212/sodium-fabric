@@ -168,6 +168,8 @@ public class SodiumWorldRenderer {
 
         this.processChunkEvents();
 
+        this.renderSectionManager.setupFrame();
+
         this.useEntityCulling = SodiumClientMod.options().performance.useEntityCulling;
 
         if (this.client.options.getEffectiveRenderDistance() != this.renderDistance) {

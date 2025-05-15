@@ -17,7 +17,11 @@ import org.lwjgl.vulkan.*;
 
 import java.nio.ByteBuffer;
 
-import static org.lwjgl.vulkan.VK10.vkCmdCopyBuffer;
+import static org.lwjgl.vulkan.VK10.*;
+import static org.lwjgl.vulkan.VK10.VK_ACCESS_MEMORY_READ_BIT;
+import static org.lwjgl.vulkan.VK10.VK_ACCESS_MEMORY_WRITE_BIT;
+import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+import static org.lwjgl.vulkan.VK10.vkCmdPipelineBarrier;
 
 public class GLRenderDevice implements RenderDevice {
     private final GlStateTracker stateTracker = new GlStateTracker();
@@ -153,10 +157,25 @@ public class GLRenderDevice implements RenderDevice {
         public void multiDrawElementsBaseVertex(MultiDrawBatch batch, GlIndexType indexType) {
             GlPrimitiveType primitiveType = GLRenderDevice.this.activeTessellation.getPrimitiveType();
 
-            EXTMultiDraw.nvkCmdDrawMultiIndexedEXT(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer,
-                    batch.size, batch.info.address0(), 1, 0, VkMultiDrawIndexedInfoEXT.SIZEOF, MemoryUtil.NULL);
-        }
 
+            final var drawsGPUBuffer = new VkBuffer(SodiumClientMod.getDevice(), (long) batch.capacity() * VkDrawIndexedIndirectCommand.SIZEOF, VK12.VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK12.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT
+                    , SodiumClientMod.getDevice().deviceTransientMemoryPool);
+            drawsGPUBuffer.setVulkanName("MultiDrawBatch Copy");
+            SodiumClientMod.getDevice().destroyEndOfFrame(drawsGPUBuffer);
+            SodiumClientMod.getCommandEncoder().copyBufferToBuffer(batch.info, drawsGPUBuffer);
+            fullBarrier(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer);
+
+
+            VK12.vkCmdDrawIndexedIndirect(SodiumClientMod.getCommandEncoder().mainDrawCommandBuffer, drawsGPUBuffer.handle, 0, batch.size, VkDrawIndexedIndirectCommand.SIZEOF);
+        }
+        private void fullBarrier(VkCommandBuffer commandBuffer) {
+            try (final var stack = MemoryStack.stackPush()) {
+                final var barrier = VkMemoryBarrier.calloc(1, stack).sType$Default();
+                barrier.srcAccessMask(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+                barrier.dstAccessMask(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+                vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, barrier, null, null);
+            }
+        }
         @Override
         public void endTessellating() {
             GLRenderDevice.this.activeTessellation = null;

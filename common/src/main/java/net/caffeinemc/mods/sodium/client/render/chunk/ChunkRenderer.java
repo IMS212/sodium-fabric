@@ -19,7 +19,7 @@ public interface ChunkRenderer {
      * @param pass        The block render pass to execute
      * @param camera      The camera context containing chunk offsets for the current render
      */
-    void render(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass pass, CameraTransform camera);
+    void render(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass pass, CameraTransform camera, int frame);
 
     /**
      * Deletes this render backend and any resources attached to it.
