@@ -12,9 +12,11 @@ public class TerrainRenderPass {
 
     private final boolean isTranslucent;
     private final boolean fragmentDiscard;
+    private final RenderPipeline customPipeline;
 
-    public TerrainRenderPass(ChunkSectionLayer renderType, boolean isTranslucent, boolean allowFragmentDiscard) {
+    public TerrainRenderPass(ChunkSectionLayer renderType, boolean isTranslucent, boolean allowFragmentDiscard, RenderPipeline customPipeline) {
         this.renderType = renderType;
+        this.customPipeline = customPipeline;
 
         this.isTranslucent = isTranslucent;
         this.fragmentDiscard = allowFragmentDiscard;
@@ -29,7 +31,7 @@ public class TerrainRenderPass {
     }
 
     public RenderPipeline getPipeline() {
-        return renderType.pipeline();
+        return customPipeline;
     }
 
     public RenderTarget getTarget() {

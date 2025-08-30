@@ -1,9 +1,8 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferUsage;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 
 import java.nio.ByteBuffer;
@@ -17,12 +16,11 @@ import java.util.stream.Stream;
 public class GlBufferArena {
     static final boolean CHECK_ASSERTIONS = false;
 
-    private static final GlBufferUsage BUFFER_USAGE = GlBufferUsage.STATIC_DRAW;
-
     private final int resizeIncrement;
 
     private final StagingBuffer stagingBuffer;
-    private GlMutableBuffer arenaBuffer;
+    private final int usage;
+    private GpuBuffer arenaBuffer;
 
     private GlBufferSegment head;
 
@@ -31,7 +29,7 @@ public class GlBufferArena {
 
     private final int stride;
 
-    public GlBufferArena(CommandList commands, int initialCapacity, int stride, StagingBuffer stagingBuffer) {
+    public GlBufferArena(CommandList commands, int initialCapacity, int stride, StagingBuffer stagingBuffer, int usage) {
         this.capacity = initialCapacity;
         this.resizeIncrement = initialCapacity / 16;
 
@@ -39,9 +37,11 @@ public class GlBufferArena {
 
         this.head = new GlBufferSegment(this, 0, initialCapacity);
         this.head.setFree(true);
+        this.usage = usage;
 
-        this.arenaBuffer = commands.createMutableBuffer();
-        commands.allocateStorage(this.arenaBuffer, this.capacity * stride, BUFFER_USAGE);
+        this.arenaBuffer = SodiumClientMod.getDevice().createBuffer(() -> {
+            return "Arena";
+        }, usage, (int) (this.capacity * stride));
 
         this.stagingBuffer = stagingBuffer;
     }
@@ -123,19 +123,14 @@ public class GlBufferArena {
             throw new IllegalArgumentException("Maximum arena buffer size is 4 GiB");
         }
 
-        GlMutableBuffer srcBufferObj = this.arenaBuffer;
-        GlMutableBuffer dstBufferObj = commandList.createMutableBuffer();
-
-        commandList.allocateStorage(dstBufferObj, bufferSize, BUFFER_USAGE);
+        GpuBuffer srcBufferObj = this.arenaBuffer;
+        GpuBuffer dstBufferObj = SodiumClientMod.getDevice().createBuffer(() -> "Arena", usage, (int) bufferSize);
 
         for (PendingBufferCopyCommand cmd : list) {
-            commandList.copyBufferSubData(srcBufferObj, dstBufferObj,
-                    cmd.getReadOffset() * this.stride,
-                    cmd.getWriteOffset() * this.stride,
-                    cmd.getLength() * this.stride);
+            SodiumClientMod.getCommandEncoder().copyToBuffer(srcBufferObj.slice(Math.toIntExact(cmd.getReadOffset() * this.stride), Math.toIntExact(cmd.getLength() * this.stride)), dstBufferObj.slice((int) (cmd.getWriteOffset() * this.stride), Math.toIntExact(cmd.getLength() * this.stride)));
         }
 
-        commandList.deleteBuffer(srcBufferObj);
+        srcBufferObj.close();
 
         this.arenaBuffer = dstBufferObj;
         this.capacity = capacity;
@@ -247,21 +242,21 @@ public class GlBufferArena {
     }
 
     public void delete(CommandList commands) {
-        commands.deleteBuffer(this.arenaBuffer);
+        this.arenaBuffer.close();
     }
 
     public boolean isEmpty() {
         return this.used <= 0;
     }
 
-    public GlBuffer getBufferObject() {
+    public GpuBuffer getBufferObject() {
         return this.arenaBuffer;
     }
 
     public boolean upload(CommandList commandList, Stream<PendingUpload> stream) {
         // Record the buffer object before we start any work
         // If the arena needs to re-allocate a buffer, this will allow us to check and return an appropriate flag
-        GlBuffer buffer = this.arenaBuffer;
+        GpuBuffer buffer = this.arenaBuffer;
 
         // A linked list is used as we'll be randomly removing elements and want O(1) performance
         List<PendingUpload> queue = stream.collect(Collectors.toCollection(LinkedList::new));

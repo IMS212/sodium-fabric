@@ -1,9 +1,9 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.region;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferArena;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.MultiDrawBatch;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlTessellation;
@@ -264,8 +264,8 @@ public class RenderRegion {
         public DeviceResources(CommandList commandList, StagingBuffer stagingBuffer) {
             int stride = ChunkMeshFormats.COMPACT.getVertexFormat().getStride();
 
-            this.geometryArena = new GlBufferArena(commandList, REGION_SIZE * SECTION_VERTEX_COUNT_ESTIMATE, stride, stagingBuffer);
-            this.indexArena = new GlBufferArena(commandList, REGION_SIZE * SECTION_INDEX_COUNT_ESTIMATE, Integer.BYTES, stagingBuffer);
+            this.geometryArena = new GlBufferArena(commandList, REGION_SIZE * SECTION_VERTEX_COUNT_ESTIMATE, stride, stagingBuffer, GpuBuffer.USAGE_VERTEX);
+            this.indexArena = new GlBufferArena(commandList, REGION_SIZE * SECTION_INDEX_COUNT_ESTIMATE, Integer.BYTES, stagingBuffer, GpuBuffer.USAGE_INDEX);
         }
 
         public void updateTessellation(CommandList commandList, GlTessellation tessellation) {
@@ -306,11 +306,11 @@ public class RenderRegion {
             }
         }
 
-        public GlBuffer getGeometryBuffer() {
+        public GpuBuffer getGeometryBuffer() {
             return this.geometryArena.getBufferObject();
         }
 
-        public GlBuffer getIndexBuffer() {
+        public GpuBuffer getIndexBuffer() {
             return this.indexArena.getBufferObject();
         }
 

@@ -19,8 +19,12 @@ public abstract class GlAbstractTessellation implements GlTessellation {
         return this.primitiveType;
     }
 
+    public TessellationBinding[] getBindings() {
+        return bindings;
+    }
+
     protected void bindAttributes(CommandList commandList) {
-        for (TessellationBinding binding : this.bindings) {
+        /*for (TessellationBinding binding : this.bindings) {
             commandList.bindBuffer(binding.target(), binding.buffer());
 
             for (GlVertexAttributeBinding attrib : binding.attributeBindings()) {
@@ -33,6 +37,7 @@ public abstract class GlAbstractTessellation implements GlTessellation {
                 }
                 GL20C.glEnableVertexAttribArray(attrib.getIndex());
             }
-        }
+        }*/
+        //throw new AssertionError("TODO");
     }
 }

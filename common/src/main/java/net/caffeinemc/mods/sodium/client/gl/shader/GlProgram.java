@@ -24,7 +24,7 @@ public class GlProgram<T> extends GlObject implements ShaderBindingContext {
 
     private final T shaderInterface;
 
-    protected GlProgram(int program, Function<ShaderBindingContext, T> interfaceFactory) {
+    public GlProgram(int program, Function<ShaderBindingContext, T> interfaceFactory) {
         this.setHandle(program);
         this.shaderInterface = interfaceFactory.apply(this);
     }
@@ -38,15 +38,12 @@ public class GlProgram<T> extends GlObject implements ShaderBindingContext {
     }
 
     public void bind() {
-        GL20C.glUseProgram(this.handle());
     }
 
     public void unbind() {
-        GL20C.glUseProgram(0);
     }
 
     public void delete() {
-        GL20C.glDeleteProgram(this.handle());
 
         this.invalidateHandle();
     }

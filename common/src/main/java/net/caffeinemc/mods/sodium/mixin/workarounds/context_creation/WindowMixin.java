@@ -33,33 +33,5 @@ import java.util.function.Supplier;
 
 @Mixin(Window.class)
 public class WindowMixin {
-    @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lorg/lwjgl/glfw/GLFW;glfwCreateWindow(IILjava/lang/CharSequence;JJ)J"), expect = 0, require = 0)
-    private long wrapGlfwCreateWindow(int width, int height, CharSequence title, long monitor, long share) {
-        NvidiaWorkarounds.applyEnvironmentChanges();
 
-        try {
-            return GLFW.glfwCreateWindow(width, height, title, monitor, share);
-        } finally {
-            NvidiaWorkarounds.undoEnvironmentChanges();
-        }
-    }
-
-    @SuppressWarnings("all")
-    @WrapOperation(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/neoforged/fml/loading/ImmediateWindowHandler;setupMinecraftWindow(Ljava/util/function/IntSupplier;Ljava/util/function/IntSupplier;Ljava/util/function/Supplier;Ljava/util/function/LongSupplier;)J"), expect = 0, require = 0)
-    private long wrapGlfwCreateWindowForge(final IntSupplier width, final IntSupplier height, final Supplier<String> title, final LongSupplier monitor, Operation<Long> op) {
-        boolean applyWorkaroundsLate = !PlatformRuntimeInformation.getInstance()
-                .platformHasEarlyLoadingScreen();
-
-        if (applyWorkaroundsLate) {
-            NvidiaWorkarounds.applyEnvironmentChanges();
-        }
-
-        try {
-            return op.call(width, height, title, monitor);
-        } finally {
-            if (applyWorkaroundsLate) {
-                NvidiaWorkarounds.undoEnvironmentChanges();
-            }
-        }
-    }
 }

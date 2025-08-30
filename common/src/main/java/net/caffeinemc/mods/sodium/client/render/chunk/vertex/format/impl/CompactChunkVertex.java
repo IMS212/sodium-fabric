@@ -1,5 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.impl;
 
+import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.client.gl.attribute.GlVertexFormat;
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
@@ -20,6 +22,15 @@ public class CompactChunkVertex implements ChunkVertexType {
 
     public static final int POSITION_MAX_VALUE = 1 << 20;
     public static final int TEXTURE_MAX_VALUE = 1 << 15;
+    private static final VertexFormatElement ATTRIBUTE_POS = VertexFormatElement.register(6, 0, VertexFormatElement.Type.UINT, VertexFormatElement.Usage.POSITION, 2);
+    private static final VertexFormatElement ATTRIBUTE_TEXCOORD = VertexFormatElement.register(7, 1, VertexFormatElement.Type.USHORT, VertexFormatElement.Usage.UV, 2);
+    private static final VertexFormatElement ATTRIBUTE_LIGHT = VertexFormatElement.register(8, 2, VertexFormatElement.Type.UBYTE, VertexFormatElement.Usage.UV, 4);
+    public static final VertexFormat VERTEX_FORMAT_MC = VertexFormat.builder()
+            .add("a_Position", ATTRIBUTE_POS)
+            .add("a_Color", VertexFormatElement.COLOR)
+            .add("a_TexCoord", ATTRIBUTE_TEXCOORD)
+            .add("a_LightAndData", ATTRIBUTE_LIGHT)
+            .build();
 
     private static final float MODEL_ORIGIN = 8.0f;
     private static final float MODEL_RANGE = 32.0f;

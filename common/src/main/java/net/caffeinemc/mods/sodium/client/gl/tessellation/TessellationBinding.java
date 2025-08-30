@@ -1,17 +1,16 @@
 package net.caffeinemc.mods.sodium.client.gl.tessellation;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import net.caffeinemc.mods.sodium.client.gl.attribute.GlVertexAttributeBinding;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferTarget;
 
-public record TessellationBinding(GlBufferTarget target,
-                                  GlBuffer buffer,
+public record TessellationBinding(int target,
+                                  GpuBuffer buffer,
                                   GlVertexAttributeBinding[] attributeBindings) {
-    public static TessellationBinding forVertexBuffer(GlBuffer buffer, GlVertexAttributeBinding[] attributes) {
-        return new TessellationBinding(GlBufferTarget.ARRAY_BUFFER, buffer, attributes);
+    public static TessellationBinding forVertexBuffer(GpuBuffer buffer, GlVertexAttributeBinding[] attributes) {
+        return new TessellationBinding(GpuBuffer.USAGE_VERTEX, buffer, attributes);
     }
 
-    public static TessellationBinding forElementBuffer(GlBuffer buffer) {
-        return new TessellationBinding(GlBufferTarget.ELEMENT_BUFFER, buffer, new GlVertexAttributeBinding[0]);
+    public static TessellationBinding forElementBuffer(GpuBuffer buffer) {
+        return new TessellationBinding(GpuBuffer.USAGE_INDEX, buffer, new GlVertexAttributeBinding[0]);
     }
 }

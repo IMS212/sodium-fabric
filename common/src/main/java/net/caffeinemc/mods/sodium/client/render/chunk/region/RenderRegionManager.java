@@ -238,10 +238,7 @@ public class RenderRegionManager {
     }
 
     private static StagingBuffer createStagingBuffer(CommandList commandList) {
-        if (SodiumClientMod.options().advanced.useAdvancedStagingBuffers && MappedStagingBuffer.isSupported(RenderDevice.INSTANCE)) {
-            return new MappedStagingBuffer(commandList);
-        }
+        return new MappedStagingBuffer(commandList);
 
-        return new FallbackStagingBuffer(commandList);
     }
 }

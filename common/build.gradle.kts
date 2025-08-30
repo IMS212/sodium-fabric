@@ -58,7 +58,11 @@ dependencies {
     annotationProcessor("io.github.llamalad7:mixinextras-common:0.3.5")
 
     compileOnly("net.fabricmc:sponge-mixin:0.13.2+mixin.0.8.5")
+    compileOnly("org.lwjgl:lwjgl-vma:3.3.3")
+    compileOnly("org.lwjgl:lwjgl-vulkan:3.3.3")
     compileOnly("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
+
+    modCompileOnly(files("cinnabar.jar"))
 
     fun addDependentFabricModule(name: String) {
         modCompileOnly(fabricApi.module(name, BuildConfig.FABRIC_API_VERSION))

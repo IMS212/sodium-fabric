@@ -1,14 +1,19 @@
 package net.caffeinemc.mods.sodium.client.gl.arena.staging;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuFence;
+import com.sun.jna.Memory;
+import graphics.cinnabar.api.memory.PointerWrapper;
+import graphics.cinnabar.core.hg3d.Hg3DGpuBuffer;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
+import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
-import net.caffeinemc.mods.sodium.client.gl.functions.BufferStorageFunctions;
 import net.caffeinemc.mods.sodium.client.gl.sync.GlFence;
 import net.caffeinemc.mods.sodium.client.gl.util.EnumBitField;
 import net.caffeinemc.mods.sodium.client.util.MathUtil;
-import net.caffeinemc.mods.sodium.client.gl.buffer.*;
+import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -17,11 +22,12 @@ import java.util.List;
 public class MappedStagingBuffer implements StagingBuffer {
     private static final float UPLOAD_LIMIT_MARGIN = 0.8f;
 
-    private static final EnumBitField<GlBufferStorageFlags> STORAGE_FLAGS =
-            EnumBitField.of(GlBufferStorageFlags.PERSISTENT, GlBufferStorageFlags.CLIENT_STORAGE, GlBufferStorageFlags.MAP_WRITE);
+    private static final int STORAGE_FLAGS = GpuBuffer.USAGE_MAP_WRITE | GpuBuffer.USAGE_HINT_CLIENT_STORAGE;
 
-    private static final EnumBitField<GlBufferMapFlags> MAP_FLAGS =
-            EnumBitField.of(GlBufferMapFlags.PERSISTENT, GlBufferMapFlags.INVALIDATE_BUFFER, GlBufferMapFlags.WRITE, GlBufferMapFlags.EXPLICIT_FLUSH);
+            //EnumBitField.of(GlBufferStorageFlags.PERSISTENT, GlBufferStorageFlags.CLIENT_STORAGE, GlBufferStorageFlags.MAP_WRITE);
+
+    private static final int MAP_FLAGS = GpuBuffer.USAGE_MAP_WRITE;
+            //EnumBitField.of(GlBufferMapFlags.PERSISTENT, GlBufferMapFlags.INVALIDATE_BUFFER, GlBufferMapFlags.WRITE, GlBufferMapFlags.EXPLICIT_FLUSH);
 
     private final FallbackStagingBuffer fallbackStagingBuffer;
 
@@ -40,8 +46,9 @@ public class MappedStagingBuffer implements StagingBuffer {
     }
 
     public MappedStagingBuffer(CommandList commandList, int capacity) {
-        GlImmutableBuffer buffer = commandList.createImmutableBuffer(capacity, STORAGE_FLAGS);
-        GlBufferMapping map = commandList.mapBuffer(buffer, 0, capacity, MAP_FLAGS);
+        Hg3DGpuBuffer buffer = (Hg3DGpuBuffer) SodiumClientMod.getDevice().createBuffer(() -> "Staging", STORAGE_FLAGS, capacity);
+
+        PointerWrapper map = buffer.hgSlice().map();
 
         this.mappedBuffer = new MappedBuffer(buffer, map);
         this.fallbackStagingBuffer = new FallbackStagingBuffer(commandList);
@@ -50,11 +57,11 @@ public class MappedStagingBuffer implements StagingBuffer {
     }
 
     public static boolean isSupported(RenderDevice instance) {
-        return instance.getDeviceFunctions().getBufferStorageFunctions() != BufferStorageFunctions.NONE;
+        return true;
     }
 
     @Override
-    public void enqueueCopy(CommandList commandList, ByteBuffer data, GlBuffer dst, long writeOffset) {
+    public void enqueueCopy(CommandList commandList, ByteBuffer data, GpuBuffer dst, long writeOffset) {
         int length = data.remaining();
 
         if (length > this.remaining) {
@@ -81,8 +88,8 @@ public class MappedStagingBuffer implements StagingBuffer {
         this.remaining -= length;
     }
 
-    private void addTransfer(ByteBuffer data, GlBuffer dst, long readOffset, long writeOffset) {
-        this.mappedBuffer.map.write(data, (int) readOffset);
+    private void addTransfer(ByteBuffer data, GpuBuffer dst, long readOffset, long writeOffset) {
+        MemoryUtil.memCopy(MemoryUtil.memAddress(data), this.mappedBuffer.map.pointer() + readOffset, data.remaining());
         this.pendingCopies.enqueue(new CopyCommand(dst, readOffset, writeOffset, data.remaining()));
     }
 
@@ -92,19 +99,19 @@ public class MappedStagingBuffer implements StagingBuffer {
             return;
         }
 
-        if (this.pos < this.start) {
+       /* if (this.pos < this.start) {
             commandList.flushMappedRange(this.mappedBuffer.map, this.start, this.capacity - this.start);
             commandList.flushMappedRange(this.mappedBuffer.map, 0, this.pos);
         } else {
             commandList.flushMappedRange(this.mappedBuffer.map, this.start, this.pos - this.start);
-        }
+        }*/
 
         int bytes = 0;
 
         for (CopyCommand command : consolidateCopies(this.pendingCopies)) {
             bytes += command.bytes;
 
-            commandList.copyBufferSubData(this.mappedBuffer.buffer, command.buffer, command.readOffset, command.writeOffset, command.bytes);
+            SodiumClientMod.getCommandEncoder().copyToBuffer(this.mappedBuffer.buffer.slice((int) command.readOffset, (int) command.bytes), command.buffer.slice((int) command.writeOffset, (int) command.bytes));
         }
 
         this.fencedRegions.enqueue(new FencedMemoryRegion(commandList.createFence(), bytes));
@@ -139,8 +146,8 @@ public class MappedStagingBuffer implements StagingBuffer {
         while (!this.fencedRegions.isEmpty()) {
             var region = this.fencedRegions.dequeue();
             var fence = region.fence();
-            fence.sync();
-            fence.delete();
+            fence.awaitCompletion(Long.MAX_VALUE);
+            fence.close();
         }
 
         this.mappedBuffer.delete(commandList);
@@ -154,11 +161,11 @@ public class MappedStagingBuffer implements StagingBuffer {
             var region = this.fencedRegions.first();
             var fence = region.fence();
 
-            if (!fence.isCompleted()) {
+            if (!fence.awaitCompletion(0)) {
                 break;
             }
 
-            fence.delete();
+            fence.close();
 
             this.fencedRegions.dequeue();
             this.remaining += region.length();
@@ -171,13 +178,13 @@ public class MappedStagingBuffer implements StagingBuffer {
     }
 
     private static final class CopyCommand {
-        private final GlBuffer buffer;
+        private final GpuBuffer buffer;
         private final long readOffset;
         private final long writeOffset;
 
         private long bytes;
 
-        private CopyCommand(GlBuffer buffer, long readOffset, long writeOffset, long bytes) {
+        private CopyCommand(GpuBuffer buffer, long readOffset, long writeOffset, long bytes) {
             this.buffer = buffer;
             this.readOffset = readOffset;
             this.writeOffset = writeOffset;
@@ -192,15 +199,14 @@ public class MappedStagingBuffer implements StagingBuffer {
         }
     }
 
-    private record MappedBuffer(GlImmutableBuffer buffer,
-                                GlBufferMapping map) {
+    private record MappedBuffer(GpuBuffer buffer,
+                                PointerWrapper map) {
         public void delete(CommandList commandList) {
-            commandList.unmap(this.map);
-            commandList.deleteBuffer(this.buffer);
+            buffer.close();
         }
     }
 
-    private record FencedMemoryRegion(GlFence fence, int length) {
+    private record FencedMemoryRegion(GpuFence fence, int length) {
 
     }
 

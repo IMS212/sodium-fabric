@@ -16,4 +16,8 @@ public interface ChunkShaderInterface {
     void setModelViewMatrix(Matrix4fc matrix);
 
     void setRegionOffset(float x, float y, float z);
+
+    void destroy();
+
+    void uploadData();
 }

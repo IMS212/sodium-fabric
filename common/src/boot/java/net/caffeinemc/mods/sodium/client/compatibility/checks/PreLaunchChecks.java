@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.client.compatibility.checks;
 
 import net.caffeinemc.mods.sodium.client.platform.PlatformHelper;
 import org.lwjgl.Version;
+import org.lwjgl.system.Configuration;
 
 /**
  * Performs OpenGL driver validation before the game creates an OpenGL context. This runs during the earliest possible

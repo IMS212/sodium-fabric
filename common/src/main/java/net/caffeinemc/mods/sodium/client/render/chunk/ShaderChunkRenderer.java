@@ -6,6 +6,7 @@ import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
+import graphics.cinnabar.core.hg3d.Hg3DCommandEncoder;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.caffeinemc.mods.sodium.client.gl.attribute.GlVertexFormat;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
@@ -46,42 +47,15 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
     }
 
     private GlProgram<ChunkShaderInterface> createShader(String path, ChunkShaderOptions options) {
-        ShaderConstants constants = options.constants();
-
-        GlShader vertShader = ShaderLoader.loadShader(ShaderType.VERTEX,
-                ResourceLocation.fromNamespaceAndPath("sodium", path + ".vsh"), constants);
-
-        GlShader fragShader = ShaderLoader.loadShader(ShaderType.FRAGMENT,
-                ResourceLocation.fromNamespaceAndPath("sodium", path + ".fsh"), constants);
-
-        try {
-            return GlProgram.builder(ResourceLocation.fromNamespaceAndPath("sodium", "chunk_shader"))
-                    .attachShader(vertShader)
-                    .attachShader(fragShader)
-                    .bindAttribute("a_Position", ChunkShaderBindingPoints.ATTRIBUTE_POSITION)
-                    .bindAttribute("a_Color", ChunkShaderBindingPoints.ATTRIBUTE_COLOR)
-                    .bindAttribute("a_TexCoord", ChunkShaderBindingPoints.ATTRIBUTE_TEXTURE)
-                    .bindAttribute("a_LightAndData", ChunkShaderBindingPoints.ATTRIBUTE_LIGHT_MATERIAL_INDEX)
-                    .bindFragmentData("fragColor", ChunkShaderBindingPoints.FRAG_COLOR)
-                    .link((shader) -> new DefaultShaderInterface(shader, options));
-        } finally {
-            vertShader.delete();
-            fragShader.delete();
-        }
+        return  new GlProgram<>(0, i -> new DefaultShaderInterface(i, options));
     }
 
     protected void begin(TerrainRenderPass pass, FogParameters parameters) {
         RenderTarget target = pass.getTarget();
 
-        GlStateManager._viewport(0, 0, target.getColorTexture().getWidth(0), target.getColorTexture().getHeight(0));
-        GlStateManager._glBindFramebuffer(GlConst.GL_FRAMEBUFFER, ((GlTexture) target.getColorTexture()).getFbo(((GlDevice) RenderSystem.getDevice()).directStateAccess(), target.getDepthTexture()));
-        ((GlCommandEncoderAccessor) RenderSystem.getDevice().createCommandEncoder()).sodium$applyPipelineState(pass.getPipeline());
-        ((GlCommandEncoderAccessor) RenderSystem.getDevice().createCommandEncoder()).sodium$setLastProgram(null);
-
         ChunkShaderOptions options = new ChunkShaderOptions(ChunkFogMode.SMOOTH, pass, this.vertexType);
 
         this.activeProgram = this.compileProgram(options);
-        this.activeProgram.bind();
         this.activeProgram.getInterface()
                 .setupState(pass, parameters);
     }
@@ -96,7 +70,10 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
     @Override
     public void delete(CommandList commandList) {
         this.programs.values()
-                .forEach(GlProgram::delete);
+                .forEach(i -> {
+                    i.getInterface().destroy();
+                    i.delete();
+                });
     }
 
 }

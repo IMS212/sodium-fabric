@@ -374,9 +374,7 @@ public class SodiumGameOptionPages {
     }
 
     private static boolean supportsNoErrorContext() {
-        GLCapabilities capabilities = GL.getCapabilities();
-        return (capabilities.OpenGL46 || capabilities.GL_KHR_no_error)
-                && !Workarounds.isWorkaroundEnabled(Workarounds.Reference.NO_ERROR_CONTEXT_UNSUPPORTED);
+        return false;
     }
 
     public static OptionPage advanced() {
