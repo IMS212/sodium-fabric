@@ -119,7 +119,7 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
                     .putMat4f(projection)
                     .putVec2((float) (subTexelOffset - (((1.0D / textureAtlas.getWidth()) / subTexelPrecision))), (float) (subTexelOffset - (((1.0D / textureAtlas.getHeight()) / subTexelPrecision))))
                     .putVec2(parameters.renderStart(), parameters.renderEnd())
-                    .putVec2(parameters.environmentalStart(), parameters.environmentalStart())
+                    .putVec2(parameters.environmentalStart(), parameters.environmentalEnd())
                     .putVec4(parameters.red(), parameters.green(), parameters.blue(), parameters.alpha())
             ;
         }

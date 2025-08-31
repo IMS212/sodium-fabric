@@ -18,12 +18,9 @@ float total_fog_value(float sphericalVertexDistance, float cylindricalVertexDist
 }
 
 vec4 _linearFog(vec4 fragColor, vec2 fragDistance, vec4 fogColor, vec2 environmentFog, vec2 renderFog) {
-#ifdef USE_FOG
     float fogValue = total_fog_value(fragDistance.y, fragDistance.x, environmentFog.x, environmentFog.y, renderFog.x, renderFog.y);
     return vec4(mix(fragColor.rgb, fogColor.rgb, fogValue * fogColor.a), fragColor.a);
-#else
-    return fragColor;
-#endif
+
 }
 
 vec2 getFragDistance(vec3 position) {
@@ -126,9 +123,7 @@ out float v_MaterialMipBias;
 out float v_MaterialAlphaCutoff;
 #endif
 
-#ifdef USE_FOG
 out vec2 v_FragDistance;
-#endif
 
 layout(push_constant, std430) uniform pc {
     vec3 u_RegionOffset;
@@ -152,9 +147,7 @@ void main() {
     vec3 translation = u_RegionOffset + _get_draw_translation(_draw_id);
     vec3 position = _vert_position + translation;
 
-#ifdef USE_FOG
     v_FragDistance = getFragDistance(position);
-#endif
 
     // Transform the vertex position into model-view-projection space
     gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(position, 1.0);
