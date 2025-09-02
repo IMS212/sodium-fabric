@@ -21,17 +21,16 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import net.caffeinemc.mods.sodium.client.render.frapi.helper.GeometryHelper;
+import net.caffeinemc.mods.sodium.client.render.frapi.helper.ModelHelper;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.SodiumShadeMode;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
+import net.minecraft.util.TriState;
 import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.Nullable;
 
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
-import net.fabricmc.fabric.api.renderer.v1.mesh.ShadeMode;
-import net.fabricmc.fabric.api.renderer.v1.model.ModelHelper;
-import net.fabricmc.fabric.api.util.TriState;
 
 /**
  * Holds all the array offsets and bit-wise encoders/decoders for
@@ -61,6 +60,9 @@ public final class EncodingFormat {
     public static final int QUAD_STRIDE_BYTES;
     public static final int TOTAL_STRIDE;
 
+    public static final int VANILLA_VERTEX_STRIDE = DefaultVertexFormat.BLOCK.getVertexSize() / 4;
+    public static final int VANILLA_QUAD_STRIDE = VANILLA_VERTEX_STRIDE * 4;
+
     static {
         final VertexFormat format = DefaultVertexFormat.BLOCK;
         VERTEX_X = HEADER_STRIDE + 0;
@@ -76,8 +78,8 @@ public final class EncodingFormat {
         QUAD_STRIDE_BYTES = QUAD_STRIDE * 4;
         TOTAL_STRIDE = HEADER_STRIDE + QUAD_STRIDE;
 
-        Preconditions.checkState(VERTEX_STRIDE == QuadView.VANILLA_VERTEX_STRIDE, "Indigo vertex stride (%s) mismatched with rendering API (%s)", VERTEX_STRIDE, QuadView.VANILLA_VERTEX_STRIDE);
-        Preconditions.checkState(QUAD_STRIDE == QuadView.VANILLA_QUAD_STRIDE, "Indigo quad stride (%s) mismatched with rendering API (%s)", QUAD_STRIDE, QuadView.VANILLA_QUAD_STRIDE);
+        Preconditions.checkState(VERTEX_STRIDE == EncodingFormat.VANILLA_VERTEX_STRIDE, "Indigo vertex stride (%s) mismatched with rendering API (%s)", VERTEX_STRIDE, EncodingFormat.VANILLA_VERTEX_STRIDE);
+        Preconditions.checkState(QUAD_STRIDE == EncodingFormat.VANILLA_QUAD_STRIDE, "Indigo quad stride (%s) mismatched with rendering API (%s)", QUAD_STRIDE, EncodingFormat.VANILLA_QUAD_STRIDE);
     }
 
     /** used for quick clearing of quad buffers. */
@@ -92,7 +94,7 @@ public final class EncodingFormat {
     private static final int TRI_STATE_COUNT = TRI_STATES.length;
     private static final @Nullable ItemStackRenderState.FoilType[] NULLABLE_GLINTS = ArrayUtils.add(ItemStackRenderState.FoilType.values(), null);
     private static final int NULLABLE_GLINT_COUNT = NULLABLE_GLINTS.length;
-    private static final ShadeMode[] SHADE_MODES = ShadeMode.values();
+    private static final SodiumShadeMode[] SHADE_MODES = SodiumShadeMode.values();
     private static final int SHADE_MODE_COUNT = SHADE_MODES.length;
 
     private static final int NULL_RENDER_LAYER_INDEX = NULLABLE_BLOCK_RENDER_LAYER_COUNT - 1;
@@ -229,11 +231,11 @@ public final class EncodingFormat {
         return (bits & ~GLINT_MASK) | (index << GLINT_BIT_OFFSET);
     }
 
-    static ShadeMode shadeMode(int bits) {
+    static SodiumShadeMode shadeMode(int bits) {
         return SHADE_MODES[(bits & SHADE_MODE_MASK) >>> SHADE_MODE_BIT_OFFSET];
     }
 
-    static int shadeMode(int bits, ShadeMode mode) {
+    static int shadeMode(int bits, SodiumShadeMode mode) {
         return (bits & ~SHADE_MODE_MASK) | (mode.ordinal() << SHADE_MODE_BIT_OFFSET);
     }
 }

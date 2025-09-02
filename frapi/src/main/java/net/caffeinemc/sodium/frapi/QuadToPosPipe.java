@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.render.frapi.render;
+package net.caffeinemc.sodium.frapi;
 
 import java.util.function.Consumer;
 

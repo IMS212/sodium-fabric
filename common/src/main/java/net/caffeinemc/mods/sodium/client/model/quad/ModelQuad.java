@@ -152,4 +152,17 @@ public class ModelQuad implements ModelQuadViewMutable {
     public int getMaxLightQuad(int idx) {
         return getLight(idx);
     }
+
+    @Override
+    public float posByIndex(int vertexIndex, int coordinateIndex) {
+        if (coordinateIndex == 0) {
+            return getX(vertexIndex);
+        } else if (coordinateIndex == 1) {
+            return getY(vertexIndex);
+        } else if  (coordinateIndex == 2) {
+            return getZ(vertexIndex);
+        } else {
+            throw new IllegalArgumentException("Invalid coordinate index: " + coordinateIndex);
+        }
+    }
 }

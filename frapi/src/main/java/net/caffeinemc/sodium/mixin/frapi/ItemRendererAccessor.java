@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.mixin.features.render.frapi;
+package net.caffeinemc.sodium.mixin.frapi;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;

@@ -17,11 +17,8 @@ val configurationCommonModResources: Configuration = configurations.create("comm
 
 dependencies {
     configurationCommonModJava(project(path = ":common", configuration = "commonMainJava"))
-    configurationCommonModJava(project(path = ":frapi", configuration = "frapiMainJava"))
     configurationCommonModJava(project(path = ":common", configuration = "commonApiJava"))
     configurationCommonModJava(project(path = ":common", configuration = "commonBootJava"))
-
-    configurationCommonModResources(project(path = ":frapi", configuration = "frapiMainResources"))
 
     configurationCommonModResources(project(path = ":common", configuration = "commonMainResources"))
     configurationCommonModResources(project(path = ":common", configuration = "commonApiResources"))
@@ -81,15 +78,44 @@ loom {
 }
 
 tasks {
-    jar {
-        from(configurationCommonModJava)
-    }
-
     remapJar {
         destinationDirectory.set(file(rootProject.layout.buildDirectory).resolve("mods"))
     }
+}
 
-    processResources {
-        from(configurationCommonModResources)
+fun exportSourceSetJava(name: String, sourceSet: SourceSet) {
+    val configuration = configurations.create("${name}Java") {
+        isCanBeResolved = true
+        isCanBeConsumed = true
+    }
+
+    val compileTask = tasks.getByName<JavaCompile>(sourceSet.compileJavaTaskName)
+    artifacts.add(configuration.name, compileTask.destinationDirectory) {
+        builtBy(compileTask)
     }
 }
+
+fun exportSourceSetResources(name: String, sourceSet: SourceSet) {
+    val configuration = configurations.create("${name}Resources") {
+        isCanBeResolved = true
+        isCanBeConsumed = true
+    }
+
+    val compileTask = tasks.getByName<ProcessResources>(sourceSet.processResourcesTaskName)
+    compileTask.apply {
+        exclude("**/README.txt")
+        exclude("/*.accesswidener")
+    }
+
+    artifacts.add(configuration.name, compileTask.destinationDir) {
+        builtBy(compileTask)
+    }
+}
+
+// Exports the compiled output of the source set to the named configuration.
+fun exportSourceSet(name: String, sourceSet: SourceSet) {
+    exportSourceSetJava(name, sourceSet)
+    exportSourceSetResources(name, sourceSet)
+}
+
+exportSourceSet("frapiMain", sourceSets["main"])

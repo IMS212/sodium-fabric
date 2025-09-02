@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.mixin.features.render.frapi;
+package net.caffeinemc.sodium.mixin.frapi;
 
 import java.util.List;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableMeshImpl;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.AccessLayerRenderState;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.ItemRenderContext;
+import net.caffeinemc.sodium.frapi.AccessLayerRenderState;
+import net.caffeinemc.sodium.frapi.ItemRenderContext;
+import net.caffeinemc.sodium.frapi.mesh.MutableMeshImpl;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;

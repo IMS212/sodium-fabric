@@ -1,4 +1,4 @@
-package net.caffeinemc.mods.sodium.mixin.features.render.frapi;
+package net.caffeinemc.sodium.mixin.frapi;
 
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;

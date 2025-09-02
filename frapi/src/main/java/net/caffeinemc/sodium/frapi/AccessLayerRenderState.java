@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.caffeinemc.mods.sodium.client.render.frapi.render;
+package net.caffeinemc.sodium.frapi;
 
-import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableMeshImpl;
+import net.caffeinemc.sodium.frapi.mesh.MutableMeshImpl;
 
 public interface AccessLayerRenderState {
     MutableMeshImpl fabric_getMutableMesh();

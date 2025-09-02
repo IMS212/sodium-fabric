@@ -134,4 +134,6 @@ public interface ModelQuadView {
      * @return Lightmap value.
      */
     int getMaxLightQuad(int idx);
+
+    float posByIndex(int vertexIndex, int coordinateIndex);
 }

@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.render.frapi.render;
+package net.caffeinemc.sodium.frapi;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.MatrixUtil;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.api.util.ColorMixer;
-import net.caffeinemc.mods.sodium.client.render.frapi.SodiumRenderer;
 import net.caffeinemc.mods.sodium.client.render.frapi.helper.ColorHelper;
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.EncodingFormat;
-import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MeshViewImpl;
+import net.caffeinemc.sodium.frapi.mesh.MeshViewImpl;
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractRenderContext;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.QuadEncoder;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
-import net.caffeinemc.mods.sodium.mixin.features.render.frapi.ItemRendererAccessor;
+import net.caffeinemc.sodium.mixin.frapi.ItemRendererAccessor;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderLayerHelper;
 import net.minecraft.client.renderer.LightTexture;
@@ -70,10 +71,6 @@ public class ItemRenderContext extends AbstractRenderContext {
         public void emitDirectly() {
             renderQuad(this);
         }
-
-        public boolean hasTransforms() {
-            return activeTransform != NO_TRANSFORM;
-        }
     }
 
     private final MutableQuadViewImpl editorQuad = new ItemEmitter();
@@ -102,10 +99,9 @@ public class ItemRenderContext extends AbstractRenderContext {
     private PoseStack.Pose specialGlintEntry;
     private final VertexConsumer[] vertexConsumerCache = new VertexConsumer[3 * GLINT_COUNT];
 
-    @Override
     public QuadEmitter getEmitter() {
         editorQuad.clear();
-        return editorQuad;
+        return (QuadEmitter) editorQuad;
     }
 
     public void renderItem(ItemDisplayContext displayContext, PoseStack poseStack, MultiBufferSource bufferSource, int lightmap, int overlay, int[] colors, List<BakedQuad> vanillaQuads, MeshViewImpl mesh, RenderType layer, ItemStackRenderState.FoilType glint) {

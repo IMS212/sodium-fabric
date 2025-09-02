@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.render.frapi.mesh;
+package net.caffeinemc.sodium.frapi.mesh;
 
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.EncodingFormat;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
+import net.caffeinemc.sodium.frapi.ExtendedQuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.mesh.Mesh;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableMesh;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
@@ -66,16 +69,18 @@ public class MutableMeshImpl extends MeshViewImpl implements MutableMesh {
     @Override
     public QuadEmitter emitter() {
         emitter.clear();
-        return emitter;
+        return ((ExtendedQuadEmitter) emitter).getDuck();
     }
 
     @Override
     public void forEachMutable(Consumer<? super MutableQuadView> action) {
         // emitDirectly will not be called by forEach, so just reuse the main emitter.
-        forEach(action, emitter);
+        forEach(action, ((ExtendedQuadEmitter) emitter).getDuck());
         emitter.data = data;
         emitter.baseIndex = limit;
     }
+
+
 
     @Override
     public Mesh immutableCopy() {

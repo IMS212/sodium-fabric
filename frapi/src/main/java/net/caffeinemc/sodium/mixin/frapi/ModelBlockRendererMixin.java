@@ -14,29 +14,19 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.mixin.features.render.frapi;
+package net.caffeinemc.sodium.mixin.frapi;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.NonTerrainBlockRenderContext;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.SimpleBlockRenderContext;
+import net.caffeinemc.sodium.frapi.SimpleBlockRenderContext;
 import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.EmptyBlockAndTintGetter;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.*;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import java.util.List;
 
 /**
  * Entrypoint of the FRAPI pipeline for non-terrain block rendering, for the baked models that require it.

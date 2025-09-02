@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.render.frapi.mesh;
+package net.caffeinemc.sodium.frapi.mesh;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.QuadViewImpl;
 import net.fabricmc.fabric.api.renderer.v1.mesh.Mesh;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
-import org.jetbrains.annotations.Range;
 
 import java.util.function.Consumer;
 

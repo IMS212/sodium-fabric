@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.render.frapi.render;
+package net.caffeinemc.sodium.frapi;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -25,20 +25,22 @@ import net.caffeinemc.mods.sodium.client.model.light.LightMode;
 import net.caffeinemc.mods.sodium.client.model.light.LightPipelineProvider;
 import net.caffeinemc.mods.sodium.client.model.light.data.SingleBlockLightDataCache;
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.QuadEncoder;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.SodiumShadeMode;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
-import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
 import net.fabricmc.fabric.api.renderer.v1.mesh.ShadeMode;
 import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
 import net.fabricmc.fabric.api.renderer.v1.render.BlockVertexConsumerProvider;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
@@ -80,7 +82,8 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
         this.prepareCulling(cull);
 
         random.setSeed(seed);
-        ((FabricBlockStateModel) model).emitQuads(getEmitter(), blockView, pos, state, this.random, this::isFaceCulled);
+        editorQuad.clear();
+        ((FabricBlockStateModel) model).emitQuads((QuadEmitter) editorQuad, blockView, pos, state, this.random, this::isFaceCulled);
 
         this.defaultRenderType = null;
         this.level = null;
@@ -91,7 +94,7 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
     @Override
     protected void processQuad(MutableQuadViewImpl quad) {
         final TriState aoMode = quad.ambientOcclusion();
-        final ShadeMode shadeMode = quad.shadeMode();
+        final SodiumShadeMode shadeMode = quad.sodiumShadeMode();
         final LightMode lightMode;
         if (aoMode == TriState.DEFAULT) {
             lightMode = this.defaultLightMode;
@@ -132,7 +135,7 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
     }
 
     @Override
-    protected void shadeQuad(MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, ShadeMode shadeMode) {
+    protected void shadeQuad(MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, SodiumShadeMode shadeMode) {
         super.shadeQuad(quad, lightMode, emissive, shadeMode);
 
         float[] brightnesses = this.quadLightData.br;

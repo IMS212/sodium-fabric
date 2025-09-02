@@ -2,12 +2,12 @@ package net.caffeinemc.mods.sodium.neoforge.model;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.services.PlatformModelAccess;
 import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
 import net.caffeinemc.mods.sodium.client.services.SodiumModelDataContainer;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockModelPart;
@@ -44,7 +44,7 @@ public class NeoForgeModelAccess implements PlatformModelAccess {
     }
 
     @Override
-    public List<BlockModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, QuadEmitter emitter) {
+    public List<BlockModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, MutableQuadViewImpl emitter) {
         if (emitter instanceof AbstractBlockRenderContext.BlockEmitter be) {
             be.cachedList().clear();
             blockStateModel.collectParts(blockView, pos, state, random, be.cachedList());

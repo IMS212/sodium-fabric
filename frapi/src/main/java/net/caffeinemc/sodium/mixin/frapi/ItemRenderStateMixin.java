@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.mixin.features.render.frapi;
+package net.caffeinemc.sodium.mixin.frapi;
 
 import java.util.function.Consumer;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
-import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableMeshImpl;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.AccessLayerRenderState;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.QuadToPosPipe;
+import net.caffeinemc.sodium.frapi.AccessLayerRenderState;
+import net.caffeinemc.sodium.frapi.QuadToPosPipe;
+import net.caffeinemc.sodium.frapi.mesh.MutableMeshImpl;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;

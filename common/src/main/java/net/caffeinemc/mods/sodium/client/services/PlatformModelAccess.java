@@ -1,6 +1,8 @@
 package net.caffeinemc.mods.sodium.client.services;
 
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
+import it.unimi.dsi.fastutil.objects.Object2BooleanFunction;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockModelPart;
@@ -16,6 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 public interface PlatformModelAccess {
     PlatformModelAccess INSTANCE = Services.load(PlatformModelAccess.class);
@@ -54,5 +57,19 @@ public interface PlatformModelAccess {
 
     ChunkSectionLayer getPartRenderType(BlockModelPart part, BlockState state, ChunkSectionLayer defaultType);
 
-    List<BlockModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, QuadEmitter emitter);
+    List<BlockModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, MutableQuadViewImpl emitter);
+
+    default void emitModel(BlockStateModel model, AbstractBlockRenderContext.BlockEmitter editorQuad, BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random, Predicate<Direction> isFaceCulled, ModelSupplier bufferDefaultModel, List<BlockModelPart> scratchList) {
+        scratchList.clear();
+        model.collectParts(random, scratchList);
+
+        for (BlockModelPart part : scratchList) {
+            bufferDefaultModel.buffer(part, isFaceCulled);
+        }
+    }
+
+    @FunctionalInterface
+    public interface ModelSupplier {
+        void buffer(BlockModelPart part, Predicate<Direction> cullTest);
+    }
 }

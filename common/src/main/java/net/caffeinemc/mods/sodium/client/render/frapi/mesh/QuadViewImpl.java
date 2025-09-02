@@ -24,13 +24,12 @@ import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFlags;
 import net.caffeinemc.mods.sodium.client.render.frapi.helper.ColorHelper;
 import net.caffeinemc.mods.sodium.client.render.frapi.helper.GeometryHelper;
 import net.caffeinemc.mods.sodium.client.render.frapi.helper.NormalHelper;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
-import net.fabricmc.fabric.api.renderer.v1.mesh.ShadeMode;
-import net.fabricmc.fabric.api.util.TriState;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.SodiumShadeMode;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
+import net.minecraft.util.TriState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
@@ -42,7 +41,7 @@ import static net.caffeinemc.mods.sodium.client.render.frapi.mesh.EncodingFormat
  * Base class for all quads / quad makers. Handles the ugly bits
  * of maintaining and encoding the quad state.
  */
-public class QuadViewImpl implements QuadView, ModelQuadView {
+public class QuadViewImpl implements ModelQuadView {
     @Nullable
     protected Direction nominalFace;
     /** True when face normal, light face, normal face, or geometry flags may not match geometry. */
@@ -50,10 +49,10 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
     protected final Vector3f faceNormal = new Vector3f();
 
     /** Size and where it comes from will vary in subtypes. But in all cases quad is fully encoded to array. */
-    protected int[] data;
+    public int[] data;
 
     /** Beginning of the quad. Also, the header index. */
-    protected int baseIndex = 0;
+    public int baseIndex = 0;
 
     /**
      * Decodes necessary state from the backing data array.
@@ -95,27 +94,27 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
         return diffuseShade();
     }
 
-    @Override
+
     public float x(int vertexIndex) {
         return Float.intBitsToFloat(data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_X]);
     }
 
-    @Override
+
     public float y(int vertexIndex) {
         return Float.intBitsToFloat(data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_Y]);
     }
 
-    @Override
+
     public float z(int vertexIndex) {
         return Float.intBitsToFloat(data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_Z]);
     }
 
-    @Override
+
     public float posByIndex(int vertexIndex, int coordinateIndex) {
         return Float.intBitsToFloat(data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_X + coordinateIndex]);
     }
 
-    @Override
+
     public Vector3f copyPos(int vertexIndex, @Nullable Vector3f target) {
         if (target == null) {
             target = new Vector3f();
@@ -126,53 +125,52 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
         return target;
     }
 
-    @Override
+
     @Nullable
     public ChunkSectionLayer renderLayer() {
         return EncodingFormat.renderLayer(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
+
     public boolean emissive() {
         return EncodingFormat.emissive(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
+
     public boolean diffuseShade() {
         return EncodingFormat.diffuseShade(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
+
     public TriState ambientOcclusion() {
         return EncodingFormat.ambientOcclusion(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
+
     public ItemStackRenderState.@Nullable FoilType glint() {
         return EncodingFormat.glint(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
-    public ShadeMode shadeMode() {
+    public SodiumShadeMode sodiumShadeMode() {
         return EncodingFormat.shadeMode(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
+
     public int color(int vertexIndex) {
         return data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_COLOR];
     }
 
-    @Override
+
     public float u(int vertexIndex) {
         return Float.intBitsToFloat(data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_U]);
     }
 
-    @Override
+
     public float v(int vertexIndex) {
         return Float.intBitsToFloat(data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_V]);
     }
 
-    @Override
+
     public Vector2f copyUv(int vertexIndex, @Nullable Vector2f target) {
         if (target == null) {
             target = new Vector2f();
@@ -183,7 +181,7 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
         return target;
     }
 
-    @Override
+
     public int lightmap(int vertexIndex) {
         return data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_LIGHTMAP];
     }
@@ -192,7 +190,7 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
         return EncodingFormat.normalFlags(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
+
     public boolean hasNormal(int vertexIndex) {
         return (normalFlags() & (1 << vertexIndex)) != 0;
     }
@@ -218,22 +216,22 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
         return data[normalIndex(vertexIndex)];
     }
 
-    @Override
+
     public float normalX(int vertexIndex) {
         return hasNormal(vertexIndex) ? NormI8.unpackX(data[normalIndex(vertexIndex)]) : Float.NaN;
     }
 
-    @Override
+
     public float normalY(int vertexIndex) {
         return hasNormal(vertexIndex) ? NormI8.unpackY(data[normalIndex(vertexIndex)]) : Float.NaN;
     }
 
-    @Override
+
     public float normalZ(int vertexIndex) {
         return hasNormal(vertexIndex) ? NormI8.unpackZ(data[normalIndex(vertexIndex)]) : Float.NaN;
     }
 
-    @Override
+
     @Nullable
     public Vector3f copyNormal(int vertexIndex, @Nullable Vector3f target) {
         if (hasNormal(vertexIndex)) {
@@ -249,13 +247,13 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
         }
     }
 
-    @Override
+
     @Nullable
     public final Direction cullFace() {
         return EncodingFormat.cullFace(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
+
     @NotNull
     public final Direction lightFace() {
         computeGeometry();
@@ -267,7 +265,7 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
         return EncodingFormat.normalFace(data[baseIndex + HEADER_BITS]);
     }
 
-    @Override
+
     @Nullable
     public final Direction nominalFace() {
         return nominalFace;
@@ -278,23 +276,23 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
         return data[baseIndex + HEADER_FACE_NORMAL];
     }
 
-    @Override
+
     public final Vector3f faceNormal() {
         computeGeometry();
         return faceNormal;
     }
 
-    @Override
+
     public final int tintIndex() {
         return data[baseIndex + HEADER_TINT_INDEX];
     }
 
-    @Override
+
     public final int tag() {
         return data[baseIndex + HEADER_TAG];
     }
 
-    @Override
+
     public final void toVanilla(int[] target, int targetIndex) {
         System.arraycopy(data, baseIndex + HEADER_STRIDE, target, targetIndex, QUAD_STRIDE);
 
@@ -305,7 +303,7 @@ public class QuadViewImpl implements QuadView, ModelQuadView {
 
         for (int i = 0; i < 4; i++) {
             target[colorIndex] = ColorHelper.toVanillaColor(target[colorIndex]);
-            colorIndex += QuadView.VANILLA_VERTEX_STRIDE;
+            colorIndex += EncodingFormat.VANILLA_VERTEX_STRIDE;
         }
     }
 

@@ -14,45 +14,28 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.render.frapi;
+package net.caffeinemc.sodium.frapi;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableMeshImpl;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.AccessLayerRenderState;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.NonTerrainBlockRenderContext;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.SimpleBlockRenderContext;
-import net.caffeinemc.mods.sodium.mixin.features.render.frapi.BlockRenderDispatcherAccessor;
-import net.caffeinemc.mods.sodium.mixin.features.render.frapi.ModelBlockRendererAccessor;
+import net.caffeinemc.sodium.frapi.mesh.MutableMeshImpl;
+import net.caffeinemc.sodium.mixin.frapi.BlockRenderDispatcherAccessor;
+import net.caffeinemc.sodium.mixin.frapi.ModelBlockRendererAccessor;
 import net.fabricmc.fabric.api.renderer.v1.Renderer;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableMesh;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
-import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockModelPart;
-import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
 import net.fabricmc.fabric.api.renderer.v1.render.BlockVertexConsumerProvider;
 import net.fabricmc.fabric.api.renderer.v1.render.FabricBlockModelRenderer;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderLayerHelper;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.function.Predicate;
 
 /**
  * The Sodium renderer implementation.

@@ -1,10 +1,8 @@
-package net.caffeinemc.mods.sodium.mixin.features.render.frapi;
+package net.caffeinemc.sodium.mixin.frapi;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.NonTerrainBlockRenderContext;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.SimpleBlockRenderContext;
 import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
 import net.fabricmc.fabric.api.renderer.v1.render.FabricBlockModelRenderer;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderLayerHelper;

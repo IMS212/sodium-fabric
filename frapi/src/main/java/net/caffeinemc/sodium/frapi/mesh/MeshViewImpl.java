@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.render.frapi.mesh;
+package net.caffeinemc.sodium.frapi.mesh;
 
 import java.util.function.Consumer;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.EncodingFormat;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.QuadViewImpl;
+import net.caffeinemc.sodium.frapi.DuckModelViewMutable;
+import net.caffeinemc.sodium.frapi.ExtendedQuadEmitter;
 import org.jetbrains.annotations.Range;
 
 import net.fabricmc.fabric.api.renderer.v1.mesh.MeshView;
@@ -44,17 +49,22 @@ public class MeshViewImpl implements MeshView {
     @Override
     public void forEach(Consumer<? super QuadView> action) {
         ObjectArrayList<QuadViewImpl> pool = CURSOR_POOLS.get();
-        QuadViewImpl cursor;
+        QuadView cursor;
 
         if (pool.isEmpty()) {
-            cursor = new QuadViewImpl();
+            cursor = (QuadView) ((ExtendedQuadEmitter) (Object) new MutableQuadViewImpl() {
+                @Override
+                protected void emitDirectly() {
+
+                }
+            }).getDuck();
         } else {
-            cursor = pool.pop();
+            cursor = (QuadView) pool.pop();
         }
 
         forEach(action, cursor);
 
-        pool.push(cursor);
+        pool.push((QuadViewImpl) cursor);
     }
 
     /**
@@ -62,25 +72,30 @@ public class MeshViewImpl implements MeshView {
      * to avoid the performance hit of a thread-local lookup.
      * Also means renderer can hold final references to quad buffers.
      */
-    <C extends QuadViewImpl> void forEach(Consumer<? super C> action, C cursor) {
-        final int limit = this.limit;
-        int index = 0;
-        cursor.data = this.data;
+    <C extends QuadView> void forEach(Consumer<? super C> action, C fCursor) {
+        if (fCursor instanceof QuadViewImpl cursor) {
+            final int limit = this.limit;
+            int index = 0;
+            cursor.data = this.data;
 
-        while (index < limit) {
-            cursor.baseIndex = index;
-            cursor.load();
-            action.accept(cursor);
-            index += EncodingFormat.TOTAL_STRIDE;
+            while (index < limit) {
+                cursor.baseIndex = index;
+                cursor.load();
+                action.accept(fCursor);
+                index += EncodingFormat.TOTAL_STRIDE;
+            }
+
+            cursor.data = null;
         }
-
-        cursor.data = null;
     }
 
     // TODO: This could be optimized by checking if the emitter is that of a MutableMeshImpl and if
     //  it has no transforms, in which case the entire data array can be copied in bulk.
     @Override
     public void outputTo(QuadEmitter emitter) {
+        if (emitter instanceof DuckModelViewMutable duck) {
+            emitter = (QuadEmitter) duck.getOriginal();
+        }
         MutableQuadViewImpl e = (MutableQuadViewImpl) emitter;
         final int[] data = this.data;
         final int limit = this.limit;
@@ -89,7 +104,7 @@ public class MeshViewImpl implements MeshView {
         while (index < limit) {
             System.arraycopy(data, index, e.data, e.baseIndex, EncodingFormat.TOTAL_STRIDE);
             e.load();
-            e.transformAndEmit();
+            ((ExtendedQuadEmitter) e).transformAndEmit();
             index += EncodingFormat.TOTAL_STRIDE;
         }
 

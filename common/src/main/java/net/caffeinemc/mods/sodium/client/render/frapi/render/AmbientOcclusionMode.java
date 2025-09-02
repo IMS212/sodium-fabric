@@ -1,6 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.frapi.render;
 
-import net.fabricmc.fabric.api.util.TriState;
+
+import net.minecraft.util.TriState;
 
 public enum AmbientOcclusionMode {
     ENABLED,

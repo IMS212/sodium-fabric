@@ -6,38 +6,27 @@ import net.caffeinemc.mods.sodium.client.model.light.LightPipeline;
 import net.caffeinemc.mods.sodium.client.model.light.LightPipelineProvider;
 import net.caffeinemc.mods.sodium.client.model.light.data.QuadLightData;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.BlockOcclusionCache;
-import net.caffeinemc.mods.sodium.client.render.frapi.SodiumRenderer;
 import net.caffeinemc.mods.sodium.client.render.frapi.helper.ColorHelper;
+import net.caffeinemc.mods.sodium.client.render.frapi.helper.ModelHelper;
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.EncodingFormat;
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
 import net.caffeinemc.mods.sodium.client.services.PlatformModelAccess;
-import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
-import net.fabricmc.fabric.api.renderer.v1.mesh.ShadeMode;
-import net.fabricmc.fabric.api.renderer.v1.model.ModelHelper;
-import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * Base class for the functions that can be shared between the terrain and non-terrain pipelines.
@@ -73,7 +62,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
 
 
 
-    private final BlockEmitter editorQuad = new BlockEmitter();
+    protected final BlockEmitter editorQuad = new BlockEmitter();
 
     /**
      * The world which the block is being rendered in.
@@ -112,12 +101,6 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
     protected boolean useAmbientOcclusion;
     // Default AO mode for model (can be overridden by material property)
     protected LightMode defaultLightMode = LightMode.FLAT;
-
-    @Override
-    public QuadEmitter getEmitter() {
-        this.editorQuad.clear();
-        return this.editorQuad;
-    }
 
     public boolean isFaceCulled(@Nullable Direction face) {
         if (face == null || !this.enableCulling) {
@@ -169,10 +152,10 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
         this.defaultLightMode = this.useAmbientOcclusion && modelAo && (state != null && PlatformBlockAccess.getInstance().getLightEmission(state, level, pos) == 0) ? LightMode.SMOOTH : LightMode.FLAT;
     }
 
-    protected void shadeQuad(MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, ShadeMode shadeMode) {
+    protected void shadeQuad(MutableQuadViewImpl quad, LightMode lightMode, boolean emissive, SodiumShadeMode shadeMode) {
         LightPipeline lighter = this.lighters.getLighter(lightMode);
         QuadLightData data = this.quadLightData;
-        lighter.calculate(quad, this.pos, data, quad.cullFace(), quad.lightFace(), quad.hasShade(), shadeMode == ShadeMode.ENHANCED);
+        lighter.calculate(quad, this.pos, data, quad.cullFace(), quad.lightFace(), quad.hasShade(), shadeMode == SodiumShadeMode.ENHANCED);
 
         if (emissive) {
             for (int i = 0; i < 4; i++) {
@@ -220,7 +203,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
                 // Call processQuad instead of emit for efficiency
                 // (avoid unnecessarily clearing data, trying to apply transforms, and performing cull check again)
 
-                editorQuad.transformAndEmit();
+                editorQuad.emitWithTransformers();
             }
         }
 

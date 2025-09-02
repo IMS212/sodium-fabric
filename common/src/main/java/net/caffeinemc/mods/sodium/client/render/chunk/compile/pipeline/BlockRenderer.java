@@ -23,26 +23,28 @@ import net.caffeinemc.mods.sodium.client.render.chunk.vertex.builder.ChunkMeshBu
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexEncoder;
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.SodiumShadeMode;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
 import net.caffeinemc.mods.sodium.client.services.PlatformModelAccess;
 import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
-import net.fabricmc.fabric.api.renderer.v1.mesh.ShadeMode;
-import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
-import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.TriState;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 public class BlockRenderer extends AbstractBlockRenderContext {
     private final ColorProviderRegistry colorProviderRegistry;
@@ -78,6 +80,8 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         this.slice = null;
     }
 
+    private List<BlockModelPart> parts = new ArrayList<>();
+
     public void renderModel(BlockStateModel model, BlockState state, BlockPos pos, BlockPos origin) {
         this.state = state;
         this.pos = pos;
@@ -100,8 +104,9 @@ public class BlockRenderer extends AbstractBlockRenderContext {
 
 
         random.setSeed(state.getSeed(pos));
-        ((FabricBlockStateModel) model).emitQuads(getEmitter(), this.level, pos, state, this.random, this::isFaceCulled);
-
+        //((FabricBlockStateModel) model).emitQuads(getEmitter(), this.level, pos, state, this.random, this::isFaceCulled);
+        editorQuad.clear();
+        PlatformModelAccess.getInstance().emitModel(model, editorQuad, this.level, pos, state, this.random, this::isFaceCulled, this::bufferDefaultModel, parts);
         this.defaultRenderType = null;
     }
 
@@ -111,12 +116,12 @@ public class BlockRenderer extends AbstractBlockRenderContext {
     @Override
     protected void processQuad(MutableQuadViewImpl quad) {
         final TriState aoMode = quad.ambientOcclusion();
-        final ShadeMode shadeMode = quad.shadeMode();
+        final SodiumShadeMode shadeMode = quad.sodiumShadeMode();
         final LightMode lightMode;
         if (aoMode == TriState.DEFAULT) {
             lightMode = this.defaultLightMode;
         } else {
-            lightMode = this.useAmbientOcclusion && aoMode.get() ? LightMode.SMOOTH : LightMode.FLAT;
+            lightMode = this.useAmbientOcclusion && aoMode != TriState.FALSE ? LightMode.SMOOTH : LightMode.FLAT;
         }
         final boolean emissive = quad.emissive();
 

@@ -1,12 +1,15 @@
 package net.caffeinemc.mods.sodium.fabric.model;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.services.PlatformModelAccess;
 import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
 import net.caffeinemc.mods.sodium.client.services.SodiumModelDataContainer;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
+import net.caffeinemc.sodium.frapi.ExtendedQuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -23,6 +26,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 public class FabricModelAccess implements PlatformModelAccess {
     private static final SodiumModelDataContainer EMPTY_CONTAINER = new SodiumModelDataContainer(Long2ObjectMaps.emptyMap());
@@ -48,7 +52,7 @@ public class FabricModelAccess implements PlatformModelAccess {
     }
 
     @Override
-    public List<BlockModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, QuadEmitter emitter) {
+    public List<BlockModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, MutableQuadViewImpl emitter) {
        if (emitter instanceof AbstractBlockRenderContext.BlockEmitter be) {
            be.cachedList().clear();
            blockStateModel.collectParts(random, be.cachedList());
@@ -56,5 +60,10 @@ public class FabricModelAccess implements PlatformModelAccess {
        } else {
            return blockStateModel.collectParts(random);
        }
+    }
+
+    @Override
+    public void emitModel(BlockStateModel model, AbstractBlockRenderContext.BlockEmitter editorQuad, BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random, Predicate<Direction> isFaceCulled, ModelSupplier bufferDefaultModel, List<BlockModelPart> scratchList) {
+        ((FabricBlockStateModel) model).emitQuads(((ExtendedQuadEmitter) editorQuad).getDuck(), level, pos, state, random, isFaceCulled);
     }
 }

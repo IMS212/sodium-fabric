@@ -16,7 +16,7 @@
 
 package net.caffeinemc.mods.sodium.client.render.frapi.helper;
 
-import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 
@@ -29,16 +29,23 @@ public class TextureHelper {
     private TextureHelper() { }
 
     private static final float NORMALIZER = 1f / 16f;
-
+    private static final int BAKE_ROTATE_NONE = 0;
+    private static final int BAKE_ROTATE_90 = 1;
+    private static final int BAKE_ROTATE_180 = 2;
+    private static final int BAKE_ROTATE_270 = 3;
+    private static final int BAKE_LOCK_UV = 4;
+    private static final int BAKE_FLIP_U = 8;
+    private static final int BAKE_FLIP_V = 16;
+    private static final int BAKE_NORMALIZED = 32;
     /**
      * Bakes textures in the provided vertex data, handling UV locking,
      * rotation, interpolation, etc. Textures must not be already baked.
      */
-    public static void bakeSprite(MutableQuadView quad, TextureAtlasSprite sprite, int bakeFlags) {
-        if (quad.nominalFace() != null && (MutableQuadView.BAKE_LOCK_UV & bakeFlags) != 0) {
+    public static void bakeSprite(MutableQuadViewImpl quad, TextureAtlasSprite sprite, int bakeFlags) {
+        if (quad.nominalFace() != null && (BAKE_LOCK_UV & bakeFlags) != 0) {
             // Assigns normalized UV coordinates based on vertex positions
             applyModifier(quad, UVLOCKERS[quad.nominalFace().get3DDataValue()]);
-        } else if ((MutableQuadView.BAKE_NORMALIZED & bakeFlags) == 0) { // flag is NOT set, UVs are assumed to not be normalized yet as is the default, normalize through dividing by 16
+        } else if ((BAKE_NORMALIZED & bakeFlags) == 0) { // flag is NOT set, UVs are assumed to not be normalized yet as is the default, normalize through dividing by 16
             // Scales from 0-16 to 0-1
             applyModifier(quad, (q, i) -> q.uv(i, q.u(i) * NORMALIZER, q.v(i) * NORMALIZER));
         }
@@ -51,12 +58,12 @@ public class TextureHelper {
             applyModifier(quad, ROTATIONS[rotation]);
         }
 
-        if ((MutableQuadView.BAKE_FLIP_U & bakeFlags) != 0) {
+        if ((BAKE_FLIP_U & bakeFlags) != 0) {
             // Inverts U coordinates.  Assumes normalized (0-1) values.
             applyModifier(quad, (q, i) -> q.uv(i, 1 - q.u(i), q.v(i)));
         }
 
-        if ((MutableQuadView.BAKE_FLIP_V & bakeFlags) != 0) {
+        if ((BAKE_FLIP_V & bakeFlags) != 0) {
             // Inverts V coordinates.  Assumes normalized (0-1) values.
             applyModifier(quad, (q, i) -> q.uv(i, q.u(i), 1 - q.v(i)));
         }
@@ -68,7 +75,7 @@ public class TextureHelper {
      * Faster than sprite method. Sprite computes span and normalizes inputs each call,
      * so we'd have to denormalize before we called, only to have the sprite renormalize immediately.
      */
-    private static void interpolate(MutableQuadView q, TextureAtlasSprite sprite) {
+    private static void interpolate(MutableQuadViewImpl q, TextureAtlasSprite sprite) {
         final float uMin = sprite.getU0();
         final float uSpan = sprite.getU1() - uMin;
         final float vMin = sprite.getV0();
@@ -81,10 +88,10 @@ public class TextureHelper {
 
     @FunctionalInterface
     private interface VertexModifier {
-        void apply(MutableQuadView quad, int vertexIndex);
+        void apply(MutableQuadViewImpl quad, int vertexIndex);
     }
 
-    private static void applyModifier(MutableQuadView quad, VertexModifier modifier) {
+    private static void applyModifier(MutableQuadViewImpl quad, VertexModifier modifier) {
         for (int i = 0; i < 4; i++) {
             modifier.apply(quad, i);
         }

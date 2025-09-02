@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-package net.caffeinemc.mods.sodium.client.render.frapi.render;
+package net.caffeinemc.sodium.frapi;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
-import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
 import net.caffeinemc.mods.sodium.client.render.frapi.helper.ColorHelper;
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableQuadViewImpl;
-import net.caffeinemc.mods.sodium.client.render.immediate.model.BakedModelEncoder;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
+import net.caffeinemc.mods.sodium.client.render.frapi.render.QuadEncoder;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
 import net.fabricmc.fabric.api.renderer.v1.render.BlockVertexConsumerProvider;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
@@ -126,7 +126,7 @@ public class SimpleBlockRenderContext extends AbstractBlockRenderContext {
 
         random.setSeed(42L);
 
-        ((FabricBlockStateModel) model).emitQuads(getEmitter(), blockView, pos, state, random, cullFace -> false);
+        ((FabricBlockStateModel) model).emitQuads((QuadEmitter) editorQuad, blockView, pos, state, random, cullFace -> false);
 
         this.level = null;
         this.state = null;

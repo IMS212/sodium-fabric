@@ -16,7 +16,8 @@
 
 package net.caffeinemc.mods.sodium.client.render.frapi.helper;
 
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
+import net.caffeinemc.mods.sodium.api.util.NormI8;
+import net.caffeinemc.mods.sodium.client.model.quad.ModelQuadView;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -39,7 +40,7 @@ public abstract class GeometryHelper {
      * Does not validate quad winding order.
      * Expects convex quads with all points co-planar.
      */
-    public static boolean isQuadParallelToFace(Direction face, QuadView quad) {
+    public static boolean isQuadParallelToFace(Direction face, ModelQuadView quad) {
         int i = face.getAxis().ordinal();
         final float val = quad.posByIndex(0, i);
         return Mth.equal(val, quad.posByIndex(1, i)) && Mth.equal(val, quad.posByIndex(2, i)) && Mth.equal(val, quad.posByIndex(3, i));
@@ -52,12 +53,15 @@ public abstract class GeometryHelper {
      *
      * <p>Derived from the quad face normal and expects convex quads with all points co-planar.
      */
-    public static Direction lightFace(QuadView quad) {
-        final Vector3fc normal = quad.faceNormal();
-        return switch (GeometryHelper.longestAxis(normal)) {
-            case X -> normal.x() > 0 ? Direction.EAST : Direction.WEST;
-            case Y -> normal.y() > 0 ? Direction.UP : Direction.DOWN;
-            case Z -> normal.z() > 0 ? Direction.SOUTH : Direction.NORTH;
+    public static Direction lightFace(ModelQuadView quad) {
+        final int normal = quad.getFaceNormal();
+        final float normalX = NormI8.unpackX(normal);
+        final float normalY = NormI8.unpackY(normal);
+        final float normalZ = NormI8.unpackZ(normal);
+        return switch (GeometryHelper.longestAxis(normalX, normalY, normalZ)) {
+            case X -> normalX > 0 ? Direction.EAST : Direction.WEST;
+            case Y -> normalY > 0 ? Direction.UP : Direction.DOWN;
+            case Z -> normalZ > 0 ? Direction.SOUTH : Direction.NORTH;
             default ->
                 // handle WTF case
                     Direction.UP;
