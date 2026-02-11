@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.ShadowFeatureRenderer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.phys.AABB;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.caffeinemc.mods.sodium.api.math.MatrixHelper;
@@ -39,7 +40,7 @@ public class ShadowFeatureRendererMixin {
      * @author JellySquid
      * @reason Reduce vertex assembly overhead for shadow rendering
      */
-    @Inject(method = "render", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "renderTranslucent", at = @At("HEAD"), cancellable = true)
     private static void renderShadowPartFast(SubmitNodeCollection submitNodeCollection, MultiBufferSource.BufferSource bufferSource, CallbackInfo ci) {
         VertexConsumer vertices = bufferSource.getBuffer(SHADOW_RENDER_TYPE);
 
@@ -119,6 +120,6 @@ public class ShadowFeatureRendererMixin {
         float yt = MatrixHelper.transformPositionY(matPosition, x, y, z);
         float zt = MatrixHelper.transformPositionZ(matPosition, x, y, z);
 
-        EntityVertex.write(ptr, xt, yt, zt, color, u, v, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, normal);
+        EntityVertex.write(ptr, xt, yt, zt, color, u, v, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, normal);
     }
 }

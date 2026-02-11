@@ -4,7 +4,7 @@ import net.fabricmc.loom.task.RemapSourcesJarTask
 plugins {
     id("multiloader-platform")
 
-    id("fabric-loom") version ("1.13.4")
+    id("net.fabricmc.fabric-loom") version ("1.15.1")
 }
 
 base {
@@ -63,25 +63,18 @@ sourceSets.apply {
 
 dependencies {
     minecraft("com.mojang:minecraft:${BuildConfig.MINECRAFT_VERSION}")
-    mappings(loom.layered {
-        officialMojangMappings()
 
-        if (BuildConfig.PARCHMENT_VERSION != null) {
-            parchment("org.parchmentmc.data:parchment-${BuildConfig.MINECRAFT_VERSION}:${BuildConfig.PARCHMENT_VERSION}@zip")
-        }
-    })
-
-    modImplementation("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
+    implementation("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
 
     fun addEmbeddedFabricModule(name: String) {
         val module = fabricApi.module(name, BuildConfig.FABRIC_API_VERSION)
-        modImplementation(module)
+        implementation(module)
         include(module)
     }
 
     // Fabric API modules
     addEmbeddedFabricModule("fabric-api-base")
-    addEmbeddedFabricModule("fabric-block-view-api-v2")
+    addEmbeddedFabricModule("fabric-block-getter-api-v2")
     addEmbeddedFabricModule("fabric-rendering-v1")
 
     if (BuildConfig.SUPPORT_FRAPI) {
@@ -126,34 +119,17 @@ tasks {
         archiveClassifier.set("api-dev")
         from(configurationApiModJava)
         from(sourceSets.main.get().resources)
-        destinationDirectory.set(file(project.layout.buildDirectory).resolve("devlibs"))
+        destinationDirectory.set(file(rootProject.layout.buildDirectory).resolve("api"))
     }
 
     val apiSourcesJar = register<org.gradle.jvm.tasks.Jar>("apiSourcesJar") {
         archiveClassifier.set("api-sources-dev")
         from(configurationApiModSources)
         from(sourceSets.main.get().resources)
-        destinationDirectory.set(file(project.layout.buildDirectory).resolve("devlibs"))
-    }
-
-    register<RemapJarTask>("remapApiJar") {
-        dependsOn("apiJar")
-        archiveClassifier.set("api")
-        nestedJars.unset()
-        destinationDirectory.set(file(rootProject.layout.buildDirectory).resolve("api"))
-
-        inputFile.set(apiJar.flatMap { it.archiveFile })
-    }
-
-    register<RemapSourcesJarTask>("remapApiSourcesJar") {
-        dependsOn("apiSourcesJar")
-        archiveClassifier.set("api-sources")
         destinationDirectory.set(file(rootProject.layout.buildDirectory).resolve("api-sources"))
-
-        inputFile.set(apiSourcesJar.flatMap { it.archiveFile })
     }
 
-    remapJar {
+    jar {
         destinationDirectory.set(file(rootProject.layout.buildDirectory).resolve("mods"))
     }
 
@@ -180,11 +156,11 @@ publishing {
             artifactId = rootProject.name + "-" + project.name + "-api"
             version = version
 
-            artifact(tasks.named("remapApiJar")) {
+            artifact(tasks.named("apiJar")) {
                 classifier = null
             }
 
-            artifact(tasks.named("remapApiSourcesJar")) {
+            artifact(tasks.named("apiSourcesJar")) {
                 classifier = "sources"
             }
 

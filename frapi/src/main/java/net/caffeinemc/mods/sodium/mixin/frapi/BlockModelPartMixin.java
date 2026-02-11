@@ -5,8 +5,8 @@ import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.ExtendedMutableQua
 import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.MutableQuadViewWrapper;
 import net.caffeinemc.mods.sodium.client.render.model.AbstractBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
-import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockModelPart;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.client.renderer.v1.model.FabricBlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.core.Direction;
 import org.jspecify.annotations.Nullable;

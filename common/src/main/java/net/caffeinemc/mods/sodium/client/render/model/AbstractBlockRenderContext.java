@@ -12,12 +12,12 @@ import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
 import net.caffeinemc.mods.sodium.client.services.PlatformModelAccess;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
@@ -158,7 +158,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
 
         if (emissive) {
             for (int i = 0; i < 4; i++) {
-                quad.setLight(i, LightTexture.FULL_BRIGHT);
+                quad.setLight(i, LightCoordsUtil.FULL_BRIGHT);
             }
         } else {
             int[] lightmaps = data.lm;

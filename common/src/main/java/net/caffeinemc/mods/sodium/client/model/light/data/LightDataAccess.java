@@ -2,9 +2,9 @@ package net.caffeinemc.mods.sodium.client.model.light.data;
 
 import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
@@ -82,9 +82,9 @@ public abstract class LightDataAccess {
                 bl = level.getBrightness(LightLayer.BLOCK, pos);
                 sl = level.getBrightness(LightLayer.SKY, pos);
             } else {
-                int light = LevelRenderer.getLightColor(LevelRenderer.BrightnessGetter.DEFAULT, level, state, pos);
-                bl = LightTexture.block(light);
-                sl = LightTexture.sky(light);
+                int light = LevelRenderer.getLightCoords(LevelRenderer.BrightnessGetter.DEFAULT, level, state, pos);
+                bl = LightCoordsUtil.block(light);
+                sl = LightCoordsUtil.sky(light);
             }
         }
 
@@ -173,7 +173,7 @@ public abstract class LightDataAccess {
      * emissive check.
      */
     public static int getLightmap(int word) {
-        return LightTexture.pack(Math.max(unpackBL(word), unpackLU(word)), unpackSL(word));
+        return LightCoordsUtil.pack(Math.max(unpackBL(word), unpackLU(word)), unpackSL(word));
     }
 
     /**
@@ -185,7 +185,7 @@ public abstract class LightDataAccess {
      */
     public static int getEmissiveLightmap(int word) {
         if (unpackEM(word)) {
-            return LightTexture.FULL_BRIGHT;
+            return LightCoordsUtil.FULL_BRIGHT;
         } else {
             return getLightmap(word);
         }

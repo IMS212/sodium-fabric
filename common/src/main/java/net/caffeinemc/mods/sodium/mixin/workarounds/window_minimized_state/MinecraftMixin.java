@@ -25,7 +25,7 @@ public class MinecraftMixin {
     @Unique
     private final boolean sodium$redirectWindowMinimizedState = Workarounds.isWorkaroundEnabled(Workarounds.Reference.INTEL_FRAMEBUFFER_BLIT_CRASH_WHEN_UNFOCUSED);
 
-    @Redirect(method = "runTick", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/Window;isMinimized()Z"))
+    @Redirect(method = "renderFrame", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/Window;isMinimized()Z"))
     private boolean redirectWindowMinimized(Window window) {
         if (!sodium$redirectWindowMinimizedState) {
             return window.isMinimized();

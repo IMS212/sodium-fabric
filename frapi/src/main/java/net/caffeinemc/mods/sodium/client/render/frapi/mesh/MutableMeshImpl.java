@@ -19,17 +19,17 @@ package net.caffeinemc.mods.sodium.client.render.frapi.mesh;
 import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.ExtendedMutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.EncodingFormat;
 import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
-import net.fabricmc.fabric.api.renderer.v1.mesh.Mesh;
-import net.fabricmc.fabric.api.renderer.v1.mesh.MutableMesh;
-import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.Mesh;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableMesh;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableQuadView;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
 
 import java.util.function.Consumer;
 
 /**
  * Our implementation of {@link MutableMesh}, used for static mesh creation and baking.
  * Not much to it - mainly it just needs to grow the int[] array as quads are appended
- * and maintain/provide a properly-configured {@link net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView} instance.
+ * and maintain/provide a properly-configured {@link net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableQuadView} instance.
  * All the encoding and other work is handled in the quad base classes.
  * The one interesting bit is in {@link MutableQuadViewImpl#emitDirectly()}.
  */

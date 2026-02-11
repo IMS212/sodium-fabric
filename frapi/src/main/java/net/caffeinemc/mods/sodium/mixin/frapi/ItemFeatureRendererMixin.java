@@ -26,7 +26,7 @@ public class ItemFeatureRendererMixin {
     @Unique
     private final ItemRenderContext itemRenderContext = new ItemRenderContext();
 
-    @Inject(method = "render", at = @At("RETURN"))
+    @Inject(method = "renderTranslucent", at = @At("RETURN"))
     private void onReturnRender(SubmitNodeCollection submitNodeCollection, MultiBufferSource.BufferSource bufferSource, OutlineBufferSource outlineBufferSource, CallbackInfo ci) {
         for (MeshItemCommand itemCommand : ((SubmitNodeCollectionExtension) submitNodeCollection).sodium_getMeshItemCommands()) {
             poseStack.pushPose();

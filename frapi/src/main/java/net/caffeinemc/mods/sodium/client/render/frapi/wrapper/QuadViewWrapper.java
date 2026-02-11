@@ -3,9 +3,9 @@ package net.caffeinemc.mods.sodium.client.render.frapi.wrapper;
 import net.caffeinemc.mods.sodium.client.render.model.QuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumQuadAtlas;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumShadeMode;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadAtlas;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
-import net.fabricmc.fabric.api.renderer.v1.mesh.ShadeMode;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadAtlas;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadView;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.ShadeMode;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
@@ -123,7 +123,7 @@ public class QuadViewWrapper implements QuadView {
     }
 
     @Override
-    public @Nullable ChunkSectionLayer renderLayer() {
+    public @Nullable ChunkSectionLayer chunkLayer() {
         return quad.getRenderType();
     }
 
@@ -143,7 +143,7 @@ public class QuadViewWrapper implements QuadView {
     }
 
     @Override
-    public ItemStackRenderState.@Nullable FoilType glint() {
+    public ItemStackRenderState.@Nullable FoilType foilType() {
         return quad.glint();
     }
 

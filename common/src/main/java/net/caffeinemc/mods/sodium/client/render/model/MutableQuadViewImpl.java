@@ -23,7 +23,6 @@ import net.caffeinemc.mods.sodium.client.render.helper.ColorHelper;
 import net.caffeinemc.mods.sodium.client.render.helper.ListStorage;
 import net.caffeinemc.mods.sodium.client.render.helper.TextureHelper;
 import net.caffeinemc.mods.sodium.client.render.texture.SodiumSpriteFinder;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
@@ -106,7 +105,8 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
         TextureAtlasSprite sprite = cachedSprite;
 
         if (sprite == null) {
-            cachedSprite = sprite = finder.find(this);
+            cachedSprite = finder.find(this);
+            sprite = cachedSprite;
         }
 
         return sprite;

@@ -10,6 +10,7 @@
     "conformVisibility": true
   },
   "client": [
+    "core.CommandEncoderAccessor",
     "core.GlCommandEncoderAccessor",
     "core.MinecraftMixin",
     "core.WindowMixin",
@@ -78,7 +79,7 @@
     "features.textures.scan.SpriteContentsMixin",
     "features.textures.scan.TextureAtlasSpriteMixin",
     "workarounds.context_creation.WindowMixin",
-    "workarounds.context_creation.RenderSystemMixin",
+    "workarounds.context_creation.GlBackendMixin",
     "workarounds.event_loop.RenderSystemMixin",
     "workarounds.window_minimized_state.MinecraftMixin"
   ]

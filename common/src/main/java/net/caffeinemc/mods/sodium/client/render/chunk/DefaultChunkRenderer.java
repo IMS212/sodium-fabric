@@ -1,5 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuSampler;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
@@ -28,6 +30,8 @@ import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.Pointer;
 
 import java.util.Iterator;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 public class DefaultChunkRenderer extends ShaderChunkRenderer {
     private final SharedQuadIndexBuffer sharedIndexBuffer;
@@ -52,55 +56,57 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                        FogParameters parameters,
                        boolean indexedRenderingEnabled,
                        GpuSampler terrainSampler) {
-        super.begin(renderPass, parameters, terrainSampler);
+        try (RenderPass _ = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Sodium", renderPass.getTarget().getColorTextureView(), OptionalInt.empty(), renderPass.getTarget().getDepthTextureView(), OptionalDouble.empty())) {
+            super.begin(renderPass, parameters, terrainSampler);
 
-        final boolean useBlockFaceCulling = SodiumClientMod.options().performance.useBlockFaceCulling;
-        final boolean useIndexedTessellation = renderPass.isTranslucent() && indexedRenderingEnabled;
+            final boolean useBlockFaceCulling = SodiumClientMod.options().performance.useBlockFaceCulling;
+            final boolean useIndexedTessellation = renderPass.isTranslucent() && indexedRenderingEnabled;
 
-        ChunkShaderInterface shader = this.activeProgram.getInterface();
-        shader.setProjectionMatrix(matrices.projection());
-        shader.setModelViewMatrix(matrices.modelView());
+            ChunkShaderInterface shader = this.activeProgram.getInterface();
+            shader.setProjectionMatrix(matrices.projection());
+            shader.setModelViewMatrix(matrices.modelView());
 
-        Iterator<ChunkRenderList> iterator = renderLists.iterator(renderPass.isTranslucent());
+            Iterator<ChunkRenderList> iterator = renderLists.iterator(renderPass.isTranslucent());
 
-        while (iterator.hasNext()) {
-            ChunkRenderList renderList = iterator.next();
+            while (iterator.hasNext()) {
+                ChunkRenderList renderList = iterator.next();
 
-            var region = renderList.getRegion();
-            var storage = region.getStorage(renderPass);
+                var region = renderList.getRegion();
+                var storage = region.getStorage(renderPass);
 
-            if (storage == null) {
-                continue;
+                if (storage == null) {
+                    continue;
+                }
+
+                var batch = region.getCachedBatch(renderPass);
+                if (!batch.isFilled) {
+                    fillCommandBuffer(batch, region, storage, renderList, camera, renderPass, useBlockFaceCulling, useIndexedTessellation);
+                }
+
+                if (batch.isEmpty()) {
+                    continue;
+                }
+
+                // When the shared index buffer is being used, we must ensure the storage has been allocated *before*
+                // the tessellation is prepared.
+                if (!useIndexedTessellation) {
+                    this.sharedIndexBuffer.ensureCapacity(commandList, batch.getIndexBufferSize());
+                }
+
+                GlTessellation tessellation;
+
+                if (useIndexedTessellation) {
+                    tessellation = this.prepareIndexedTessellation(commandList, region);
+                } else {
+                    tessellation = this.prepareTessellation(commandList, region);
+                }
+
+                setModelMatrixUniforms(shader, region, camera, region.getResources().prepareChunkData(commandList));
+                executeDrawBatch(commandList, tessellation, batch);
             }
 
-            var batch = region.getCachedBatch(renderPass);
-            if (!batch.isFilled) {
-                fillCommandBuffer(batch, region, storage, renderList, camera, renderPass, useBlockFaceCulling, useIndexedTessellation);
-            }
-
-            if (batch.isEmpty()) {
-                continue;
-            }
-
-            // When the shared index buffer is being used, we must ensure the storage has been allocated *before*
-            // the tessellation is prepared.
-            if (!useIndexedTessellation) {
-                this.sharedIndexBuffer.ensureCapacity(commandList, batch.getIndexBufferSize());
-            }
-
-            GlTessellation tessellation;
-
-            if (useIndexedTessellation) {
-                tessellation = this.prepareIndexedTessellation(commandList, region);
-            } else {
-                tessellation = this.prepareTessellation(commandList, region);
-            }
-
-            setModelMatrixUniforms(shader, region, camera, region.getResources().prepareChunkData(commandList));
-            executeDrawBatch(commandList, tessellation, batch);
+            super.end(renderPass);
         }
-
-        super.end(renderPass);
     }
 
     private static void fillCommandBuffer(MultiDrawBatch batch,

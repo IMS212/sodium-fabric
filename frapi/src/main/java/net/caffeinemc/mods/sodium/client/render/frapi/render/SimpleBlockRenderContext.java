@@ -25,15 +25,15 @@ import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.AbstractBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.render.model.QuadEncoder;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
-import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
-import net.fabricmc.fabric.api.renderer.v1.render.BlockVertexConsumerProvider;
+import net.fabricmc.fabric.api.client.renderer.v1.model.FabricBlockStateModel;
+import net.fabricmc.fabric.api.client.renderer.v1.render.BlockMultiBufferSource;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
@@ -45,7 +45,7 @@ public class SimpleBlockRenderContext extends AbstractBlockRenderContext {
 
     private final RandomSource random = RandomSource.createNewThreadLocalInstance();
 
-    private BlockVertexConsumerProvider vertexConsumers;
+    private BlockMultiBufferSource vertexConsumers;
     private float red;
     private float green;
     private float blue;
@@ -67,7 +67,8 @@ public class SimpleBlockRenderContext extends AbstractBlockRenderContext {
         if (renderLayer == lastRenderLayer) {
             vertexConsumer = lastVertexConsumer;
         } else {
-            lastVertexConsumer = vertexConsumer = vertexConsumers.getBuffer(renderLayer);
+            lastVertexConsumer = vertexConsumers.getBuffer(renderLayer);
+            vertexConsumer = lastVertexConsumer;
             lastRenderLayer = renderLayer;
         }
 
@@ -83,7 +84,7 @@ public class SimpleBlockRenderContext extends AbstractBlockRenderContext {
 
         if (quad.emissive()) {
             for (int i = 0; i < 4; i++) {
-                quad.setLight(i, LightTexture.FULL_BRIGHT);
+                quad.setLight(i, LightCoordsUtil.FULL_BRIGHT);
             }
         } else {
             final int light = this.light;
@@ -98,7 +99,7 @@ public class SimpleBlockRenderContext extends AbstractBlockRenderContext {
         SpriteUtil.INSTANCE.markSpriteActive(quad.sprite(SpriteFinderCache.forBlockAtlas()));
     }
 
-    public void bufferModel(PoseStack.Pose entry, BlockVertexConsumerProvider vertexConsumers, BlockStateModel model, float red, float green, float blue, int light, int overlay, BlockAndTintGetter blockView, BlockPos pos, BlockState state) {
+    public void bufferModel(PoseStack.Pose entry, BlockMultiBufferSource vertexConsumers, BlockStateModel model, float red, float green, float blue, int light, int overlay, BlockAndTintGetter blockView, BlockPos pos, BlockState state) {
         matrices = entry;
         this.overlay = overlay;
 

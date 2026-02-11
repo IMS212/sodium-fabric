@@ -11,7 +11,6 @@ public class DefaultMaterials {
     public static final Material SOLID = new Material(DefaultTerrainRenderPasses.SOLID, AlphaCutoffParameter.ZERO, true);
     public static final Material CUTOUT_MIPPED = new Material(DefaultTerrainRenderPasses.CUTOUT, AlphaCutoffParameter.HALF, true);
     public static final Material TRANSLUCENT = new Material(DefaultTerrainRenderPasses.TRANSLUCENT, AlphaCutoffParameter.TINY, true);
-    public static final Material TRIPWIRE = new Material(DefaultTerrainRenderPasses.TRANSLUCENT, AlphaCutoffParameter.TINY, true);
 
     public static Material forBlockState(BlockState state) {
         return forChunkLayer(ItemBlockRenderTypes.getChunkRenderType(state));
@@ -26,7 +25,6 @@ public class DefaultMaterials {
             case SOLID -> SOLID;
             case CUTOUT -> CUTOUT_MIPPED;
             case TRANSLUCENT -> TRANSLUCENT;
-            case TRIPWIRE -> TRIPWIRE;
         };
     }
 }
