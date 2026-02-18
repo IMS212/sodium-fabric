@@ -2,53 +2,68 @@ package net.caffeinemc.mods.sodium.client.platform.windows.api;
 
 import net.caffeinemc.mods.sodium.client.platform.NativeWindowHandle;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.system.JNI;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.system.SharedLibrary;
 
+import java.lang.foreign.*;
+import java.lang.invoke.MethodHandle;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-import static org.lwjgl.system.APIUtil.apiCreateLibrary;
-import static org.lwjgl.system.APIUtil.apiGetFunctionAddressOptional;
-import static org.lwjgl.system.MemoryUtil.NULL;
-
 public class Shell32 {
-    private static final SharedLibrary LIBRARY = apiCreateLibrary("shell32");
+    private static final Linker LINKER = Linker.nativeLinker();
+    private static final SymbolLookup LIBRARY = SymbolLookup.libraryLookup("shell32", Arena.global());
 
-    private static final long PFN_ShellExecuteW = apiGetFunctionAddressOptional(LIBRARY, "ShellExecuteW");
+    private static final MethodHandle PFN_ShellExecuteW =
+            LIBRARY.find("ShellExecuteW")
+                    .map(addr -> LINKER.downcallHandle(
+                            addr,
+                            FunctionDescriptor.of(
+                                    ValueLayout.ADDRESS,
+                                    ValueLayout.ADDRESS,
+                                    ValueLayout.ADDRESS,
+                                    ValueLayout.ADDRESS,
+                                    ValueLayout.ADDRESS,
+                                    ValueLayout.ADDRESS,
+                                    ValueLayout.JAVA_INT
+                            )
+                    ))
+                    .orElse(null);
 
     public static void browseUrl(@Nullable NativeWindowHandle window, String url) {
         Objects.requireNonNull(url, "URL parameter must be non-null");
 
-        try (var stack = MemoryStack.stackPush()) {
-            stack.nUTF16("open", true);
-            var lpOperation = stack.getPointerAddress();
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment lpOperation = arena.allocateFrom("open", StandardCharsets.UTF_16LE);
+            MemorySegment lpFile = arena.allocateFrom(url, StandardCharsets.UTF_16LE);
 
-            stack.nUTF16(url, true);
-            var lpFile = stack.getPointerAddress();
-
-            nShellExecuteW(window != null ? window.getWin32Handle() : NULL,
+            nShellExecuteW(
+                    window != null ? MemorySegment.ofAddress(window.getWin32Handle()) : MemorySegment.NULL,
                     lpOperation,
                     lpFile,
-                    NULL,
-                    NULL,
-                    0x1 /* SW_NORMAL */);
+                    MemorySegment.NULL,
+                    MemorySegment.NULL,
+                    0x1 /* SW_NORMAL */
+            );
         }
     }
 
-    public static long nShellExecuteW(
-            /* HWND */      long hwnd,
-            /* LPCWSTR */   long lpOperation,
-            /* LPCWSTR */   long lpFile,
-            /* LPCWSTR */   long lpParameters,
-            /* LPCWSTR */   long lpDirectory,
+    public static MemorySegment nShellExecuteW(
+            /* HWND */      MemorySegment hwnd,
+            /* LPCWSTR */   MemorySegment lpOperation,
+            /* LPCWSTR */   MemorySegment lpFile,
+            /* LPCWSTR */   MemorySegment lpParameters,
+            /* LPCWSTR */   MemorySegment lpDirectory,
             /* INT */       int nShowCmd
     ) {
-        return JNI.invokePPPPPP(hwnd, lpOperation, lpFile, lpParameters, lpDirectory, nShowCmd, checkPfn(PFN_ShellExecuteW));
+        try {
+            return (MemorySegment) checkPfn(PFN_ShellExecuteW)
+                    .invokeExact(hwnd, lpOperation, lpFile, lpParameters, lpDirectory, nShowCmd);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private static long checkPfn(long pfn) {
-        if (pfn == NULL) {
+    private static MethodHandle checkPfn(MethodHandle pfn) {
+        if (pfn == null) {
             throw new NullPointerException("Function pointer not available");
         }
 

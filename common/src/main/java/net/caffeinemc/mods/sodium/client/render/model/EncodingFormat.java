@@ -57,7 +57,6 @@ public final class EncodingFormat {
     static final int VERTEX_U;
     static final int VERTEX_V;
     static final int VERTEX_LIGHTMAP;
-    static final int VERTEX_NORMAL;
     public static final int VERTEX_STRIDE;
 
     public static final int QUAD_STRIDE;
@@ -73,7 +72,6 @@ public final class EncodingFormat {
         VERTEX_U = HEADER_STRIDE + 4;
         VERTEX_V = VERTEX_U + 1;
         VERTEX_LIGHTMAP = HEADER_STRIDE + 6;
-        VERTEX_NORMAL = HEADER_STRIDE + 7;
         VERTEX_STRIDE = format.getVertexSize() / 4;
         QUAD_STRIDE = VERTEX_STRIDE * 4;
         QUAD_STRIDE_BYTES = QUAD_STRIDE * 4;

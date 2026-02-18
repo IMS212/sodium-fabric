@@ -44,10 +44,6 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
             renderQuad(this);
         }
 
-        public void markInvalidToDowngrade() {
-            AbstractBlockRenderContext.this.allowDowngrade = false;
-        }
-
         public void emitPart(BlockModelPart part, Predicate<@Nullable Direction> cullTest, Consumer<MutableQuadViewImpl> emitter) {
             AbstractBlockRenderContext.this.bufferDefaultModel(part, cullTest, emitter);
         }
@@ -73,10 +69,6 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
      * The position (in world space) of the block being rendered.
      */
     protected BlockPos pos;
-
-    protected ChunkSectionLayer defaultRenderType;
-
-    protected boolean allowDowngrade;
 
     private final BlockOcclusionCache occlusionCache = new BlockOcclusionCache();
     private boolean enableCulling = true;
@@ -176,9 +168,6 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
         MutableQuadViewImpl editorQuad = this.editorQuad;
         this.prepareAoInfo(part.useAmbientOcclusion());
 
-        ChunkSectionLayer renderType = PlatformModelAccess.getInstance().getPartRenderType(part, state, this.defaultRenderType);
-        ChunkSectionLayer defaultType = this.defaultRenderType;
-        this.defaultRenderType = renderType;
 
         for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
             final Direction cullFace = ModelHelper.faceFromIndex(i);
@@ -188,16 +177,15 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
             }
 
             // TODO NeoForge 1.21.5
-            AmbientOcclusionMode ao = PlatformBlockAccess.getInstance().usesAmbientOcclusion(part, state, renderType, slice, pos);
+            AmbientOcclusionMode ao = PlatformBlockAccess.getInstance().usesAmbientOcclusion(part, state, slice, pos);
 
-            final List<BakedQuad> quads = PlatformModelAccess.getInstance().getQuads(level, pos, part, state, cullFace, random, renderType);
+            final List<BakedQuad> quads = PlatformModelAccess.getInstance().getQuads(level, pos, part, state, cullFace, random);
             final int count = quads.size();
 
             for (int j = 0; j < count; j++) {
                 final BakedQuad q = quads.get(j);
                 editorQuad.fromBakedQuad(q);
                 editorQuad.setCullFace(cullFace);
-                editorQuad.setRenderType(renderType);
                 editorQuad.setAmbientOcclusion(ao.toTriState());
                 // Call processQuad instead of emit for efficiency
                 // (avoid unnecessarily clearing data, trying to apply transforms, and performing cull check again)
@@ -207,7 +195,5 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
         }
 
         editorQuad.clear();
-
-        this.defaultRenderType = defaultType;
     }
 }

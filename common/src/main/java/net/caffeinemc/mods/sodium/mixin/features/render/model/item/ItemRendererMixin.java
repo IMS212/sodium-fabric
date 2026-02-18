@@ -33,44 +33,4 @@ public abstract class ItemRendererMixin {
         throw new AssertionError("Not shadowed");
     }
 
-    /**
-     * @reason Avoid Allocations
-     * @return JellySquid
-     */
-    @WrapOperation(method = "renderItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/ItemRenderer;renderQuadList(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;Ljava/util/List;[III)V"))
-    private static void renderModelFast(PoseStack poseStack, VertexConsumer vertexConsumer, List<BakedQuad> quads, int[] colors, int light, int overlay, Operation<Void> original) {
-        var writer = VertexConsumerUtils.convertOrLog(vertexConsumer);
-
-        if (writer == null) {
-            original.call(poseStack, vertexConsumer, quads, colors, light, overlay);
-            return;
-        }
-
-        // TODO/NOTE: Should .last be a LocalRef?
-        if (!quads.isEmpty()) {
-            renderBakedItemQuads(poseStack.last(), writer, quads, colors, light, overlay);
-        }
-    }
-
-    @Unique
-    @SuppressWarnings("ForLoopReplaceableByForEach")
-    private static void renderBakedItemQuads(PoseStack.Pose matrices, VertexBufferWriter writer, List<BakedQuad> quads, int[] colors, int light, int overlay) {
-        for (int i = 0; i < quads.size(); i++) {
-            BakedQuad bakedQuad = quads.get(i);
-
-            BakedQuadView quad = (BakedQuadView) (Object) bakedQuad;
-
-            int color = 0xFFFFFFFF;
-
-            if (bakedQuad.isTinted()) {
-                color = ColorARGB.toABGR(getLayerColorSafe(colors, bakedQuad.tintIndex()));
-            }
-
-            BakedModelEncoder.writeQuadVertices(writer, matrices, quad, color, light, overlay, BakedModelEncoder.shouldMultiplyAlpha());
-
-            if (quad.getSprite() != null) {
-                SpriteUtil.INSTANCE.markSpriteActive(quad.getSprite());
-            }
-        }
-    }
 }

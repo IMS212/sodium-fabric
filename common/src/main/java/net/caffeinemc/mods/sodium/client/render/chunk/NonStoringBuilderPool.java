@@ -3,12 +3,15 @@ package net.caffeinemc.mods.sodium.client.render.chunk;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import net.minecraft.client.renderer.SectionBufferBuilderPack;
 import net.minecraft.client.renderer.SectionBufferBuilderPool;
 
 public class NonStoringBuilderPool extends SectionBufferBuilderPool {
     public NonStoringBuilderPool() {
-        super(Collections.emptyList());
+        super(List.of(new SectionBufferBuilderPack()));
     }
 
     @Nullable

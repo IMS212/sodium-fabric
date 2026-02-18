@@ -1,66 +1,76 @@
 package net.caffeinemc.mods.sodium.client.platform.windows.api;
 
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.*;
+
+import java.lang.foreign.*;
+import java.lang.invoke.MethodHandle;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 public class Kernel32 {
-    private static final SharedLibrary LIBRARY = APIUtil.apiCreateLibrary("kernel32");
-
     private static final int MAX_PATH = 32767;
 
     private static final int GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT = 1 << 0;
     private static final int GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS = 1 << 2;
 
-    private static final long PFN_GetCommandLineW;
-    private static final long PFN_GetCommandLineA;
-    private static final long PFN_SetEnvironmentVariableW;
+    private static final MethodHandle PFN_GetCommandLineW;
+    private static final MethodHandle PFN_GetCommandLineA;
+    private static final MethodHandle PFN_SetEnvironmentVariableW;
 
-    private static final long PFN_GetModuleHandleExW;
-    private static final long PFN_GetLastError;
+    private static final MethodHandle PFN_GetModuleHandleExW;
+    private static final MethodHandle PFN_GetLastError;
 
-    private static final long PFN_GetModuleFileNameW;
+    private static final MethodHandle PFN_GetModuleFileNameW;
 
 
     static {
-        PFN_GetCommandLineW = APIUtil.apiGetFunctionAddress(LIBRARY, "GetCommandLineW");
-        PFN_GetCommandLineA = APIUtil.apiGetFunctionAddress(LIBRARY, "GetCommandLineA");
-        PFN_SetEnvironmentVariableW = APIUtil.apiGetFunctionAddress(LIBRARY, "SetEnvironmentVariableW");
-        PFN_GetModuleHandleExW = APIUtil.apiGetFunctionAddress(LIBRARY, "GetModuleHandleExW");
-        PFN_GetLastError = APIUtil.apiGetFunctionAddress(LIBRARY, "GetLastError");
-        PFN_GetModuleFileNameW = APIUtil.apiGetFunctionAddress(LIBRARY, "GetModuleFileNameW");
+        Linker linker = Linker.nativeLinker();
+        SymbolLookup kernel = SymbolLookup.libraryLookup("kernel32", Arena.global());
+
+        PFN_GetCommandLineW = linker.downcallHandle(kernel.findOrThrow("GetCommandLineW"), FunctionDescriptor.of(ValueLayout.ADDRESS));
+        PFN_GetCommandLineA = linker.downcallHandle(kernel.findOrThrow("GetCommandLineA"), FunctionDescriptor.of(ValueLayout.ADDRESS));
+        PFN_SetEnvironmentVariableW = linker.downcallHandle(kernel.findOrThrow("SetEnvironmentVariableW"), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+        PFN_GetModuleHandleExW = linker.downcallHandle(kernel.findOrThrow("GetModuleHandleExW"), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+        PFN_GetLastError = linker.downcallHandle(kernel.findOrThrow("GetLastError"), FunctionDescriptor.of(ValueLayout.JAVA_INT));
+        PFN_GetModuleFileNameW = linker.downcallHandle(kernel.findOrThrow("GetModuleFileNameW"), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
     }
 
     public static void setEnvironmentVariable(String name, @Nullable String value) {
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer lpNameBuf = stack.malloc(16, MemoryUtil.memLengthUTF16(name, true));
-            MemoryUtil.memUTF16(name, true, lpNameBuf);
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment nameSeg = arena.allocateFrom(name, StandardCharsets.UTF_16LE);
+            MemorySegment valueSeg = value != null ? arena.allocateFrom(value, StandardCharsets.UTF_16LE) : MemorySegment.NULL;
 
-            ByteBuffer lpValueBuf = null;
+            int result = (int) PFN_SetEnvironmentVariableW.invokeExact(nameSeg, valueSeg);
 
-            if (value != null) {
-                lpValueBuf = stack.malloc(16, MemoryUtil.memLengthUTF16(value, true));
-                MemoryUtil.memUTF16(value, true, lpValueBuf);
+            if (result == 0) {
+                throw new RuntimeException("SetEnvironmentVariableW failed, error=" + getLastError());
             }
-
-            JNI.callPPI(MemoryUtil.memAddress0(lpNameBuf), MemoryUtil.memAddressSafe(lpValueBuf), PFN_SetEnvironmentVariableW);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public static long getCommandLine() {
-        return JNI.callP(PFN_GetCommandLineW);
+    public static MemorySegment getCommandLine() {
+        try {
+            return ((MemorySegment) PFN_GetCommandLineW.invokeExact()).reinterpret(Long.MAX_VALUE);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public static long getCommandLineA() {
-        return JNI.callP(PFN_GetCommandLineA);
+    public static MemorySegment getCommandLineA() {
+        try {
+            return ((MemorySegment) PFN_GetCommandLineA.invokeExact()).reinterpret(Long.MAX_VALUE);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public static long getModuleHandleByNames(String[] names) {
+    public static MemorySegment getModuleHandleByNames(String[] names) {
         for (String name : names) {
             var handle = getModuleHandleByName(name);
 
-            if (handle != MemoryUtil.NULL) {
+            if (handle != MemorySegment.NULL) {
                 return handle;
             }
         }
@@ -68,49 +78,52 @@ public class Kernel32 {
         throw new RuntimeException("Could not obtain handle of module");
     }
 
-    public static long getModuleHandleByName(String name) {
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer lpFunctionNameBuf = stack.malloc(16, MemoryUtil.memLengthUTF16(name, true));
-            MemoryUtil.memUTF16(name, true, lpFunctionNameBuf);
+    public static MemorySegment getModuleHandleByName(String name) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment moduleName = arena.allocateFrom(name, StandardCharsets.UTF_16LE);
+            MemorySegment moduleReturn = arena.allocate(ValueLayout.ADDRESS);
 
-            PointerBuffer phModule = stack.callocPointer(1);
-
-            int result;
-            result = JNI.callPPI(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                    MemoryUtil.memAddress(lpFunctionNameBuf), MemoryUtil.memAddress(phModule), PFN_GetModuleHandleExW);
+            int result = (int) PFN_GetModuleHandleExW.invokeExact(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, moduleName, moduleReturn);
 
             if (result == 0) {
-                var error = getLastError();
-
-                switch (error) {
-                    case 126 /* ERROR_MOD_NOT_FOUND */:
-                        return MemoryUtil.NULL;
-                    default:
-                        throw new RuntimeException("GetModuleHandleEx failed, error=" + error);
+                int error = getLastError();
+                if (error == 126) { // ERROR_MOD_NOT_FOUND
+                    return MemorySegment.NULL;
+                } else {
+                    throw new RuntimeException("GetModuleHandleExW failed, error=" + error);
                 }
             }
 
-            return phModule.get(0);
+            return moduleReturn.get(ValueLayout.ADDRESS, 0);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public static String getModuleFileName(long phModule) {
-        ByteBuffer lpFileName = MemoryUtil.memAlignedAlloc(16, MAX_PATH);
+    public static String getModuleFileName(MemorySegment phModule) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment fileName = arena.allocate(MAX_PATH * 2L); // this wasn't in the last version, but afaik technically needed since WCHAR is 2 bytes
 
-        try {
-            int length = JNI.callPPI(phModule, MemoryUtil.memAddress(lpFileName), lpFileName.capacity(), PFN_GetModuleFileNameW);
+            int length = (int) PFN_GetModuleFileNameW.invokeExact(phModule, fileName, MAX_PATH);
 
             if (length == 0) {
                 throw new RuntimeException("GetModuleFileNameW failed, error=" + getLastError());
             }
 
-            return MemoryUtil.memUTF16(lpFileName, length);
-        } finally {
-            MemoryUtil.memAlignedFree(lpFileName);
+            // can't use getstring since it technically doesn't need to be null terminated?
+            byte[] data = fileName.reinterpret(length * 2L).toArray(ValueLayout.JAVA_BYTE);
+
+            return new String(data, StandardCharsets.UTF_16LE);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
         }
     }
 
     public static int getLastError() {
-        return JNI.callI(PFN_GetLastError);
+        try {
+            return (int) PFN_GetLastError.invokeExact();
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
     }
 }

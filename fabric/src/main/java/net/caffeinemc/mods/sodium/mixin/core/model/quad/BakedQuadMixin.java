@@ -21,7 +21,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(BakedQuad.class)
 public abstract class BakedQuadMixin implements BakedQuadView {
 
-
     @Shadow
     @Final
     private boolean shade;
@@ -33,10 +32,6 @@ public abstract class BakedQuadMixin implements BakedQuadView {
     public abstract Vector3fc position(int i);
 
     @Shadow
-    @Final
-    private TextureAtlasSprite sprite;
-
-    @Shadow
     public abstract long packedUV(int i);
 
     @Shadow
@@ -45,6 +40,12 @@ public abstract class BakedQuadMixin implements BakedQuadView {
     @Shadow
     @Final
     private Direction direction;
+    @Shadow
+    @Final
+    private BakedQuad.SpriteInfo spriteInfo;
+    @Shadow
+    @Final
+    private int lightEmission;
     @Unique
     private int flags;
 
@@ -54,8 +55,13 @@ public abstract class BakedQuadMixin implements BakedQuadView {
     @Unique
     private ModelQuadFacing normalFace = null;
 
+    @Override
+    public int getLightEmission() {
+        return lightEmission;
+    }
+
     @Inject(method = "<init>", at = @At("RETURN"))
-    private void init(Vector3fc vector3fc, Vector3fc vector3fc2, Vector3fc vector3fc3, Vector3fc vector3fc4, long l, long m, long n, long o, int i, Direction direction, TextureAtlasSprite textureAtlasSprite, boolean bl, int j, CallbackInfo ci) {
+    private void init(Vector3fc position0, Vector3fc position1, Vector3fc position2, Vector3fc position3, long packedUV0, long packedUV1, long packedUV2, long packedUV3, int tintIndex, Direction direction, BakedQuad.SpriteInfo spriteInfo, boolean shade, int lightEmission, CallbackInfo ci) {
         this.normal = this.calculateNormal();
         this.normalFace = ModelQuadFacing.fromPackedNormal(this.normal);
 
@@ -94,7 +100,7 @@ public abstract class BakedQuadMixin implements BakedQuadView {
 
     @Override
     public TextureAtlasSprite getSprite() {
-        return this.sprite;
+        return this.spriteInfo.sprite();
     }
 
     @Override

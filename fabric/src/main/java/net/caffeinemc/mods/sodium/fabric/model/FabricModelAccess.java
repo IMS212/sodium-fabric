@@ -25,7 +25,7 @@ public class FabricModelAccess implements PlatformModelAccess {
     private static final SodiumModelDataContainer EMPTY_CONTAINER = new SodiumModelDataContainer(Long2ObjectMaps.emptyMap());
 
     @Override
-    public List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BlockModelPart model, BlockState state, Direction face, RandomSource random, ChunkSectionLayer renderType) {
+    public List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BlockModelPart model, BlockState state, Direction face, RandomSource random) {
         return model.getQuads(face);
     }
 
@@ -37,11 +37,6 @@ public class FabricModelAccess implements PlatformModelAccess {
     @Override
     public SodiumModelData getEmptyModelData() {
         return null;
-    }
-
-    @Override
-    public ChunkSectionLayer getPartRenderType(BlockModelPart part, BlockState state, ChunkSectionLayer renderType) {
-        return renderType;
     }
 
     @Override

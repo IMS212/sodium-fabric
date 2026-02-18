@@ -1,8 +1,6 @@
 package net.caffeinemc.mods.sodium.mixin.features.render.immediate.buffer_builder.intrinsics;
 
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.*;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
@@ -20,13 +18,17 @@ public abstract class BufferBuilderMixin implements VertexConsumer {
     @Final
     private boolean fastFormat;
 
-    @Override
-    public void putBulkData(PoseStack.Pose matrices, BakedQuad bakedQuad, float r, float g, float b, float a, int light, int overlay) {
-        if (!this.fastFormat) {
-            VertexConsumer.super.putBulkData(matrices, bakedQuad, r, g, b, a, light, overlay);
+    @Shadow
+    @Final
+    private boolean fullFormat;
 
-            if (bakedQuad.sprite() != null) {
-                SpriteUtil.INSTANCE.markSpriteActive(bakedQuad.sprite());
+    @Override
+    public void putBulkData(final PoseStack.Pose pose, final BakedQuad bakedQuad, final QuadBrightness brightness, final int color, final QuadLightmapCoords lightmapCoord, final int overlayCoords) {
+        if (!this.fastFormat) {
+            VertexConsumer.super.putBulkData(pose, bakedQuad, brightness, color, lightmapCoord, overlayCoords);
+
+            if (bakedQuad.spriteInfo().sprite() != null) {
+                SpriteUtil.INSTANCE.markSpriteActive(bakedQuad.spriteInfo().sprite());
             }
 
             return;
@@ -36,31 +38,7 @@ public abstract class BufferBuilderMixin implements VertexConsumer {
 
         ModelQuadView quad = (ModelQuadView) (Object) bakedQuad;
 
-        int color = ColorABGR.pack(r, g, b, a);
-        BakedModelEncoder.writeQuadVertices(writer, matrices, quad, color, light, overlay, false);
-
-        if (quad.getSprite() != null) {
-            SpriteUtil.INSTANCE.markSpriteActive(quad.getSprite());
-        }
-    }
-
-    @Override
-    public void putBulkData(PoseStack.Pose matrices, BakedQuad bakedQuad, float[] brightnessTable, float r, float g, float b, float a, int[] light, int overlay) {
-        if (!this.fastFormat) {
-            VertexConsumer.super.putBulkData(matrices, bakedQuad, brightnessTable, r, g, b, a, light, overlay);
-
-            if (bakedQuad.sprite() != null) {
-                SpriteUtil.INSTANCE.markSpriteActive(bakedQuad.sprite());
-            }
-
-            return;
-        }
-
-        VertexBufferWriter writer = VertexBufferWriter.of(this);
-
-        ModelQuadView quad = (ModelQuadView) (Object) bakedQuad;
-
-        BakedModelEncoder.writeQuadVertices(writer, matrices, quad, r, g, b, a, brightnessTable, light, overlay);
+        BakedModelEncoder.writeQuadVertices(writer, pose, quad, color, brightness, lightmapCoord, overlayCoords, this.fullFormat);
 
         if (quad.getSprite() != null) {
             SpriteUtil.INSTANCE.markSpriteActive(quad.getSprite());

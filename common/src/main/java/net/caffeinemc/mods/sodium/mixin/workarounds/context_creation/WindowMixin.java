@@ -59,7 +59,7 @@ public class WindowMixin {
 
         // Capture the current WGL context so that we can detect it being replaced later.
         if (Util.getPlatform() == Util.OS.WINDOWS) {
-            wglPrevContext = WGL.wglGetCurrentContext();
+            wglPrevContext = WGL.wglGetCurrentContext(null);
         } else {
             wglPrevContext = MemoryUtil.NULL;
         }
@@ -77,7 +77,7 @@ public class WindowMixin {
             return;
         }
 
-        var context = WGL.wglGetCurrentContext();
+        var context = WGL.wglGetCurrentContext(null);
 
         if (wglPrevContext == context) {
             // The context has not changed.

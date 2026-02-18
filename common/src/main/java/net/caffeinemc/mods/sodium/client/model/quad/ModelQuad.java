@@ -152,4 +152,9 @@ public class ModelQuad implements ModelQuadViewMutable {
     public int getMaxLightQuad(int idx) {
         return getLight(idx);
     }
+
+    @Override
+    public int getLightEmission() {
+        return 0;
+    }
 }

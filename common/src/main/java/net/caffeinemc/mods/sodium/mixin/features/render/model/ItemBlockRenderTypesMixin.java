@@ -17,16 +17,10 @@ public class ItemBlockRenderTypesMixin {
     @Mutable
     @Shadow
     @Final
-    private static Map<Block, RenderType> TYPE_BY_BLOCK;
-
-    @Mutable
-    @Shadow
-    @Final
     private static Map<Fluid, RenderType> LAYER_BY_FLUID;
 
     static {
         // Replace the backing collection types with something a bit faster, since this is a hot spot in chunk rendering.
-        TYPE_BY_BLOCK = new Reference2ReferenceOpenHashMap<>(TYPE_BY_BLOCK);
         LAYER_BY_FLUID = new Reference2ReferenceOpenHashMap<>(LAYER_BY_FLUID);
     }
 }

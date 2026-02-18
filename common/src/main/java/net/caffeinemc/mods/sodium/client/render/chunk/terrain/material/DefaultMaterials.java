@@ -12,10 +12,6 @@ public class DefaultMaterials {
     public static final Material CUTOUT_MIPPED = new Material(DefaultTerrainRenderPasses.CUTOUT, AlphaCutoffParameter.HALF, true);
     public static final Material TRANSLUCENT = new Material(DefaultTerrainRenderPasses.TRANSLUCENT, AlphaCutoffParameter.TINY, true);
 
-    public static Material forBlockState(BlockState state) {
-        return forChunkLayer(ItemBlockRenderTypes.getChunkRenderType(state));
-    }
-
     public static Material forFluidState(FluidState state) {
         return forChunkLayer(ItemBlockRenderTypes.getRenderLayer(state));
     }

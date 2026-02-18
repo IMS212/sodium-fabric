@@ -74,7 +74,7 @@ public interface PlatformBlockAccess {
      * @param pos The current position
      * @return If ambient occlusion is forced, or {@code DEFAULT}
      */
-    AmbientOcclusionMode usesAmbientOcclusion(BlockModelPart model, BlockState state, ChunkSectionLayer renderType, BlockAndTintGetter level, BlockPos pos);
+    AmbientOcclusionMode usesAmbientOcclusion(BlockModelPart model, BlockState state, BlockAndTintGetter level, BlockPos pos);
 
     /**
      * @param blockEntity The block entity to check.

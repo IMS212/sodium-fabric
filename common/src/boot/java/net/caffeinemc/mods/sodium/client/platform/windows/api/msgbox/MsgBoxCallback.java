@@ -1,33 +1,34 @@
 package net.caffeinemc.mods.sodium.client.platform.windows.api.msgbox;
 
-import org.lwjgl.system.Callback;
+import java.lang.foreign.Arena;
+import java.lang.foreign.Linker;
+import java.lang.foreign.MemorySegment;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
-public abstract class MsgBoxCallback extends Callback implements MsgBoxCallbackI {
-    public static MsgBoxCallback create(MsgBoxCallbackI instance) {
-        if (instance instanceof MsgBoxCallback callback) {
-            return callback;
+public class MsgBoxCallback {
+    private final MemorySegment callbackHandle;
+    private static final MethodHandle TARGET;
+
+    static {
+        try {
+            TARGET = MethodHandles.lookup()
+                    .findVirtual(MsgBoxCallbackI.class, "invoke", MethodType.methodType(void.class, MemorySegment.class));
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw new RuntimeException(e);
         }
-
-        return new Container(instance.address(), instance);
     }
 
-    private MsgBoxCallback(long functionPointer) {
-        super(functionPointer);
+    private MsgBoxCallback(MemorySegment callbackHandle) {
+        this.callbackHandle = callbackHandle;
     }
 
-    private static final class Container extends MsgBoxCallback {
+    public MemorySegment callbackHandle() {
+        return callbackHandle;
+    }
 
-        private final MsgBoxCallbackI delegate;
-
-        Container(long functionPointer, MsgBoxCallbackI delegate) {
-            super(functionPointer);
-
-            this.delegate = delegate;
-        }
-
-        @Override
-        public void invoke(long lpHelpInfo) {
-            this.delegate.invoke(lpHelpInfo);
-        }
+    public static MsgBoxCallback create(Arena arena, MsgBoxCallbackI instance) {
+        return new MsgBoxCallback(Linker.nativeLinker().upcallStub(TARGET.bindTo(instance), MsgBoxCallbackI.MSGBOX_CALLBACK_DESC, arena));
     }
 }

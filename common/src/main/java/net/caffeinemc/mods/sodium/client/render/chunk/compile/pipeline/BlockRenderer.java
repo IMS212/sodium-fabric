@@ -51,6 +51,7 @@ public class BlockRenderer extends AbstractBlockRenderContext {
     @Nullable
     private ColorProvider<BlockState> colorProvider;
     private TranslucentGeometryCollector collector;
+    private boolean forceOpaque;
 
     public BlockRenderer(ColorProviderRegistry colorRegistry, LightPipelineProvider lighters) {
         this.colorProviderRegistry = colorRegistry;
@@ -90,14 +91,12 @@ public class BlockRenderer extends AbstractBlockRenderContext {
 
         this.prepareCulling(true);
 
-        this.defaultRenderType = ItemBlockRenderTypes.getChunkRenderType(state);
-        this.allowDowngrade = true;
-
-
         random.setSeed(state.getSeed(pos));
+
+        this.forceOpaque = ItemBlockRenderTypes.forceOpaque(state);
         PlatformModelEmitter.getInstance().emitModel(model, this::isFaceCulled, getForEmitting(), random, level, pos, state, this::bufferDefaultModel);
 
-        this.defaultRenderType = null;
+        this.forceOpaque = false;
     }
 
     /**
@@ -116,7 +115,7 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         final boolean emissive = quad.emissive();
 
         final ChunkSectionLayer blendMode = quad.getRenderType();
-        final Material material = DefaultMaterials.forChunkLayer(blendMode == null ? defaultRenderType : blendMode);
+        final Material material = DefaultMaterials.forChunkLayer(forceOpaque ? ChunkSectionLayer.SOLID : blendMode);
 
         this.tintQuad(quad);
         this.shadeQuad(quad, lightMode, emissive, shadeMode);
@@ -171,21 +170,11 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         // attempt render pass downgrade if possible
         var pass = material.pass;
 
-        var downgradedPass = attemptPassDowngrade(atlasSprite, pass);
-        if (downgradedPass != null) {
-            pass = downgradedPass;
-        }
-
         // collect all translucent quads into the translucency sorting system if enabled,
         // and discard the quad if it's invalid (i.e. not visible)
         if (pass.isTranslucent() && this.collector != null &&
                 this.collector.appendQuad(vertices, normalFace, quad.getFaceNormal())) {
             return;
-        }
-
-        // if there was a downgrade from translucent to cutout, the material bits' alpha cutoff needs to be updated
-        if (downgradedPass != null && material == DefaultMaterials.TRANSLUCENT && pass == DefaultTerrainRenderPasses.CUTOUT) {
-            materialBits = MaterialParameters.pack(AlphaCutoffParameter.HALF, material.mipped);
         }
 
         ChunkModelBuilder builder = this.buffers.get(pass);
@@ -215,52 +204,4 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         return true;
     }
 
-    private @Nullable TerrainRenderPass attemptPassDowngrade(TextureAtlasSprite sprite, TerrainRenderPass pass) {
-        if (!allowDowngrade || Workarounds.isWorkaroundEnabled(Workarounds.Reference.INTEL_DEPTH_BUFFER_COMPARISON_UNRELIABLE)) {
-            return null;
-        }
-
-        boolean attemptDowngrade = true;
-        boolean hasNonOpaqueVertex = false;
-
-        for (int i = 0; i < 4; i++) {
-            hasNonOpaqueVertex |= ColorABGR.unpackAlpha(this.vertices[i].color) != 0xFF;
-        }
-
-        // don't do downgrade if some vertex is not fully opaque
-        if (pass.isTranslucent() && hasNonOpaqueVertex) {
-            attemptDowngrade = false;
-        }
-
-        if (attemptDowngrade) {
-            attemptDowngrade = validateQuadUVs(sprite);
-        }
-
-        if (attemptDowngrade) {
-            return getDowngradedPass(sprite, pass);
-        }
-
-        return null;
-    }
-
-    private static TerrainRenderPass getDowngradedPass(TextureAtlasSprite sprite, TerrainRenderPass pass) {
-        if (sprite instanceof TextureAtlasSpriteExtension spriteExt) {
-            // Some mods may use a custom ticker which we cannot look into. To avoid problems with these mods,
-            // do not attempt to downgrade the render pass.
-            if (spriteExt.sodium$hasUnknownImageContents()) {
-                return pass;
-            }
-
-            if (sprite.contents() instanceof SpriteContentsExtension contentsExt) {
-                if (pass == DefaultTerrainRenderPasses.TRANSLUCENT && !contentsExt.sodium$hasTranslucentPixels()) {
-                    pass = DefaultTerrainRenderPasses.CUTOUT;
-                }
-                if (pass == DefaultTerrainRenderPasses.CUTOUT && !contentsExt.sodium$hasTransparentPixels()) {
-                    pass = DefaultTerrainRenderPasses.SOLID;
-                }
-            }
-        }
-
-        return pass;
-    }
 }

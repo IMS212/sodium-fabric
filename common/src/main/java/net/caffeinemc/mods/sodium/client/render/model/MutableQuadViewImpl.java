@@ -164,7 +164,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
 
     public MutableQuadViewImpl setNormal(int vertexIndex, float x, float y, float z) {
         normalFlags(normalFlags() | (1 << vertexIndex));
-        data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_NORMAL] = NormI8.pack(x, y, z);
+        this.normal[vertexIndex] = NormI8.pack(x, y, z);
         return this;
     }
 
@@ -180,7 +180,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
 
         for (int v = 0; v < 4; v++) {
             if ((normalFlags & (1 << v)) == 0) {
-                data[baseIndex + v * VERTEX_STRIDE + VERTEX_NORMAL] = packedFaceNormal;
+                normal[v] = packedFaceNormal;
             }
         }
 
@@ -288,6 +288,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
         setDiffuseShade(quad.shade());
         setTintIndex(quad.tintIndex());
         setAmbientOcclusion(((BakedQuadView) (Object) quad).hasAO() ? TriState.DEFAULT : TriState.FALSE); // TODO: TRUE, or DEFAULT?
+        setRenderType(quad.spriteInfo().layer());
 
         setEmissive(quad.lightEmission() == 15);
 
@@ -300,14 +301,14 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
         data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(headerBits, bakedView.getFlags());
         isGeometryInvalid = false;
 
-        SodiumQuadAtlas atlas = SodiumQuadAtlas.of(quad.sprite().atlasLocation());
+        SodiumQuadAtlas atlas = SodiumQuadAtlas.of(quad.spriteInfo().sprite().atlasLocation());
 
         if (atlas == null) {
             atlas = SodiumQuadAtlas.BLOCK;
         }
 
         setQuadAtlas(atlas);
-        cachedSprite(quad.sprite());
+        cachedSprite(quad.spriteInfo().sprite());
         return this;
     }
 

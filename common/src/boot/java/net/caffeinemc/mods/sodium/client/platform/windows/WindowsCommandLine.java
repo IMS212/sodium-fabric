@@ -1,9 +1,12 @@
 package net.caffeinemc.mods.sodium.client.platform.windows;
 
 import net.caffeinemc.mods.sodium.client.platform.windows.api.Kernel32;
-import org.lwjgl.system.MemoryUtil;
+
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 public class WindowsCommandLine {
@@ -16,17 +19,20 @@ public class WindowsCommandLine {
 
         // Pointer into the command-line arguments stored within the Windows process structure
         // We do not own this memory, and it should not be freed.
-        var pCmdline = Kernel32.getCommandLine();
-        var pCmdlineA = Kernel32.getCommandLineA();
+        MemorySegment pCmdline  = Kernel32.getCommandLine();
+        MemorySegment pCmdlineA = Kernel32.getCommandLineA();
 
         // The original command-line the process was started with.
-        var cmdline = MemoryUtil.memUTF16(pCmdline);
-        var cmdlineLen = MemoryUtil.memLengthUTF16(cmdline, true);
+        String cmdline = pCmdline.getString(0, StandardCharsets.UTF_16LE);
+        int cmdlineLen = (cmdline.length() + 1) * 2;
 
-        var cmdlineA = MemoryUtil.memASCII(pCmdlineA);
-        var cmdLineLenA = MemoryUtil.memLengthASCII(cmdlineA, true);
+        // refer to lower comment about ANSI :(
+        Charset ansi = Charset.defaultCharset();
+        String cmdlineA = pCmdlineA.getString(0, ansi);
+        int cmdLineLenA = cmdlineA.getBytes(ansi).length + 1;
 
-        if (MemoryUtil.memLengthUTF16(modifiedCmdline, true) > cmdlineLen) {
+        byte[] modifiedUtf16 = modifiedCmdline.getBytes(StandardCharsets.UTF_16LE);
+        if (modifiedUtf16.length + 2 > cmdlineLen) {
             // We can never write a string which is larger than what we were given, as there
             // may not be enough space remaining. Realistically, this should never happen, since
             // our identifying string is very short, and the command line is *at least* going to contain
@@ -34,30 +40,29 @@ public class WindowsCommandLine {
             throw new BufferOverflowException();
         }
 
-        if (MemoryUtil.memLengthASCII(modifiedCmdline, true) > cmdLineLenA) {
+        byte[] modifiedAnsi = modifiedCmdline.getBytes(ansi);
+        if (modifiedAnsi.length + 1 > cmdLineLenA) {
             throw new BufferOverflowException();
         }
-
-        ByteBuffer buffer = MemoryUtil.memByteBuffer(pCmdline, cmdlineLen);
-        ByteBuffer bufferA = MemoryUtil.memByteBuffer(pCmdlineA, cmdLineLenA);
 
         // Write the new command line arguments into the process structure.
         // The Windows API documentation explicitly says this is forbidden, but it *does* give us a pointer
         // directly into the PEB structure, so...
-        MemoryUtil.memUTF16(modifiedCmdline, true, buffer);
-        MemoryUtil.memASCII(modifiedCmdline, true, bufferA);
+        pCmdline.setString(0, modifiedCmdline, StandardCharsets.UTF_16LE);
+        pCmdlineA.setString(0, modifiedCmdline, ansi);
 
         // Make sure we can actually see our changes in the process structure
         // We don't know if this could ever actually happen, but since we're doing something pretty hacky
         // it's not out of the question that Windows might try to prevent it in a newer version.
-        if (!Objects.equals(modifiedCmdline, MemoryUtil.memUTF16(pCmdline))) {
+        if (!Objects.equals(modifiedCmdline, pCmdline.getString(0, StandardCharsets.UTF_16LE))) {
             throw new RuntimeException("Sanity check failed, the command line arguments did not appear to change");
         }
-        if (!Objects.equals(modifiedCmdline, MemoryUtil.memASCII(pCmdlineA))) {
+        if (!Objects.equals(modifiedCmdline, pCmdlineA.getString(0, ansi))) {
             throw new RuntimeException("Sanity check failed, the command line arguments did not appear to change");
         }
 
-        ACTIVE_COMMAND_LINE_HOOK = new CommandLineHook(cmdline, cmdlineA, buffer, bufferA);
+        ACTIVE_COMMAND_LINE_HOOK = new CommandLineHook(cmdline, cmdlineA, cmdlineLen, cmdLineLenA);
+
     }
 
     public static void resetCommandLine() {
@@ -70,16 +75,16 @@ public class WindowsCommandLine {
     private static class CommandLineHook {
         private final String cmdline;
         private final String cmdlineA;
-        private final ByteBuffer cmdlineBuf;
-        private final ByteBuffer cmdlineBufA;
+        private final int cmdlineLen;
+        private final int cmdlineLenA;
 
         private boolean active = true;
 
-        private CommandLineHook(String cmdline, String cmdlineA, ByteBuffer cmdlineBuf, ByteBuffer cmdlineBufA) {
+        private CommandLineHook(String cmdline, String cmdlineA, int cmdlineLen, int cmdlineLenA) {
             this.cmdline = cmdline;
             this.cmdlineA = cmdlineA;
-            this.cmdlineBuf = cmdlineBuf;
-            this.cmdlineBufA = cmdlineBufA;
+            this.cmdlineLen = cmdlineLen;
+            this.cmdlineLenA = cmdlineLenA;
         }
 
         public void uninstall() {
@@ -89,8 +94,26 @@ public class WindowsCommandLine {
 
             // Restore the original value of the command line arguments
             // Must be null-terminated (as it was given to us)
-            MemoryUtil.memUTF16(this.cmdline, true, this.cmdlineBuf);
-            MemoryUtil.memASCII(this.cmdlineA, true, this.cmdlineBufA);
+            MemorySegment pCmdline = Kernel32.getCommandLine();
+            MemorySegment pCmdlineA = Kernel32.getCommandLineA();
+
+            try (Arena arena = Arena.ofConfined()) {
+                MemorySegment srcUtf16 =
+                        arena.allocateFrom(this.cmdline, StandardCharsets.UTF_16LE);
+
+                pCmdline.asSlice(0, srcUtf16.byteSize())
+                        .copyFrom(srcUtf16);
+
+                // UTF-8 is supposedly defaultCharset, from what I can find. However, it seems to work for all cases of GetCommandLineA that matter here.
+                // Is it guaranteed? Probably not.
+                // Does anything use GetCommandLineA? Probably not!
+                // Have I made sure it works...? Yes. Well, as of 26H2. There is that "beta: use UTF-8" feature that might either fix it or break everything.
+                // so if you're reading this ten years from now, the answer is: Probably not!
+                Charset ansi = Charset.defaultCharset();
+                MemorySegment srcAnsi = arena.allocateFrom(this.cmdlineA, ansi);
+
+                pCmdlineA.asSlice(0, srcAnsi.byteSize()).copyFrom(srcAnsi);
+            }
 
             this.active = false;
         }

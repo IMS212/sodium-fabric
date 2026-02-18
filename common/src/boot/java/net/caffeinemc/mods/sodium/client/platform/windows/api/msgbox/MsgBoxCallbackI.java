@@ -1,34 +1,13 @@
 package net.caffeinemc.mods.sodium.client.platform.windows.api.msgbox;
 
-import org.jspecify.annotations.NonNull;
-import org.lwjgl.system.CallbackI;
-import org.lwjgl.system.NativeType;
-import org.lwjgl.system.libffi.FFICIF;
 
-import static org.lwjgl.system.APIUtil.apiCreateCIF;
-import static org.lwjgl.system.MemoryUtil.memGetAddress;
-import static org.lwjgl.system.libffi.LibFFI.*;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 
 @FunctionalInterface
-@NativeType("MSGBOXCALLBACK")
-public interface MsgBoxCallbackI extends CallbackI {
-    FFICIF CIF = apiCreateCIF(
-            FFI_DEFAULT_ABI,
-            ffi_type_void,
-            ffi_type_pointer
-    );
+public interface MsgBoxCallbackI {
+    FunctionDescriptor MSGBOX_CALLBACK_DESC = FunctionDescriptor.ofVoid(ValueLayout.ADDRESS); // LPHELPINFO
 
-    @Override
-    default @NonNull FFICIF getCallInterface() {
-        return CIF;
-    }
-
-    @Override
-    default void callback(long ret, long args) {
-        this.invoke(
-                memGetAddress(memGetAddress(args)) /* lpHelpInfo */
-        );
-    }
-
-    void invoke(@NativeType("LPHELPINFO *") long lpHelpInfo);
+    void invoke(MemorySegment lpHelpInfo);
 }

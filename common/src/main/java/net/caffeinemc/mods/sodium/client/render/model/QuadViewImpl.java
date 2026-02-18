@@ -51,6 +51,7 @@ public class QuadViewImpl implements ModelQuadView {
 
     /** Beginning of the quad. Also, the header index. */
     public int baseIndex = 0;
+    protected int[] normal = new int[4];
 
     /**
      * Decodes necessary state from the backing data array.
@@ -159,27 +160,23 @@ public class QuadViewImpl implements ModelQuadView {
         return (normalFlags() & 0b1111) == 0b1111;
     }
 
-    protected final int normalIndex(int vertexIndex) {
-        return baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_NORMAL;
-    }
-
     /**
      * This method will only return a meaningful value if {@link #hasNormal} returns {@code true} for the same vertex index.
      */
     public int packedNormal(int vertexIndex) {
-        return data[normalIndex(vertexIndex)];
+        return normal[vertexIndex];
     }
 
     public float normalX(int vertexIndex) {
-        return hasNormal(vertexIndex) ? NormI8.unpackX(data[normalIndex(vertexIndex)]) : Float.NaN;
+        return hasNormal(vertexIndex) ? NormI8.unpackX(normal[vertexIndex]) : Float.NaN;
     }
 
     public float normalY(int vertexIndex) {
-        return hasNormal(vertexIndex) ? NormI8.unpackY(data[normalIndex(vertexIndex)]) : Float.NaN;
+        return hasNormal(vertexIndex) ? NormI8.unpackY(normal[vertexIndex]) : Float.NaN;
     }
 
     public float normalZ(int vertexIndex) {
-        return hasNormal(vertexIndex) ? NormI8.unpackZ(data[normalIndex(vertexIndex)]) : Float.NaN;
+        return hasNormal(vertexIndex) ? NormI8.unpackZ(normal[vertexIndex]) : Float.NaN;
     }
 
     @Nullable
@@ -189,7 +186,7 @@ public class QuadViewImpl implements ModelQuadView {
                 target = new Vector3f();
             }
 
-            final int normal = data[normalIndex(vertexIndex)];
+            final int normal = this.normal[vertexIndex];
             NormI8.unpack(normal, target);
             return target;
         } else {
@@ -276,7 +273,7 @@ public class QuadViewImpl implements ModelQuadView {
 
     @Override
     public int getVertexNormal(int idx) {
-        return data[normalIndex(idx)];
+        return normal[idx];
     }
 
     @Override
@@ -308,6 +305,11 @@ public class QuadViewImpl implements ModelQuadView {
     @Override
     public int getMaxLightQuad(int idx) {
         return getLight(idx);
+    }
+
+    @Override
+    public int getLightEmission() {
+        return 0;
     }
 
     @Override

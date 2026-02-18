@@ -1,97 +1,99 @@
 package net.caffeinemc.mods.sodium.client.platform.windows.api.msgbox;
 
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.system.Pointer;
-import org.lwjgl.system.Struct;
 
-import java.nio.ByteBuffer;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 
-public class MsgBoxParamSw extends Struct<MsgBoxParamSw> {
-    public static final int SIZEOF;
-    public static final int ALIGNOF;
-    public static final int
-            OFFSET_CB_SIZE,
-            OFFSET_HWND_OWNER,
-            OFFSET_HINSTANCE,
-            OFFSET_LPSZ_TEXT,
-            OFFSET_LPSZ_CAPTION,
-            OFFSET_DW_STYLE,
-            OFFSET_LPSZ_ICON,
-            OFFSET_DW_CONTEXT_HELP_ID,
-            OFFSET_LPFN_MSG_BOX_CALLBACK,
-            OFFSET_DW_LANGUAGE_ID;
+public final class MsgBoxParamSw {
+    // The magical padding struct.
+    // ...don't touch it.
+    public static final MemoryLayout LAYOUT = MemoryLayout.structLayout(
+            ValueLayout.JAVA_INT.withName("cbSize"),
+            MemoryLayout.paddingLayout(4),
 
-    static {
-        Layout layout = __struct(
-                __member(Integer.BYTES),         /* cbSize */
-                __member(Pointer.POINTER_SIZE),  /* hwndOwner */
-                __member(Pointer.POINTER_SIZE),  /* hInstance */
-                __member(Pointer.POINTER_SIZE),  /* lpszText */
-                __member(Pointer.POINTER_SIZE),  /* lpszCaption */
-                __member(Integer.BYTES),         /* dwStyle */
-                __member(Pointer.POINTER_SIZE),  /* lpszIcon */
-                __member(Pointer.POINTER_SIZE),  /* dwContextHelpId */
-                __member(Pointer.POINTER_SIZE),  /* lpfnMsgBoxCallback */
-                __member(Integer.BYTES)          /* dwLangaugeId */
-        );
+            ValueLayout.ADDRESS.withName("hwndOwner"),
+            ValueLayout.ADDRESS.withName("hInstance"),
+            ValueLayout.ADDRESS.withName("lpszText"),
+            ValueLayout.ADDRESS.withName("lpszCaption"),
+            ValueLayout.JAVA_INT.withName("dwStyle"),
+            MemoryLayout.paddingLayout(4),
 
-        SIZEOF = layout.getSize();
-        ALIGNOF = layout.getAlignment();
+            ValueLayout.ADDRESS.withName("lpszIcon"),
+            ValueLayout.ADDRESS.withName("dwContextHelpId"),
+            ValueLayout.ADDRESS.withName("lpfnMsgBoxCallback"),
+            ValueLayout.JAVA_INT.withName("dwLanguageId"),
+            MemoryLayout.paddingLayout(4)
+            );
 
-        OFFSET_CB_SIZE = layout.offsetof(0);
-        OFFSET_HWND_OWNER = layout.offsetof(1);
-        OFFSET_HINSTANCE = layout.offsetof(2);
-        OFFSET_LPSZ_TEXT = layout.offsetof(3);
-        OFFSET_LPSZ_CAPTION = layout.offsetof(4);
-        OFFSET_DW_STYLE = layout.offsetof(5);
-        OFFSET_LPSZ_ICON = layout.offsetof(6);
-        OFFSET_DW_CONTEXT_HELP_ID = layout.offsetof(7);
-        OFFSET_LPFN_MSG_BOX_CALLBACK = layout.offsetof(8);
-        OFFSET_DW_LANGUAGE_ID = layout.offsetof(9);
+    private static final long OFFSET_CB_SIZE = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("cbSize"));
+    private static final long OFFSET_HWND_OWNER = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("hwndOwner"));
+    private static final long OFFSET_HINSTANCE = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("hInstance"));
+    private static final long OFFSET_LPSZ_TEXT = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("lpszText"));
+    private static final long OFFSET_LPSZ_CAPTION = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("lpszCaption"));
+    private static final long OFFSET_DW_STYLE = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("dwStyle"));
+    private static final long OFFSET_LPSZ_ICON = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("lpszIcon"));
+    private static final long OFFSET_DW_CONTEXT_HELP_ID = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("dwContextHelpId"));
+    private static final long OFFSET_LPFN_MSG_BOX_CALLBACK = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("lpfnMsgBoxCallback"));
+    private static final long OFFSET_DW_LANGUAGE_ID = LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("dwLanguageId"));
+
+    public static final int SIZEOF = (int) LAYOUT.byteSize();
+
+    private final MemorySegment segment;
+
+    private MsgBoxParamSw(MemorySegment segment) {
+        this.segment = segment;
     }
 
-    public static MsgBoxParamSw allocate(MemoryStack stack) {
-        return new MsgBoxParamSw(stack.ncalloc(ALIGNOF, 1, SIZEOF), null);
+    public static MsgBoxParamSw allocate(Arena arena) {
+        MemorySegment seg = arena.allocate(LAYOUT);
+        return new MsgBoxParamSw(seg);
     }
 
-    private MsgBoxParamSw(long address, @Nullable ByteBuffer container) {
-        super(address, container);
-    }
-
-    @Override
-    protected @NonNull MsgBoxParamSw create(long address, ByteBuffer container) {
-        return new MsgBoxParamSw(address, container);
-    }
-
-    @Override
-    public int sizeof() {
-        return SIZEOF;
+    public MemorySegment segment() {
+        return segment;
     }
 
     public void setCbSize(int size) {
-        MemoryUtil.memPutInt(this.address + OFFSET_CB_SIZE, size);
+        segment.set(ValueLayout.JAVA_INT, OFFSET_CB_SIZE, size);
     }
 
-    public void setHWndOwner(long hWnd) {
-        MemoryUtil.memPutAddress(this.address + OFFSET_HWND_OWNER, hWnd);
+    public void setHWndOwner(MemorySegment hWnd) {
+        segment.set(ValueLayout.ADDRESS, OFFSET_HWND_OWNER, hWnd);
     }
 
-    public void setText(ByteBuffer buffer) {
-        MemoryUtil.memPutAddress(this.address + OFFSET_LPSZ_TEXT, MemoryUtil.memAddress(buffer));
+    public void setHInstance(MemorySegment hInstance) {
+        segment.set(ValueLayout.ADDRESS, OFFSET_HINSTANCE, hInstance);
     }
 
-    public void setCaption(ByteBuffer buffer) {
-        MemoryUtil.memPutAddress(this.address + OFFSET_LPSZ_CAPTION, MemoryUtil.memAddress(buffer));
+    public void setText(MemorySegment text) {
+        segment.set(ValueLayout.ADDRESS, OFFSET_LPSZ_TEXT, text);
+    }
+
+    public void setCaption(MemorySegment caption) {
+        segment.set(ValueLayout.ADDRESS, OFFSET_LPSZ_CAPTION, caption);
     }
 
     public void setStyle(int style) {
-        MemoryUtil.memPutInt(this.address + OFFSET_DW_STYLE, style);
+        segment.set(ValueLayout.JAVA_INT, OFFSET_DW_STYLE, style);
     }
 
-    public void setCallback(@Nullable MsgBoxCallbackI callback) {
-        MemoryUtil.memPutAddress(this.address + OFFSET_LPFN_MSG_BOX_CALLBACK, callback == null ? MemoryUtil.NULL : callback.address());
+    public void setIcon(MemorySegment icon) {
+        segment.set(ValueLayout.ADDRESS, OFFSET_LPSZ_ICON, icon);
+    }
+
+    public void setContextHelpId(MemorySegment helpId) {
+        segment.set(ValueLayout.ADDRESS, OFFSET_DW_CONTEXT_HELP_ID, helpId);
+    }
+
+    public void setCallback(@Nullable MemorySegment callback) {
+        segment.set(ValueLayout.ADDRESS, OFFSET_LPFN_MSG_BOX_CALLBACK,
+                callback == null ? MemorySegment.NULL : callback);
+    }
+
+    public void setLanguageId(int langId) {
+        segment.set(ValueLayout.JAVA_INT, OFFSET_DW_LANGUAGE_ID, langId);
     }
 }

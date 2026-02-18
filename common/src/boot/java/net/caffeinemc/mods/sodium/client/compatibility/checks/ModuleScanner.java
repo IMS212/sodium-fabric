@@ -11,6 +11,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -140,7 +141,7 @@ public class ModuleScanner {
     }
 
     private static @Nullable WindowsFileVersion findRTSSModuleVersion() {
-        long module;
+        MemorySegment module;
 
         try {
             module = Kernel32.getModuleHandleByNames(RTSS_HOOKS_MODULE_NAMES);

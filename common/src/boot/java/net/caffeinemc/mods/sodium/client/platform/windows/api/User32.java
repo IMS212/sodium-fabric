@@ -1,21 +1,28 @@
 package net.caffeinemc.mods.sodium.client.platform.windows.api;
 
 import net.caffeinemc.mods.sodium.client.platform.windows.api.msgbox.MsgBoxParamSw;
-import org.lwjgl.system.APIUtil;
-import org.lwjgl.system.JNI;
-import org.lwjgl.system.SharedLibrary;
 
-import static org.lwjgl.system.APIUtil.apiGetFunctionAddress;
+import java.lang.foreign.*;
+import java.lang.invoke.MethodHandle;
 
 public class User32 {
-    private static final SharedLibrary LIBRARY = APIUtil.apiCreateLibrary("user32");
+    private static final MethodHandle PFN_MessageBoxIndirectW;
 
-    private static final long PFN_MessageBoxIndirectW = apiGetFunctionAddress(LIBRARY, "MessageBoxIndirectW");
+    static {
+        Linker linker = Linker.nativeLinker();
+        SymbolLookup kernel = SymbolLookup.libraryLookup("user32", Arena.global());
+
+        PFN_MessageBoxIndirectW = linker.downcallHandle(kernel.findOrThrow("MessageBoxIndirectW"), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+    }
 
     /**
      * @see <a href="https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messageboxw>Winuser.h Documentation</a>
      */
     public static void callMessageBoxIndirectW(MsgBoxParamSw params) {
-        JNI.callPI(params.address(), PFN_MessageBoxIndirectW);
+        try {
+            int returns = (int) PFN_MessageBoxIndirectW.invokeExact(params.segment());
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
     }
 }
