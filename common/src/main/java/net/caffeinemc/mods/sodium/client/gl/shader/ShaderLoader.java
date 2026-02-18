@@ -17,17 +17,8 @@ public class ShaderLoader {
     private static final boolean OPTION_DEBUG_SHADERS =
             Objects.equal(System.getProperty("sodium.debug.shaders.dump", "false"), "true");
 
-    /**
-     * Creates an OpenGL shader from GLSL sources. The GLSL source file should be made available on the classpath at the
-     * path of `/assets/{namespace}/shaders/{path}`. User defines can be used to declare variables in the shader source
-     * after the version header, allowing for conditional compilation with macro code.
-     *
-     * @param type The type of shader to create
-     * @param name The identifier used to locate the shader source file
-     * @param constants A list of constants for shader specialization
-     * @return An OpenGL shader object compiled with the given user defines
-     */
-    public static GlShader loadShader(ShaderType type, Identifier name, ShaderConstants constants) {
+
+    public static LoadedShader loadShaderSource(ShaderType type, Identifier name, ShaderConstants constants) {
         var parsedShader = ShaderParser.parseShader(getShaderSource(name), constants);
 
         if (OPTION_DEBUG_SHADERS) {
@@ -35,7 +26,7 @@ public class ShaderLoader {
             LOGGER.info(parsedShader.src());
         }
 
-        return new GlShader(type, name, parsedShader);
+        return new LoadedShader(type, name, parsedShader);
     }
 
     public static String getShaderSource(Identifier name) {
@@ -50,5 +41,8 @@ public class ShaderLoader {
         } catch (IOException e) {
             throw new RuntimeException("Failed to read shader source for " + path, e);
         }
+    }
+
+    public record LoadedShader(ShaderType type, Identifier name, ShaderParser.ParsedShader parsedShader) {
     }
 }

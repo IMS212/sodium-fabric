@@ -7,8 +7,6 @@ import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.objects.*;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.BuilderTaskOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkSortOutput;
@@ -41,6 +39,8 @@ import net.caffeinemc.mods.sodium.client.render.viewport.Viewport;
 import net.caffeinemc.mods.sodium.client.services.PlatformRuntimeInformation;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import net.caffeinemc.mods.sodium.client.util.MathUtil;
+import net.caffeinemc.mods.sodium.client.vk.VulkanContext;
+import net.caffeinemc.mods.sodium.client.vk.commands.CommandList;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
 import net.caffeinemc.mods.sodium.client.world.cloned.ClonedChunkSectionCache;
@@ -122,7 +122,7 @@ public class RenderSectionManager {
     public RenderSectionManager(ClientLevel level, int renderDistance, SortBehavior sortBehavior, CommandList commandList) {
         this.meshTaskSizeEstimator = new MeshTaskSizeEstimator(level);
 
-        this.chunkRenderer = new DefaultChunkRenderer(RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
+        this.chunkRenderer = new DefaultChunkRenderer(ChunkMeshFormats.COMPACT);
 
         this.level = level;
         this.builder = new ChunkBuilder(level, ChunkMeshFormats.COMPACT);
@@ -314,7 +314,7 @@ public class RenderSectionManager {
     }
 
     public void renderLayer(ChunkRenderMatrices matrices, TerrainRenderPass pass, double x, double y, double z, FogParameters fogParameters, GpuSampler terrainSampler) {
-        RenderDevice device = RenderDevice.INSTANCE;
+        VulkanContext device = VulkanContext.INSTANCE;
         CommandList commandList = device.createCommandList();
 
         this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z), fogParameters, this.sortBehavior != SortBehavior.OFF, terrainSampler);
@@ -417,7 +417,7 @@ public class RenderSectionManager {
         var filtered = filterChunkBuildResults(results);
 
         var start = System.nanoTime();
-        this.regions.uploadResults(RenderDevice.INSTANCE.createCommandList(), filtered);
+        this.regions.uploadResults(VulkanContext.INSTANCE.createCommandList(), filtered);
         var uploadDuration = System.nanoTime() - start;
 
         boolean touchedSectionInfo = false;
@@ -540,6 +540,7 @@ public class RenderSectionManager {
     public void cleanupAndFlip() {
         this.sectionCache.cleanup();
         this.regions.update();
+        VulkanContext.INSTANCE.advanceFrame();
     }
 
     public void updateChunks(boolean updateImmediately) {
@@ -723,10 +724,11 @@ public class RenderSectionManager {
         this.sectionsWithGlobalEntities.clear();
         this.resetRenderLists();
 
-        try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
+        try (CommandList commandList = VulkanContext.INSTANCE.createCommandList()) {
             this.regions.delete(commandList);
             this.chunkRenderer.delete(commandList);
         }
+        VulkanContext.INSTANCE.flushDeferredBufferDeletes();
     }
 
     public int getTotalSections() {

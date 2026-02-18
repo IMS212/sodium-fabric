@@ -1,137 +1,217 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.shader;
 
-import com.mojang.blaze3d.opengl.GlSampler;
-import com.mojang.blaze3d.opengl.GlStateManager;
-import com.mojang.blaze3d.opengl.GlTexture;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
-import com.mojang.blaze3d.textures.GpuTextureView;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
-import net.caffeinemc.mods.sodium.client.gl.device.GLRenderDevice;
-import net.caffeinemc.mods.sodium.client.gl.shader.uniform.*;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.impl.CompactChunkVertex;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
+import net.caffeinemc.mods.sodium.client.vk.VulkanContext;
+import net.caffeinemc.mods.sodium.client.vk.pipeline.VkGraphicsPipeline;
 import net.caffeinemc.mods.sodium.mixin.core.render.texture.TextureAtlasAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.TextureFilteringMethod;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import org.joml.Matrix4fc;
-import org.lwjgl.opengl.GL32C;
-import org.lwjgl.opengl.GL33C;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.vulkan.*;
 
-import java.util.EnumMap;
-import java.util.Map;
-
-/**
- * A forward-rendering shader program for chunks.
- */
 public class DefaultShaderInterface implements ChunkShaderInterface {
-    private final Map<ChunkShaderTextureSlot, GlUniformInt> uniformTextures;
+    public static final int PUSH_CONSTANT_SIZE = 200;
 
-    private final GlUniformMatrix4f uniformModelViewMatrix;
-    private final GlUniformMatrix4f uniformProjectionMatrix;
-    private final GlUniformFloat3v uniformRegionOffset;
-    private final GlUniformFloat2v uniformTexCoordShrink;
-    private final GlUniformFloat2v uniformTexelSize;
-    private final GlUniformBool uniformRGSS;
-    private final GlUniformInt uniformCurrentTime;
-    private final GlUniformFloat uniformFadePeriod;
+    private static final int OFFSET_PROJECTION_MATRIX = 0;
+    private static final int OFFSET_MODEL_VIEW_MATRIX = 64;
+    private static final int OFFSET_REGION_X = 128;
+    private static final int OFFSET_REGION_Y = 132;
+    private static final int OFFSET_REGION_Z = 136;
+    private static final int OFFSET_CURRENT_TIME = 140;
+    private static final int OFFSET_FADE_PERIOD_INV = 144;
+    private static final int OFFSET_FOG_R = 148;
+    private static final int OFFSET_FOG_G = 152;
+    private static final int OFFSET_FOG_B = 156;
+    private static final int OFFSET_FOG_A = 160;
+    private static final int OFFSET_ENV_FOG_START = 164;
+    private static final int OFFSET_ENV_FOG_END = 168;
+    private static final int OFFSET_RENDER_FOG_START = 172;
+    private static final int OFFSET_RENDER_FOG_END = 176;
+    private static final int OFFSET_TEXCOORD_SHRINK_X = 180;
+    private static final int OFFSET_TEXCOORD_SHRINK_Y = 184;
+    private static final int OFFSET_TEXEL_SIZE_X = 188;
+    private static final int OFFSET_TEXEL_SIZE_Y = 192;
+    private static final int OFFSET_USE_RGSS = 196;
 
-    private final GlUniformBlock uniformChunkData;
+    private final VkGraphicsPipeline pipeline;
+    private final long pcs = MemoryUtil.nmemAlloc(PUSH_CONSTANT_SIZE);
 
-    // The fog shader component used by this program in order to set up the appropriate GL state
-    private final ChunkShaderFogComponent fogShader;
+    private long blockTextureImageView;
+    private long lightTextureImageView;
+    private long textureSampler;
+    private long chunkDataBuffer;
 
-    public DefaultShaderInterface(ShaderBindingContext context, ChunkShaderOptions options) {
-        this.uniformModelViewMatrix = context.bindUniform("u_ModelViewMatrix", GlUniformMatrix4f::new);
-        this.uniformProjectionMatrix = context.bindUniform("u_ProjectionMatrix", GlUniformMatrix4f::new);
-        this.uniformRegionOffset = context.bindUniform("u_RegionOffset", GlUniformFloat3v::new);
-        this.uniformTexCoordShrink = context.bindUniform("u_TexCoordShrink", GlUniformFloat2v::new);
-        this.uniformTexelSize = context.bindUniform("u_TexelSize", GlUniformFloat2v::new);
-        this.uniformRGSS = context.bindUniform("u_UseRGSS", GlUniformBool::new);
-
-        this.uniformCurrentTime = context.bindUniform("u_CurrentTime", GlUniformInt::new);
-        this.uniformFadePeriod = context.bindUniform("u_FadePeriodInv", GlUniformFloat::new);
-
-        this.uniformChunkData = context.bindUniformBlock("ChunkData", 0);
-
-        this.uniformTextures = new EnumMap<>(ChunkShaderTextureSlot.class);
-        this.uniformTextures.put(ChunkShaderTextureSlot.BLOCK, context.bindUniform("u_BlockTex", GlUniformInt::new));
-        this.uniformTextures.put(ChunkShaderTextureSlot.LIGHT, context.bindUniform("u_LightTex", GlUniformInt::new));
-
-        this.fogShader = options.fog().getFactory().apply(context);
+    public DefaultShaderInterface(VkGraphicsPipeline pipeline, ChunkShaderOptions options) {
+        this.pipeline = pipeline;
     }
 
-    @Override // the shader interface should not modify pipeline state
+    @Override
     public void setupState(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler) {
-        this.bindTexture(ChunkShaderTextureSlot.BLOCK, pass.getAtlas(), terrainSampler);
-        this.bindTexture(ChunkShaderTextureSlot.LIGHT, Minecraft.getInstance().gameRenderer.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+        VkCommandBuffer commandBuffer = VulkanContext.INSTANCE.currentCommandBuffer();
+        if (commandBuffer == null) {
+            return;
+        }
+
+        VK13.vkCmdBindPipeline(commandBuffer, VK13.VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipeline.pipeline());
+
+        int width = Minecraft.getInstance().getWindow().getWidth();
+        int height = Minecraft.getInstance().getWindow().getHeight();
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            VkViewport.Buffer viewport = VkViewport.calloc(1, stack);
+            viewport.get(0).x(0.0f).y(0.0f).width(width).height(height).minDepth(0.0f).maxDepth(1.0f);
+            VK13.vkCmdSetViewport(commandBuffer, 0, viewport);
+
+            VkRect2D.Buffer scissor = VkRect2D.calloc(1, stack);
+            scissor.get(0).offset().set(0, 0);
+            scissor.get(0).extent().set(width, height);
+            VK13.vkCmdSetScissor(commandBuffer, 0, scissor);
+        }
 
         var textureAtlas = (TextureAtlasAccessor) Minecraft.getInstance()
                 .getTextureManager()
                 .getTexture(TextureAtlas.LOCATION_BLOCKS);
 
-        // There is a limited amount of sub-texel precision when using hardware texture sampling. The mapped texture
-        // area must be "shrunk" by at least one sub-texel to avoid bleed between textures in the atlas. And since we
-        // offset texture coordinates in the vertex format by one texel, we also need to undo that here.
-        double subTexelPrecision = (1 << GLRenderDevice.INSTANCE.getSubTexelPrecisionBits());
-        double subTexelOffset = 1.0f / CompactChunkVertex.TEXTURE_MAX_VALUE;
+        double subTexelPrecision = 256.0;
+        double subTexelOffset = 1.0 / CompactChunkVertex.TEXTURE_MAX_VALUE;
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_TEXCOORD_SHRINK_X, (float) (subTexelOffset - (((1.0D / textureAtlas.getWidth()) / subTexelPrecision))));
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_TEXCOORD_SHRINK_Y, (float) (subTexelOffset - (((1.0D / textureAtlas.getHeight()) / subTexelPrecision))));
 
-        this.uniformTexCoordShrink.set(
-                (float) (subTexelOffset - (((1.0D / textureAtlas.getWidth()) / subTexelPrecision))),
-                (float) (subTexelOffset - (((1.0D / textureAtlas.getHeight()) / subTexelPrecision)))
-        );
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_FADE_PERIOD_INV, (float) (1.0 / (Minecraft.getInstance().options.chunkSectionFadeInTime().get() * 1000.0)));
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_FOG_R, parameters.red());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_FOG_G, parameters.green());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_FOG_B, parameters.blue());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_FOG_A, parameters.alpha());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_ENV_FOG_START, parameters.environmentalStart());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_ENV_FOG_END, parameters.environmentalEnd());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_RENDER_FOG_START, parameters.renderStart());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_RENDER_FOG_END, parameters.renderEnd());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_TEXEL_SIZE_X, 1.0f / textureAtlas.getWidth());
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_TEXEL_SIZE_Y, 1.0f / textureAtlas.getHeight());
+        MemoryUtil.memPutInt(this.pcs + OFFSET_USE_RGSS, Minecraft.getInstance().options.textureFiltering().get() == TextureFilteringMethod.RGSS ? 1 : 0);
 
-        this.uniformTexelSize.set(
-                1.0f / textureAtlas.getWidth(),
-                1.0f / textureAtlas.getHeight()
-        );
-
-        uniformFadePeriod.setFloat((float) (1.0 / (Minecraft.getInstance().options.chunkSectionFadeInTime().get() * 1000.0))); // this is in seconds!
-
-        this.uniformRGSS.setBool(Minecraft.getInstance().options.textureFiltering().get() == TextureFilteringMethod.RGSS);
-
-        this.fogShader.setup(parameters);
-    }
-
-    @Override // the shader interface should not modify pipeline state
-    public void resetState() {
-        // This is used by alternate implementations.
-    }
-
-    @Deprecated(forRemoval = true) // should be handled properly in GFX instead.
-    private void bindTexture(ChunkShaderTextureSlot slot, GpuTextureView textureView, GpuSampler sampler) {
-        GlTexture tex = (GlTexture) textureView.texture();
-        GlStateManager._activeTexture(GL32C.GL_TEXTURE0 + slot.ordinal());
-        GlStateManager._bindTexture(tex.glId());
-        GlStateManager._texParameter(GL32C.GL_TEXTURE_2D, 33084, textureView.baseMipLevel());
-        GlStateManager._texParameter(GL32C.GL_TEXTURE_2D, 33085, textureView.baseMipLevel() + textureView.mipLevels() - 1);
-        GL33C.glBindSampler(slot.ordinal(), ((GlSampler) sampler).getId());
-
-        var uniform = this.uniformTextures.get(slot);
-        uniform.setInt(slot.ordinal());
+        this.pushThoseConstants(commandBuffer);
     }
 
     @Override
-    public void setChunkData(GlBuffer data, int time) {
-        uniformChunkData.bindBuffer(data);
-        uniformCurrentTime.set(time);
+    public void resetState() {
     }
 
     @Override
     public void setProjectionMatrix(Matrix4fc matrix) {
-        this.uniformProjectionMatrix.set(matrix);
+        matrix.getToAddress(this.pcs + OFFSET_PROJECTION_MATRIX);
     }
 
     @Override
     public void setModelViewMatrix(Matrix4fc matrix) {
-        this.uniformModelViewMatrix.set(matrix);
+        matrix.getToAddress(this.pcs + OFFSET_MODEL_VIEW_MATRIX);
     }
 
     @Override
     public void setRegionOffset(float x, float y, float z) {
-        this.uniformRegionOffset.set(x, y, z);
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_REGION_X, x);
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_REGION_Y, y);
+        MemoryUtil.memPutFloat(this.pcs + OFFSET_REGION_Z, z);
+    }
+
+    @Override
+    public void setChunkData(long buffer, int time) {
+        this.chunkDataBuffer = buffer;
+        MemoryUtil.memPutInt(this.pcs + OFFSET_CURRENT_TIME, time);
+    }
+
+    public long getChunkDataBuffer() {
+        return this.chunkDataBuffer;
+    }
+
+    public void uploadPushConstants() {
+        VkCommandBuffer commandBuffer = VulkanContext.INSTANCE.currentCommandBuffer();
+        if (commandBuffer == null) {
+            return;
+        }
+
+        this.uploadPushConstants(commandBuffer);
+    }
+
+    @Override
+    public void setDescriptorHandles(long blockTextureImageView, long lightTextureImageView, long textureSampler) {
+        this.blockTextureImageView = blockTextureImageView;
+        this.lightTextureImageView = lightTextureImageView;
+        this.textureSampler = textureSampler;
+    }
+
+    private void uploadPushConstants(VkCommandBuffer commandBuffer) {
+        this.pushThoseConstants(commandBuffer);
+        this.pushThoseObjects(commandBuffer);
+    }
+
+    private void pushThoseConstants(VkCommandBuffer commandBuffer) {
+        VK10.nvkCmdPushConstants(
+                commandBuffer,
+                this.pipeline.layout(),
+                VK13.VK_SHADER_STAGE_ALL,
+                0,
+                PUSH_CONSTANT_SIZE,
+                this.pcs
+        );
+    }
+
+    private void pushThoseObjects(VkCommandBuffer commandBuffer) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            VkDescriptorImageInfo.Buffer blockTextureInfo = VkDescriptorImageInfo.calloc(1, stack);
+            blockTextureInfo.get(0)
+                    .sampler(this.textureSampler)
+                    .imageView(this.blockTextureImageView)
+                    .imageLayout(VK13.VK_IMAGE_LAYOUT_GENERAL);
+
+            VkDescriptorImageInfo.Buffer lightTextureInfo = VkDescriptorImageInfo.calloc(1, stack);
+            lightTextureInfo.get(0)
+                    .sampler(this.textureSampler)
+                    .imageView(this.lightTextureImageView)
+                    .imageLayout(VK13.VK_IMAGE_LAYOUT_GENERAL);
+
+            VkDescriptorBufferInfo.Buffer chunkDataInfo = VkDescriptorBufferInfo.calloc(1, stack);
+            chunkDataInfo.get(0)
+                    .buffer(this.chunkDataBuffer)
+                    .offset(0L)
+                    .range(VK13.VK_WHOLE_SIZE);
+
+            VkWriteDescriptorSet.Buffer descriptorWrites = VkWriteDescriptorSet.calloc(3, stack);
+
+            descriptorWrites.get(0)
+                    .sType$Default()
+                    .dstBinding(0)
+                    .descriptorCount(1)
+                    .descriptorType(VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    .pImageInfo(blockTextureInfo);
+
+            descriptorWrites.get(1)
+                    .sType$Default()
+                    .dstBinding(1)
+                    .descriptorCount(1)
+                    .descriptorType(VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    .pImageInfo(lightTextureInfo);
+
+            descriptorWrites.get(2)
+                    .sType$Default()
+                    .dstBinding(2)
+                    .descriptorCount(1)
+                    .descriptorType(VK13.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                    .pBufferInfo(chunkDataInfo);
+
+            KHRPushDescriptor.vkCmdPushDescriptorSetKHR(
+                    commandBuffer,
+                    VK13.VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    this.pipeline.layout(),
+                    0,
+                    descriptorWrites
+            );
+        }
     }
 }

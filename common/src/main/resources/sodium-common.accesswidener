@@ -16,3 +16,4 @@ accessible class net/minecraft/client/renderer/CloudRenderer$RelativeCameraPos
 
 accessible field net/minecraft/world/level/GrassColor pixels [I
 accessible field net/minecraft/world/level/FoliageColor pixels [I
+accessible field com/mojang/blaze3d/systems/GpuDevice backend Lcom/mojang/blaze3d/systems/GpuDeviceBackend;

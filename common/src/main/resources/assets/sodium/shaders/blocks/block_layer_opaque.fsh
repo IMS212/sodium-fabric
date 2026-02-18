@@ -1,26 +1,25 @@
-#version 330 core
+#version 460 core
+#extension GL_EXT_scalar_block_layout : require
 
 #import <sodium:include/fog.glsl>
 #import <sodium:include/chunk_material.glsl>
+#import <sodium:include/push_constants.glsl>
 
-in vec4 v_Color; // The interpolated vertex color
-in vec2 v_TexCoord; // The interpolated block texture coordinates
-in vec2 v_FragDistance; // The fragment's distance from the camera (cylindrical and spherical)
-in float fadeFactor;
+layout(location = 0) in vec4 v_Color; // The interpolated vertex color
+layout(location = 1) in vec2 v_TexCoord; // The interpolated block texture coordinates
 
-flat in uint v_Material;
+#ifdef USE_FOG
+layout(location = 3) in vec2 v_FragDistance; // The fragment's distance from the camera (cylindrical and spherical)
+layout(location = 4) in float fadeFactor;
+#endif
 
-uniform sampler2D u_BlockTex; // The block texture
+layout(location = 2) flat in uint v_Material;
 
-uniform vec4 u_FogColor; // The color of the shader fog
-uniform vec2 u_EnvironmentFog; // The start and end position for environmental fog
-uniform vec2 u_RenderFog; // The start and end position for border fog
-uniform vec2 u_TexelSize;
-uniform bool u_UseRGSS;
+layout(set = 0, binding = 0) uniform sampler2D u_BlockTex; // The block texture
 
-out vec4 fragColor; // The output fragment for the color framebuffer
+layout(location = 0) out vec4 fragColor; // The output fragment for the color framebuffer
 
-vec4 sampleNearest(sampler2D sampler, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv, vec2 texelScreenSize) {
+vec4 sampleNearest(sampler2D samplers, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv, vec2 texelScreenSize) {
     // Convert our UV back up to texel coordinates and find out how far over we are from the center of each pixel
     vec2 uvTexelCoords = uv / pixelSize;
     vec2 texelCenter = round(uvTexelCoords) - 0.5f;
@@ -31,7 +30,7 @@ vec4 sampleNearest(sampler2D sampler, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv,
     texelOffset = clamp(texelOffset, 0.0f, 1.0f);
 
     uv = (texelCenter + texelOffset) * pixelSize;
-    return textureGrad(sampler, uv, du, dv);
+    return textureGrad(samplers, uv, du, dv);
 }
 
 vec4 sampleNearest(sampler2D source, vec2 uv, vec2 pixelSize) {
@@ -93,5 +92,9 @@ void main() {
     }
 #endif
 
+#ifdef USE_FOG
     fragColor = _linearFog(color, v_FragDistance, u_FogColor, u_EnvironmentFog, u_RenderFog, fadeFactor);
+#else
+    fragColor = color;
+#endif
 }

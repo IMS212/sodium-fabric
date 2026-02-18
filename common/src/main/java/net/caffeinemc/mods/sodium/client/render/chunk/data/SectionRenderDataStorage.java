@@ -1,9 +1,8 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.data;
 
-import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferArena;
-import net.caffeinemc.mods.sodium.client.gl.arena.GlBufferSegment;
-import net.caffeinemc.mods.sodium.client.gl.arena.PendingUpload;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
+import net.caffeinemc.mods.sodium.client.vk.arena.PendingUpload;
+import net.caffeinemc.mods.sodium.client.vk.arena.VkBufferArena;
+import net.caffeinemc.mods.sodium.client.vk.arena.VkBufferSegment;
 import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import net.caffeinemc.mods.sodium.client.render.chunk.SharedQuadIndexBuffer;
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
@@ -34,9 +33,9 @@ import java.util.stream.Stream;
  * updated independently of each other (in both directions).
  */
 public class SectionRenderDataStorage {
-    private final @Nullable GlBufferSegment[] vertexAllocations;
-    private final @Nullable GlBufferSegment @Nullable [] elementAllocations;
-    private @Nullable GlBufferSegment sharedIndexAllocation;
+    private final @Nullable VkBufferSegment[] vertexAllocations;
+    private final @Nullable VkBufferSegment @Nullable [] elementAllocations;
+    private @Nullable VkBufferSegment sharedIndexAllocation;
     private int sharedIndexCapacity = 0;
     private boolean needsSharedIndexUpdate = false;
     private final int[] sharedIndexUsage = new int[RenderRegion.REGION_SIZE];
@@ -44,10 +43,10 @@ public class SectionRenderDataStorage {
     private final long pMeshDataArray;
 
     public SectionRenderDataStorage(boolean storesIndices) {
-        this.vertexAllocations = new GlBufferSegment[RenderRegion.REGION_SIZE];
+        this.vertexAllocations = new VkBufferSegment[RenderRegion.REGION_SIZE];
 
         if (storesIndices) {
-            this.elementAllocations = new GlBufferSegment[RenderRegion.REGION_SIZE];
+            this.elementAllocations = new VkBufferSegment[RenderRegion.REGION_SIZE];
         } else {
             this.elementAllocations = null;
         }
@@ -55,8 +54,8 @@ public class SectionRenderDataStorage {
         this.pMeshDataArray = SectionRenderDataUnsafe.allocateHeap(RenderRegion.REGION_SIZE);
     }
 
-    public void setVertexData(int localSectionIndex, GlBufferSegment allocation, int[] vertexSegments) {
-        GlBufferSegment prev = this.vertexAllocations[localSectionIndex];
+    public void setVertexData(int localSectionIndex, VkBufferSegment allocation, int[] vertexSegments) {
+        VkBufferSegment prev = this.vertexAllocations[localSectionIndex];
 
         if (prev != null) {
             prev.delete();
@@ -88,12 +87,12 @@ public class SectionRenderDataStorage {
         SectionRenderDataUnsafe.setFacingList(pMeshData, facingList);
     }
 
-    public void setIndexData(int localSectionIndex, GlBufferSegment allocation) {
+    public void setIndexData(int localSectionIndex, VkBufferSegment allocation) {
         if (this.elementAllocations == null) {
             throw new IllegalStateException("Cannot set index data on a render data storage that does not store indices");
         }
 
-        GlBufferSegment prev = this.elementAllocations[localSectionIndex];
+        VkBufferSegment prev = this.elementAllocations[localSectionIndex];
 
         if (prev != null) {
             prev.delete();
@@ -145,7 +144,7 @@ public class SectionRenderDataStorage {
      * @param arena The buffer arena to allocate the new buffer from
      * @return true if the arena resized itself
      */
-    public boolean updateSharedIndexData(CommandList commandList, GlBufferArena arena, float regionFillFractionInv) {
+    public boolean updateSharedIndexData(VkBufferArena arena, float regionFillFractionInv) {
         // assumes this.needsSharedIndexUpdate is true when this is called
         this.needsSharedIndexUpdate = false;
 
@@ -177,7 +176,7 @@ public class SectionRenderDataStorage {
         // create and upload a new shared index buffer
         var buffer = SharedQuadIndexBuffer.createIndexBuffer(SharedQuadIndexBuffer.IndexType.INTEGER, this.sharedIndexCapacity);
         var pendingUpload = new PendingUpload(buffer);
-        var bufferChanged = arena.upload(commandList, Stream.of(pendingUpload), regionFillFractionInv);
+        var bufferChanged = arena.upload(Stream.of(pendingUpload), regionFillFractionInv);
         this.sharedIndexAllocation = pendingUpload.getResult();
         buffer.free();
 
@@ -215,14 +214,14 @@ public class SectionRenderDataStorage {
 
     private void removeData(int localSectionIndex, boolean removeVertexData, boolean removeIndexData) {
         if (removeVertexData) {
-            GlBufferSegment prev = this.vertexAllocations[localSectionIndex];
+            VkBufferSegment prev = this.vertexAllocations[localSectionIndex];
             if (prev != null) {
                 prev.delete();
                 this.vertexAllocations[localSectionIndex] = null;
             }
         }
         if (removeIndexData && this.storesIndexData()) {
-            GlBufferSegment prev = this.elementAllocations[localSectionIndex];
+            VkBufferSegment prev = this.elementAllocations[localSectionIndex];
 
             if (prev != null) {
                 prev.delete();
@@ -299,7 +298,7 @@ public class SectionRenderDataStorage {
         SectionRenderDataUnsafe.freeHeap(this.pMeshDataArray);
     }
 
-    private static void deleteAllocations(GlBufferSegment @NonNull [] allocations) {
+    private static void deleteAllocations(VkBufferSegment @NonNull [] allocations) {
         for (var allocation : allocations) {
             if (allocation != null) {
                 allocation.delete();

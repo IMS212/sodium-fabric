@@ -116,9 +116,11 @@ public class ConfigManager {
         modConfigs.sort(Comparator.comparing(ModOptions::name));
 
         if (sodiumModOptions == null) {
-            throw new RuntimeException("Sodium mod config not found");
+            System.err.println("Sodium mod config not found"); // todo
+        } else {
+            modConfigs.add(0, sodiumModOptions);
         }
-        modConfigs.add(0, sodiumModOptions);
+
 
         try {
             CONFIG = new Config(modConfigs);

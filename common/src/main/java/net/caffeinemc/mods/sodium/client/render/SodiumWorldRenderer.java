@@ -9,8 +9,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexMultiConsumer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderList;
@@ -25,6 +23,8 @@ import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
 import net.caffeinemc.mods.sodium.client.services.PlatformRuntimeInformation;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
+import net.caffeinemc.mods.sodium.client.vk.VulkanContext;
+import net.caffeinemc.mods.sodium.client.vk.commands.CommandList;
 import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
 import net.caffeinemc.mods.sodium.mixin.core.render.world.EntityRendererAccessor;
 import net.minecraft.client.Camera;
@@ -128,7 +128,7 @@ public class SodiumWorldRenderer {
     private void loadLevel(ClientLevel level) {
         this.level = level;
 
-        try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
+        try (CommandList commandList = VulkanContext.INSTANCE.createCommandList()) {
             this.initRenderer(commandList);
         }
     }
@@ -289,7 +289,7 @@ public class SodiumWorldRenderer {
             return;
         }
 
-        try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
+        try (CommandList commandList = VulkanContext.INSTANCE.createCommandList()) {
             this.initRenderer(commandList);
         }
     }

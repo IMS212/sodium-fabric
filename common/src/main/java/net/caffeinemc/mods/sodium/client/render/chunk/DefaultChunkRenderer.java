@@ -1,18 +1,14 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.AddressMode;
+import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
+import graphics.cinnabar.core.hg3d.Hg3DGpuSampler;
+import graphics.cinnabar.core.hg3d.Hg3DGpuTextureView;
+import graphics.cinnabar.core.mercury.MercuryImageView;
+import graphics.cinnabar.core.mercury.MercurySampler;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.DrawCommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.MultiDrawBatch;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
-import net.caffeinemc.mods.sodium.client.gl.tessellation.GlIndexType;
-import net.caffeinemc.mods.sodium.client.gl.tessellation.GlPrimitiveType;
-import net.caffeinemc.mods.sodium.client.gl.tessellation.GlTessellation;
-import net.caffeinemc.mods.sodium.client.gl.tessellation.TessellationBinding;
 import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.SectionRenderDataStorage;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.SectionRenderDataUnsafe;
@@ -20,26 +16,39 @@ import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderList;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderListIterable;
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
+import net.caffeinemc.mods.sodium.client.render.chunk.shader.DefaultShaderInterface;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
 import net.caffeinemc.mods.sodium.client.render.viewport.CameraTransform;
 import net.caffeinemc.mods.sodium.client.util.BitwiseMath;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
-import net.caffeinemc.mods.sodium.client.util.UInt32;
-import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.system.Pointer;
+import net.caffeinemc.mods.sodium.client.vk.SodiumRenderPass;
+import net.caffeinemc.mods.sodium.client.vk.VulkanContext;
+import net.caffeinemc.mods.sodium.client.vk.commands.CommandList;
+import net.caffeinemc.mods.sodium.client.vk.device.MultiDrawBatch;
+import net.caffeinemc.mods.sodium.client.vk.tessellation.VkBufferTessellation;
+import net.caffeinemc.mods.sodium.client.vk.tessellation.VkIndexType;
+import net.caffeinemc.mods.sodium.client.vk.tessellation.VkPrimitiveType;
+import net.caffeinemc.mods.sodium.client.vk.tessellation.VkTessellation;
+import net.caffeinemc.mods.sodium.client.vk.tessellation.VkTessellationBinding;
+import net.minecraft.client.Minecraft;
+import net.minecraft.data.AtlasIds;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.vulkan.VkCommandBuffer;
 
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
+import java.util.List;
+
+import static org.lwjgl.vulkan.VK10.vkCmdBindIndexBuffer;
+import static org.lwjgl.vulkan.VK10.vkCmdBindVertexBuffers;
 
 public class DefaultChunkRenderer extends ShaderChunkRenderer {
     private final SharedQuadIndexBuffer sharedIndexBuffer;
 
-    public DefaultChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
-        super(device, vertexType);
-
-        this.sharedIndexBuffer = new SharedQuadIndexBuffer(device.createCommandList(), SharedQuadIndexBuffer.IndexType.INTEGER);
+    public DefaultChunkRenderer(ChunkVertexType vertexType) {
+        super(vertexType);
+        this.sharedIndexBuffer = new SharedQuadIndexBuffer(SharedQuadIndexBuffer.IndexType.INTEGER);
     }
 
     /**
@@ -56,7 +65,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                        FogParameters parameters,
                        boolean indexedRenderingEnabled,
                        GpuSampler terrainSampler) {
-        try (RenderPass _ = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Sodium", renderPass.getTarget().getColorTextureView(), OptionalInt.empty(), renderPass.getTarget().getDepthTextureView(), OptionalDouble.empty())) {
+        try (SodiumRenderPass _ = commandList.createRenderPass(renderPass.getTarget().getColorTextureView(), renderPass.getTarget().getDepthTextureView())) {
             super.begin(renderPass, parameters, terrainSampler);
 
             final boolean useBlockFaceCulling = SodiumClientMod.options().performance.useBlockFaceCulling;
@@ -67,6 +76,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             shader.setModelViewMatrix(matrices.modelView());
 
             Iterator<ChunkRenderList> iterator = renderLists.iterator(renderPass.isTranslucent());
+            List<PreparedDraw> draws = new ArrayList<>();
 
             while (iterator.hasNext()) {
                 ChunkRenderList renderList = iterator.next();
@@ -87,22 +97,22 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                     continue;
                 }
 
-                // When the shared index buffer is being used, we must ensure the storage has been allocated *before*
-                // the tessellation is prepared.
-                if (!useIndexedTessellation) {
-                    this.sharedIndexBuffer.ensureCapacity(commandList, batch.getIndexBufferSize());
+                draws.add(new PreparedDraw(region, batch));
+            }
+
+            if (!draws.isEmpty()) {
+                for (PreparedDraw draw : draws) {
+                    VkTessellation tessellation;
+                    if (useIndexedTessellation) {
+                        tessellation = this.prepareIndexedTessellation(commandList, draw.region);
+                    } else {
+                        this.sharedIndexBuffer.ensureCapacity(commandList, draw.batch.getIndexBufferSize());
+                        tessellation = this.prepareTessellation(commandList, draw.region);
+                    }
+
+                    this.setModelMatrixUniforms(shader, draw.region, camera, draw.region.getResources().prepareChunkData(commandList));
+                    executeDrawBatch(tessellation, draw.batch);
                 }
-
-                GlTessellation tessellation;
-
-                if (useIndexedTessellation) {
-                    tessellation = this.prepareIndexedTessellation(commandList, region);
-                } else {
-                    tessellation = this.prepareTessellation(commandList, region);
-                }
-
-                setModelMatrixUniforms(shader, region, camera, region.getResources().prepareChunkData(commandList));
-                executeDrawBatch(commandList, tessellation, batch);
             }
 
             super.end(renderPass);
@@ -117,7 +127,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                                           TerrainRenderPass pass,
                                           boolean useBlockFaceCulling,
                                           boolean useIndexedTessellation) {
-        batch.isFilled = true;
+        batch.clear();
 
         var iterator = renderList.sectionsWithGeometryIterator(pass.isTranslucent());
 
@@ -169,20 +179,15 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                 addSharedIndexedDrawCommands(batch, pMeshData, slices);
             }
         }
+
+        batch.isFilled = true;
     }
 
     /**
      * Generates the draw commands for a chunk's meshes, where each mesh has a separate index buffer. This is used
      * when rendering translucent geometry, as each geometry set needs a sorted index buffer.
      */
-    @SuppressWarnings("IntegerMultiplicationImplicitCastToLong")
     private static void addLocalIndexedDrawCommands(MultiDrawBatch batch, long pMeshData, int mask) {
-        final var pElementPointer = batch.pElementPointer;
-        final var pBaseVertex = batch.pBaseVertex;
-        final var pElementCount = batch.pElementCount;
-
-        int size = batch.size;
-
         long elementOffset = SectionRenderDataUnsafe.getBaseElement(pMeshData);
         long baseVertex = SectionRenderDataUnsafe.getBaseVertex(pMeshData);
 
@@ -190,35 +195,19 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             final long vertexCount = SectionRenderDataUnsafe.getVertexCount(pMeshData, facing);
             final long elementCount = (vertexCount >> 2) * 6;
 
-            MemoryUtil.memPutInt(pElementCount + (size << 2), UInt32.uncheckedDowncast(elementCount));
-            MemoryUtil.memPutInt(pBaseVertex + (size << 2), UInt32.uncheckedDowncast(baseVertex));
-
-            // * 4 to convert to bytes (the index buffer contains integers)
-            MemoryUtil.memPutAddress(pElementPointer + (size << Pointer.POINTER_SHIFT), elementOffset << 2);
+            if (((mask >> facing) & 1) != 0) {
+                batch.pushCommand(elementCount, elementOffset, baseVertex);
+            }
 
             baseVertex += vertexCount;
             elementOffset += elementCount;
-
-            size += (mask >> facing) & 1;
         }
-
-        batch.size = size;
     }
 
-    /**
-     * Generates the draw commands for a chunk's meshes using the shared index buffer.
-     */
-    @SuppressWarnings("IntegerMultiplicationImplicitCastToLong")
     private static void addSharedIndexedDrawCommands(MultiDrawBatch batch, long pMeshData, int mask) {
-        final var pElementPointer = batch.pElementPointer;
-        final var pBaseVertex = batch.pBaseVertex;
-        final var pElementCount = batch.pElementCount;
-
-        // this is either zero (global shared index buffer) or the offset to the location of the shared element buffer (region shared index buffer)
-        final var elementOffsetBytes = SectionRenderDataUnsafe.getBaseElement(pMeshData) << 2;
+        final var elementOffset = SectionRenderDataUnsafe.getBaseElement(pMeshData);
         final var facingList = SectionRenderDataUnsafe.getFacingList(pMeshData);
 
-        int size = batch.size;
         long groupVertexCount = 0;
         long baseVertex = SectionRenderDataUnsafe.getBaseVertex(pMeshData);
         int lastMaskBit = 0;
@@ -243,10 +232,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                         continue;
                     }
 
-                    MemoryUtil.memPutInt(pElementCount + (size << 2), UInt32.uncheckedDowncast((groupVertexCount >> 2) * 6));
-                    MemoryUtil.memPutInt(pBaseVertex + (size << 2), UInt32.uncheckedDowncast(baseVertex));
-                    MemoryUtil.memPutAddress(pElementPointer + (size << Pointer.POINTER_SHIFT), elementOffsetBytes);
-                    size++;
+                    batch.pushCommand((groupVertexCount >> 2) * 6, elementOffset, baseVertex);
                     baseVertex += groupVertexCount;
                     groupVertexCount = 0;
                 }
@@ -258,8 +244,6 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
 
             lastMaskBit = maskBit;
         }
-
-        batch.size = size;
     }
 
     private static final int MODEL_UNASSIGNED = ModelQuadFacing.UNASSIGNED.ordinal();
@@ -313,62 +297,97 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         return planes;
     }
 
-    private static void setModelMatrixUniforms(ChunkShaderInterface shader, RenderRegion region, CameraTransform camera, GlBuffer chunKData) {
+    private void setModelMatrixUniforms(ChunkShaderInterface shader, RenderRegion region, CameraTransform camera, long chunkData) {
         float x = getCameraTranslation(region.getOriginX(), camera.intX, camera.fracX);
         float y = getCameraTranslation(region.getOriginY(), camera.intY, camera.fracY);
         float z = getCameraTranslation(region.getOriginZ(), camera.intZ, camera.fracZ);
 
+            PushDescriptor handles = this.getToPush();
+            shader.setDescriptorHandles(handles.blockTextureImageView(), handles.lightTextureImageView(), handles.combinedSampler());
+
         shader.setRegionOffset(x, y, z);
-        shader.setChunkData(chunKData, Math.toIntExact(System.currentTimeMillis() - region.getCreationTime()));
+        shader.setChunkData(chunkData, Math.toIntExact(System.currentTimeMillis() - region.getCreationTime()));
+        shader.uploadPushConstants();
     }
 
     private static float getCameraTranslation(int chunkBlockPos, int cameraBlockPos, float cameraPos) {
         return (chunkBlockPos - cameraBlockPos) - cameraPos;
     }
 
-    private GlTessellation prepareTessellation(CommandList commandList, RenderRegion region) {
+    private VkTessellation prepareTessellation(CommandList commandList, RenderRegion region) {
         var resources = region.getResources();
 
-        GlTessellation tessellation = resources.getTessellation();
+        VkTessellation tessellation = resources.getTessellation();
         if (tessellation == null) {
-            tessellation = this.createRegionTessellation(commandList, resources, true);
+            tessellation = this.createRegionTessellation(resources, true);
             resources.updateTessellation(commandList, tessellation);
         }
 
         return tessellation;
     }
 
-    private GlTessellation prepareIndexedTessellation(CommandList commandList, RenderRegion region) {
+    private VkTessellation prepareIndexedTessellation(CommandList commandList, RenderRegion region) {
         var resources = region.getResources();
 
-        GlTessellation tessellation = resources.getIndexedTessellation();
+        VkTessellation tessellation = resources.getIndexedTessellation();
         if (tessellation == null) {
-            tessellation = this.createRegionTessellation(commandList, resources, false);
+            tessellation = this.createRegionTessellation(resources, false);
             resources.updateIndexedTessellation(commandList, tessellation);
         }
 
         return tessellation;
     }
 
-    private GlTessellation createRegionTessellation(CommandList commandList, RenderRegion.DeviceResources resources, boolean useSharedIndexBuffer) {
-        return commandList.createTessellation(GlPrimitiveType.TRIANGLES, new TessellationBinding[] {
-                TessellationBinding.forVertexBuffer(resources.getGeometryBuffer(), this.vertexFormat.getShaderBindings()),
-                TessellationBinding.forElementBuffer(useSharedIndexBuffer
-                        ? this.sharedIndexBuffer.getBufferObject()
-                        : resources.getIndexBuffer())
-        });
+    private VkTessellation createRegionTessellation(RenderRegion.DeviceResources resources, boolean useSharedIndexBuffer) {
+        long indexBuffer = useSharedIndexBuffer ? this.sharedIndexBuffer.getBufferHandle() : resources.getIndexBuffer();
+
+        return new VkBufferTessellation(
+                VkPrimitiveType.TRIANGLES,
+                VkIndexType.UNSIGNED_INT,
+                new VkTessellationBinding[]{
+                        VkTessellationBinding.forVertexBuffer(resources.getGeometryBuffer(), 0L, this.vertexFormat.getShaderBindings()),
+                        VkTessellationBinding.forElementBuffer(indexBuffer, 0L)
+                }
+        );
     }
 
-    private static void executeDrawBatch(CommandList commandList, GlTessellation tessellation, MultiDrawBatch batch) {
-        try (DrawCommandList drawCommandList = commandList.beginTessellating(tessellation)) {
-            drawCommandList.multiDrawElementsBaseVertex(batch, GlIndexType.UNSIGNED_INT);
+
+    private PushDescriptor getToPush() {
+        return new PushDescriptor(
+                ((MercuryImageView) ((Hg3DGpuTextureView) Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getTextureView()).imageView()).vkImageView(),
+                ((MercuryImageView) ((Hg3DGpuTextureView) Minecraft.getInstance().gameRenderer.lightmap()).imageView()).vkImageView(),
+                ((MercurySampler) ((Hg3DGpuSampler) RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.LINEAR, true)).sampler()).vkSampler()
+        );
+    }
+
+    private static void executeDrawBatch(VkTessellation tessellation, MultiDrawBatch batch) {
+        VkCommandBuffer commandBuffer = VulkanContext.INSTANCE.currentCommandBuffer();
+        if (commandBuffer == null) {
+            return;
         }
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            for (VkTessellationBinding binding : tessellation.getBindings()) {
+                if (binding.target() == net.caffeinemc.mods.sodium.client.vk.tessellation.VkBufferTarget.VERTEX) {
+                    vkCmdBindVertexBuffers(commandBuffer, 0, stack.longs(binding.buffer()), stack.longs(binding.offset()));
+                } else if (binding.target() == net.caffeinemc.mods.sodium.client.vk.tessellation.VkBufferTarget.INDEX) {
+                    vkCmdBindIndexBuffer(commandBuffer, binding.buffer(), binding.offset(), tessellation.getIndexType().getFormatId());
+                }
+            }
+        }
+
+        batch.run(commandBuffer);
     }
 
     @Override
     public void delete(CommandList commandList) {
         super.delete(commandList);
-
         this.sharedIndexBuffer.delete(commandList);
+    }
+
+    private record PreparedDraw(RenderRegion region, MultiDrawBatch batch) {
+    }
+
+    private record PushDescriptor(long blockTextureImageView, long lightTextureImageView, long combinedSampler) {
     }
 }

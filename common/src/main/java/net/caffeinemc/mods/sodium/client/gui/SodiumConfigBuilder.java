@@ -16,8 +16,6 @@ import net.caffeinemc.mods.sodium.api.config.structure.*;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.OsUtils;
 import net.caffeinemc.mods.sodium.client.compatibility.workarounds.Workarounds;
-import net.caffeinemc.mods.sodium.client.gl.arena.staging.MappedStagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.gui.options.control.ControlValueFormatterImpls;
 import net.caffeinemc.mods.sodium.client.render.chunk.DeferMode;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.QuadSplittingMode;
@@ -33,8 +31,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ParticleStatus;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GLCapabilities;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -121,12 +117,7 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
     }
 
     private void buildEarlyConfig(ConfigBuilder builder) {
-        createModOptionsBuilder(builder).addPage(
-                builder.createOptionPage()
-                        .setName(Component.translatable("sodium.options.pages.performance"))
-                        .addOptionGroup(
-                                builder.createOptionGroup()
-                                        .addOption(this.buildNoErrorContextOption(builder))));
+        //createModOptionsBuilder(builder);
     }
 
     private void buildFullConfig(ConfigBuilder builder) {
@@ -135,8 +126,7 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                         Colors.THEME, Colors.THEME_LIGHTER, Colors.THEME_DARKER))
                 .addPage(this.buildGeneralPage(builder))
                 .addPage(this.buildQualityPage(builder))
-                .addPage(this.buildPerformancePage(builder))
-                .addPage(this.buildAdvancedPage(builder));
+                .addPage(this.buildPerformancePage(builder));
     }
 
     private OptionPageBuilder buildGeneralPage(ConfigBuilder builder) {
@@ -559,9 +549,6 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                                 .setFlags(OptionFlag.REQUIRES_RENDERER_UPDATE)
                 )
                 .addOption(
-                        this.buildNoErrorContextOption(builder)
-                )
-                .addOption(
                         builder.createEnumOption(Identifier.parse("sodium:performance.inactivity_fps_limit"), InactivityFpsLimit.class)
                                 .setStorageHandler(this.vanillaStorage)
                                 .setName(Component.translatable("options.inactivityFpsLimit"))
@@ -591,55 +578,4 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
         }
         return performancePage;
     }
-
-    private OptionBuilder buildNoErrorContextOption(ConfigBuilder builder) {
-        return builder.createBooleanOption(Identifier.parse("sodium:performance.use_no_error_context"))
-                .setStorageHandler(this.sodiumStorage)
-                .setName(Component.translatable("sodium.options.use_no_error_context.name"))
-                .setTooltip(Component.translatable("sodium.options.use_no_error_context.tooltip"))
-                .setDefaultValue(DEFAULTS.performance.useNoErrorGLContext)
-                .setBinding(value -> this.sodiumOpts.performance.useNoErrorGLContext = value, () -> this.sodiumOpts.performance.useNoErrorGLContext)
-                .setEnabledProvider((state) -> {
-                    GLCapabilities capabilities = GL.getCapabilities();
-                    return (capabilities.OpenGL46 || capabilities.GL_KHR_no_error)
-                            && !Workarounds.isWorkaroundEnabled(Workarounds.Reference.NO_ERROR_CONTEXT_UNSUPPORTED);
-                })
-                .setImpact(OptionImpact.LOW)
-                .setFlags(OptionFlag.REQUIRES_GAME_RESTART);
-    }
-
-    private OptionPageBuilder buildAdvancedPage(ConfigBuilder builder) {
-        var advancedPage = builder.createOptionPage().setName(Component.translatable("sodium.options.pages.advanced"));
-
-        boolean isPersistentMappingSupported = MappedStagingBuffer.isSupported(RenderDevice.INSTANCE);
-
-        advancedPage.addOptionGroup(builder.createOptionGroup()
-                .addOption(
-                        builder.createBooleanOption(Identifier.parse("sodium:advanced.use_persistent_mapping"))
-                                .setStorageHandler(this.sodiumStorage)
-                                .setName(Component.translatable("sodium.options.use_persistent_mapping.name"))
-                                .setTooltip(Component.translatable("sodium.options.use_persistent_mapping.tooltip"))
-                                .setDefaultValue(DEFAULTS.advanced.useAdvancedStagingBuffers)
-                                .setBinding(value -> this.sodiumOpts.advanced.useAdvancedStagingBuffers = value, () -> this.sodiumOpts.advanced.useAdvancedStagingBuffers)
-                                .setEnabled(isPersistentMappingSupported)
-                                .setImpact(OptionImpact.MEDIUM)
-                                .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
-                )
-        );
-
-        advancedPage.addOptionGroup(builder.createOptionGroup()
-                .addOption(
-                        builder.createIntegerOption(Identifier.parse("sodium:advanced.cpu_render_ahead_limit"))
-                                .setStorageHandler(this.sodiumStorage)
-                                .setName(Component.translatable("sodium.options.cpu_render_ahead_limit.name"))
-                                .setValueFormatter(ControlValueFormatterImpls.translateVariable("sodium.options.cpu_render_ahead_limit.value"))
-                                .setTooltip(Component.translatable("sodium.options.cpu_render_ahead_limit.tooltip"))
-                                .setRange(0, 9, 1)
-                                .setDefaultValue(DEFAULTS.advanced.cpuRenderAheadLimit)
-                                .setBinding(value -> this.sodiumOpts.advanced.cpuRenderAheadLimit = value, () -> this.sodiumOpts.advanced.cpuRenderAheadLimit)
-                )
-        );
-        return advancedPage;
-    }
-
 }

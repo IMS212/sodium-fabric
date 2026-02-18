@@ -3,13 +3,12 @@ package net.caffeinemc.mods.sodium.client.render.chunk.region;
 import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
-import net.caffeinemc.mods.sodium.client.SodiumClientMod;
-import net.caffeinemc.mods.sodium.client.gl.arena.PendingUpload;
-import net.caffeinemc.mods.sodium.client.gl.arena.staging.FallbackStagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.arena.staging.MappedStagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.vk.VulkanContext;
+import net.caffeinemc.mods.sodium.client.vk.arena.PendingUpload;
+import net.caffeinemc.mods.sodium.client.vk.arena.VkBufferArena;
+import net.caffeinemc.mods.sodium.client.vk.arena.staging.MappedStagingBuffer;
+import net.caffeinemc.mods.sodium.client.vk.arena.staging.StagingBuffer;
+import net.caffeinemc.mods.sodium.client.vk.commands.CommandList;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.BuilderTaskOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildOutput;
@@ -31,25 +30,25 @@ public class RenderRegionManager {
     private final StagingBuffer stagingBuffer;
 
     public RenderRegionManager(CommandList commandList) {
-        this.stagingBuffer = createStagingBuffer(commandList);
+        this.stagingBuffer = createStagingBuffer();
     }
 
     public void update() {
         this.stagingBuffer.flip();
+        VkBufferArena.flip();
 
-        try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
-            Iterator<RenderRegion> it = this.regions.values()
-                    .iterator();
+        var commandList = VulkanContext.INSTANCE.createCommandList();
+        Iterator<RenderRegion> it = this.regions.values()
+                .iterator();
 
-            while (it.hasNext()) {
-                RenderRegion region = it.next();
-                region.update(commandList);
+        while (it.hasNext()) {
+            RenderRegion region = it.next();
+            region.update(commandList);
 
-                if (region.isEmpty()) {
-                    region.delete(commandList);
+            if (region.isEmpty()) {
+                region.delete(commandList);
 
-                    it.remove();
-                }
+                it.remove();
             }
         }
     }
@@ -150,7 +149,7 @@ public class RenderRegionManager {
 
         if (!uploads.isEmpty()) {
             var arena = resources.getGeometryArena();
-            boolean bufferChanged = arena.upload(commandList, uploads.stream()
+            boolean bufferChanged = arena.upload(uploads.stream()
                     .map(upload -> upload.vertexUpload), regionFillFractionInv);
 
             // If any of the buffers changed, the tessellation will need to be updated
@@ -183,7 +182,7 @@ public class RenderRegionManager {
 
         if (!indexUploads.isEmpty()) {
             var arena = resources.getIndexArena();
-            indexBufferChanged = arena.upload(commandList, indexUploads.stream()
+            indexBufferChanged = arena.upload(indexUploads.stream()
                     .map(upload -> upload.indexBufferUpload), regionFillFractionInv);
 
             for (PendingSectionIndexBufferUpload upload : indexUploads) {
@@ -193,7 +192,7 @@ public class RenderRegionManager {
         }
 
         if (needsSharedIndexUpdate) {
-            indexBufferChanged |= translucentStorage.updateSharedIndexData(commandList, resources.getIndexArena(), regionFillFractionInv);
+            indexBufferChanged |= translucentStorage.updateSharedIndexData(resources.getIndexArena(), regionFillFractionInv);
         }
 
         if (indexBufferChanged) {
@@ -221,7 +220,7 @@ public class RenderRegionManager {
         }
 
         this.regions.clear();
-        this.stagingBuffer.delete(commandList);
+        this.stagingBuffer.delete();
     }
 
     public Collection<RenderRegion> getLoadedRegions() {
@@ -256,11 +255,7 @@ public class RenderRegionManager {
     private record PendingSectionIndexBufferUpload(RenderSection section, PendingUpload indexBufferUpload) {
     }
 
-    private static StagingBuffer createStagingBuffer(CommandList commandList) {
-        if (SodiumClientMod.options().advanced.useAdvancedStagingBuffers && MappedStagingBuffer.isSupported(RenderDevice.INSTANCE)) {
-            return new MappedStagingBuffer(commandList);
-        }
-
-        return new FallbackStagingBuffer(commandList);
+    private static StagingBuffer createStagingBuffer() {
+        return new MappedStagingBuffer(64_000_000); // no one will miss 64mb of ram. todo: uh. maybe someone will
     }
 }

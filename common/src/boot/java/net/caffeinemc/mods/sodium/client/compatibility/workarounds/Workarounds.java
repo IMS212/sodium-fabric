@@ -3,7 +3,6 @@ package net.caffeinemc.mods.sodium.client.compatibility.workarounds;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.OsUtils;
 import net.caffeinemc.mods.sodium.client.compatibility.workarounds.amd.AmdWorkarounds;
 import net.caffeinemc.mods.sodium.client.compatibility.workarounds.intel.IntelWorkarounds;
-import net.caffeinemc.mods.sodium.client.compatibility.workarounds.nvidia.NvidiaWorkarounds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,10 +35,6 @@ public class Workarounds {
     private static Set<Reference> findNecessaryWorkarounds() {
         var workarounds = EnumSet.noneOf(Reference.class);
         var operatingSystem = OsUtils.getOs();
-
-        if (NvidiaWorkarounds.isNvidiaGraphicsCardPresent()) {
-            workarounds.add(Reference.NVIDIA_THREADED_OPTIMIZATIONS_BROKEN);
-        }
 
         if (AmdWorkarounds.isAmdGraphicsCardPresent()) {
             workarounds.add(Reference.AMD_GAME_OPTIMIZATION_BROKEN);

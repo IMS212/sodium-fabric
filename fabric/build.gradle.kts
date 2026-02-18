@@ -1,5 +1,9 @@
 import net.fabricmc.loom.task.RemapJarTask
 import net.fabricmc.loom.task.RemapSourcesJarTask
+import net.fabricmc.loom.task.RunGameTask
+import org.gradle.kotlin.dsl.named
+import kotlin.collections.component1
+import kotlin.collections.component2
 
 plugins {
     id("multiloader-platform")
@@ -9,6 +13,11 @@ plugins {
 
 base {
     archivesName = "sodium-fabric"
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
 }
 
 val configurationApiModJava: Configuration = configurations.create("apiJava") {
@@ -76,7 +85,9 @@ dependencies {
     addEmbeddedFabricModule("fabric-api-base")
     addEmbeddedFabricModule("fabric-block-getter-api-v2")
     addEmbeddedFabricModule("fabric-rendering-v1")
-
+    implementation(files(rootDir.resolve("libs").resolve("cinnabar.jar")))
+    implementation("org.lwjgl:lwjgl-vulkan:3.4.1")
+    implementation("org.lwjgl:lwjgl-vma:3.4.1")
     if (BuildConfig.SUPPORT_FRAPI) {
         addEmbeddedFabricModule("fabric-renderer-api-v1")
     }
@@ -105,7 +116,59 @@ loom {
         }
     }
 }
+val ngfxBin = providers.gradleProperty("ngfx")
+        .orElse("/opt/nvidia/nsight-graphics/host/linux-desktop-nomad-x64/ngfx.bin")
 
+fun RunGameTask.buildJavaCommand(): Pair<String, String> {
+    val javaExe = javaLauncher.get().executablePath.asFile.absolutePath
+    val args = buildString {
+        allJvmArgs.forEach { append(it).append(' ') }
+        append("-cp ").append(classpath.asPath).append(' ')
+        append(mainClass.get())
+    }
+    return javaExe to args
+}
+
+fun Exec.inheritRunEnvironment(run: RunGameTask) {
+    run.environment.forEach { (k, v) ->
+        environment(k, v)
+    }
+    workingDir = run.workingDir
+    standardInput = System.`in`
+}
+
+tasks.register<Exec>("nsightGpuTrace") {
+    group = "profiling"
+    description = "Run under Nsight Graphics GPU Trace Profiler."
+    dependsOn("classes")
+
+    val runTask = tasks.named<RunGameTask>("runClient").get()
+    val (javaExe, javaArgs) = runTask.buildJavaCommand()
+
+    environment("vblank_mode", "0")
+    environment("NV_ALLOW_RAYTRACING_VALIDATION", "1")
+    environment("MESA_VK_WSI_PRESENT_MODE", "immediate")
+
+    inheritRunEnvironment(runTask)
+
+    commandLine(
+            "C:\\Program Files\\NVIDIA Corporation\\Nsight Graphics 2025.5.0\\host\\windows-desktop-nomad-x64\\ngfx.exe",
+            "--activity=GPU Trace Profiler",
+            "--exe=$javaExe",
+            "--args=$javaArgs",
+            "--dir=D:\\sodium-opengl\\fabric\\run",
+            "--start-after-hotkey",
+            "--multi-pass-metrics",
+            "--auto-export",
+            "--max-duration-ms=50"
+    )
+}
+
+loom.runs {
+    getByName("client") {
+        vmArgs("-Dorg.lwjgl.system.stackSize=256")
+    }
+}
 tasks {
     jar {
         from(configurationCommonModJava)

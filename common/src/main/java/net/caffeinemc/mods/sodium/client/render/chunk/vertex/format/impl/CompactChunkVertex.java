@@ -1,17 +1,17 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.impl;
 
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
-import net.caffeinemc.mods.sodium.client.gl.attribute.GlVertexFormat;
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexEncoder;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
+import net.caffeinemc.mods.sodium.client.vk.attribute.VkVertexFormat;
 import net.minecraft.util.Mth;
 import org.lwjgl.system.MemoryUtil;
 
 public class CompactChunkVertex implements ChunkVertexType {
     public static final int STRIDE = 20;
 
-    public static final GlVertexFormat VERTEX_FORMAT = GlVertexFormat.builder(STRIDE)
+    public static final VkVertexFormat VERTEX_FORMAT = VkVertexFormat.builder(STRIDE)
             .addElement(DefaultChunkMeshAttributes.POSITION, ChunkShaderBindingPoints.ATTRIBUTE_POSITION, 0)
             .addElement(DefaultChunkMeshAttributes.COLOR, ChunkShaderBindingPoints.ATTRIBUTE_COLOR, 8)
             .addElement(DefaultChunkMeshAttributes.TEXTURE, ChunkShaderBindingPoints.ATTRIBUTE_TEXTURE, 12)
@@ -25,7 +25,7 @@ public class CompactChunkVertex implements ChunkVertexType {
     private static final float MODEL_RANGE = 32.0f;
 
     @Override
-    public GlVertexFormat getVertexFormat() {
+    public VkVertexFormat getVertexFormat() {
         return VERTEX_FORMAT;
     }
 

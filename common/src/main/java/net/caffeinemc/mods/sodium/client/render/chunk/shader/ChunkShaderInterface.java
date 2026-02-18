@@ -1,7 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.shader;
 
 import com.mojang.blaze3d.textures.GpuSampler;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import org.joml.Matrix4fc;
@@ -19,5 +18,9 @@ public interface ChunkShaderInterface {
 
     void setRegionOffset(float x, float y, float z);
 
-    void setChunkData(GlBuffer buffer, int time);
+    void setChunkData(long buffer, int time);
+
+    void uploadPushConstants();
+
+    void setDescriptorHandles(long l, long l1, long l2);
 }

@@ -13,6 +13,10 @@ val configurationPreLaunch = configurations.create("preLaunchDeps") {
     isCanBeResolved = true
 }
 
+configurations.all {
+    exclude(group = "org.lwjgl", module = "lwjgl-opengl")
+}
+
 sourceSets {
     val main = getByName("main")
     val api = create("api")
@@ -49,15 +53,21 @@ dependencies {
 
 
     compileOnly("io.github.llamalad7:mixinextras-common:0.5.0")
+    compileOnly("org.lwjgl:lwjgl-vulkan:3.4.1")
+    compileOnly("org.lwjgl:lwjgl-vma:3.4.1")
+    compileOnly("org.lwjgl:lwjgl-shaderc:3.4.1")
     annotationProcessor("io.github.llamalad7:mixinextras-common:0.5.0")
 
     compileOnly("net.fabricmc:sponge-mixin:0.13.2+mixin.0.8.5")
     compileOnly("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
+    compileOnly(files(rootDir.resolve("libs").resolve("cinnabar.jar")))
 
     // We need to be careful during pre-launch that we don't touch any Minecraft classes, since other mods
     // will not yet have an opportunity to apply transformations.
     configurationPreLaunch("org.lwjgl:lwjgl:3.4.1")
-    configurationPreLaunch("org.lwjgl:lwjgl-opengl:3.4.1")
+    configurationPreLaunch("org.lwjgl:lwjgl-vulkan:3.4.1")
+    configurationPreLaunch("org.lwjgl:lwjgl-vma:3.4.1")
+    configurationPreLaunch("org.lwjgl:lwjgl-shaderc:3.4.1")
     configurationPreLaunch("org.lwjgl:lwjgl-glfw:3.4.1")
     configurationPreLaunch("net.java.dev.jna:jna:5.14.0")
     configurationPreLaunch("net.java.dev.jna:jna-platform:5.14.0")
@@ -99,7 +109,9 @@ fun exportSourceSetSources(name: String, sourceSet: SourceSet) {
         builtBy(compileTask)
     }
 }
-
+tasks.withType(JavaCompile::class.java).configureEach {
+    options.compilerArgs.addAll(listOf("-Xmaxerrs", "400"))
+}
 fun exportSourceSetResources(name: String, sourceSet: SourceSet) {
     val configuration = configurations.create("${name}Resources") {
         isCanBeResolved = true

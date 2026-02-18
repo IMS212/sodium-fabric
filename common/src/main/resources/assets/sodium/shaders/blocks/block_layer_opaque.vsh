@@ -1,28 +1,23 @@
-#version 330 core
+#version 460 core
+#extension GL_EXT_scalar_block_layout : require
 
 #import <sodium:include/fog.glsl>
 #import <sodium:include/chunk_vertex.glsl>
-#import <sodium:include/chunk_matrices.glsl>
+#import <sodium:include/push_constants.glsl>
 
-out vec4 v_Color;
-out vec2 v_TexCoord;
+layout(location = 0) out vec4 v_Color;
+layout(location = 1) out vec2 v_TexCoord;
 
-flat out uint v_Material;
+layout(location = 2) flat out uint v_Material;
 
 #ifdef USE_FOG
-out vec2 v_FragDistance;
-out float fadeFactor;
+layout(location = 3) out vec2 v_FragDistance;
+layout(location = 4) out float fadeFactor;
 #endif
 
-uniform vec3 u_RegionOffset;
-uniform vec2 u_TexCoordShrink;
+layout(set = 0, binding = 1) uniform sampler2D u_LightTex; // The light map texture sampler
 
-uniform sampler2D u_LightTex; // The light map texture sampler
-
-uniform int u_CurrentTime;
-uniform float u_FadePeriodInv;
-
-layout(std140) uniform ChunkData {
+layout(scalar, set = 0, binding = 2) uniform ChunkData {
     ivec4 u_chunkFades[64]; // Packing into ivec4 is needed to avoid wasting 3KB...
 };
 
@@ -45,11 +40,12 @@ void main() {
 #ifdef USE_FOG
     v_FragDistance = getFragDistance(position);
 
+    int currentTime = int(u_CurrentTime);
     int chunkId = int(_draw_id);
     int chunkFade = u_chunkFades[chunkId >> 2][chunkId & 3];
-    int fadeTime = u_CurrentTime - chunkFade;
+    int fadeTime = currentTime - chunkFade;
     float elapsed = float(fadeTime);
-    float fade = clamp(float(u_CurrentTime - chunkFade) * u_FadePeriodInv, 0.0, 1.0);
+    float fade = clamp(float(currentTime - chunkFade) * u_FadePeriodInv, 0.0, 1.0);
     fadeFactor = (chunkFade < 0) ? 1.0 : fade;
 #endif
 

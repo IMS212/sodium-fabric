@@ -3,7 +3,6 @@ package net.caffeinemc.mods.sodium.client.compatibility.workarounds.amd;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.OsUtils;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.probe.GraphicsAdapterProbe;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.probe.GraphicsAdapterVendor;
-import net.caffeinemc.mods.sodium.client.compatibility.workarounds.nvidia.NvidiaWorkarounds;
 import net.caffeinemc.mods.sodium.client.platform.windows.WindowsCommandLine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,12 +31,6 @@ public class AmdWorkarounds {
         // modify the process environment *now* otherwise the driver will initialize with bad settings. For non-AMD
         // drivers, these workarounds are not likely to cause issues.
         if (!isAmdGraphicsCardPresent()) {
-            return;
-        }
-
-        // Skip applying the AMD workaround if the user also has an Nvidia gpu, to avoid attempting to overwrite the
-        // process command line twice.
-        if (NvidiaWorkarounds.isNvidiaGraphicsCardPresent()) {
             return;
         }
 
