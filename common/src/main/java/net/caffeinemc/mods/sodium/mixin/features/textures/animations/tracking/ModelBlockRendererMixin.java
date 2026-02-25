@@ -3,11 +3,11 @@ package net.caffeinemc.mods.sodium.mixin.features.textures.animations.tracking;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
-import net.minecraft.client.renderer.block.BakedQuadOutput;
+import net.minecraft.client.renderer.block.BlockQuadOutput;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,8 +22,8 @@ public class ModelBlockRendererMixin {
      * This doesn't affect vanilla to my knowledge, but mods can trigger it.
      * @author embeddedt
      */
-    @Inject(method = "putQuadData", at = @At("HEAD"))
-    private void preRenderQuad(BlockAndTintGetter level, BlockState state, BlockPos pos, BakedQuadOutput output, PoseStack.Pose pose, BakedQuad quad, @Coerce Object renderStorage, int overlayCoords, CallbackInfo ci) {
+    @Inject(method = "putQuadWithTint", at = @At("HEAD"))
+    private void preRenderQuad(BlockQuadOutput output, float x, float y, float z, BlockAndTintGetter level, BlockState state, BlockPos pos, BakedQuad quad, CallbackInfo ci) {
         if (quad.spriteInfo().sprite() != null) {
             SpriteUtil.INSTANCE.markSpriteActive(quad.spriteInfo().sprite());
         }

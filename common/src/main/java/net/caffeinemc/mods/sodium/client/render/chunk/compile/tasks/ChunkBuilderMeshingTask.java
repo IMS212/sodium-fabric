@@ -119,7 +119,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
 
                         if (blockState.getRenderShape() == RenderShape.MODEL) {
                             BlockStateModel model = cache.getBlockModels()
-                                    .getBlockModel(blockState);
+                                    .get(blockState);
                             blockRenderer.renderModel(model, blockState, blockPos, modelOffset);
                         }
 

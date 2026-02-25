@@ -23,9 +23,9 @@ public abstract class BufferBuilderMixin implements VertexConsumer {
     private boolean fullFormat;
 
     @Override
-    public void putBulkData(final PoseStack.Pose pose, final BakedQuad bakedQuad, final QuadBrightness brightness, final int color, final QuadLightmapCoords lightmapCoord, final int overlayCoords) {
+    public void putBakedQuad(PoseStack.Pose pose, BakedQuad bakedQuad, QuadInstance instance) {
         if (!this.fastFormat) {
-            VertexConsumer.super.putBulkData(pose, bakedQuad, brightness, color, lightmapCoord, overlayCoords);
+            VertexConsumer.super.putBakedQuad(pose, bakedQuad, instance);
 
             if (bakedQuad.spriteInfo().sprite() != null) {
                 SpriteUtil.INSTANCE.markSpriteActive(bakedQuad.spriteInfo().sprite());
@@ -38,7 +38,7 @@ public abstract class BufferBuilderMixin implements VertexConsumer {
 
         ModelQuadView quad = (ModelQuadView) (Object) bakedQuad;
 
-        BakedModelEncoder.writeQuadVertices(writer, pose, quad, color, brightness, lightmapCoord, overlayCoords, this.fullFormat);
+        BakedModelEncoder.writeQuadVertices(writer, pose, quad, instance, this.fullFormat);
 
         if (quad.getSprite() != null) {
             SpriteUtil.INSTANCE.markSpriteActive(quad.getSprite());

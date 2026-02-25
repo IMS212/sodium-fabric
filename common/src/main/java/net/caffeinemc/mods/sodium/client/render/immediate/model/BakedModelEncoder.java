@@ -1,8 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.immediate.model;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.QuadBrightness;
-import com.mojang.blaze3d.vertex.QuadLightmapCoords;
+import com.mojang.blaze3d.vertex.QuadInstance;
 import net.caffeinemc.mods.sodium.api.util.ColorMixer;
 import net.caffeinemc.mods.sodium.api.vertex.format.common.BlockVertex;
 import net.caffeinemc.mods.sodium.client.model.quad.ModelQuadView;
@@ -27,7 +26,7 @@ public class BakedModelEncoder {
 
     private static final boolean MULTIPLY_ALPHA = PlatformRuntimeInformation.getInstance().usesAlphaMultiplication();
 
-    public static void writeQuadVertices(VertexBufferWriter writer, PoseStack.Pose matrices, ModelQuadView quad, int color, QuadBrightness brightness, QuadLightmapCoords lightmapCoord, int overlayCoords, boolean writeEntity) {
+    public static void writeQuadVertices(VertexBufferWriter writer, PoseStack.Pose matrices, ModelQuadView quad, QuadInstance instance, boolean writeEntity) {
         Matrix3f matNormal = matrices.normal();
         Matrix4f matPosition = matrices.pose();
 
@@ -48,10 +47,10 @@ public class BakedModelEncoder {
 
                 var normal = MatrixHelper.transformNormal(matNormal, matrices.trustedNormals, quad.getAccurateNormal(i));
 
-                int vertexColor = brightness.scaleColor(i, color);
-                int light = lightmapCoord.composeWithEmission(i, quad.getLightEmission());
+                int vertexColor = instance.getColor(i);
+                int light = instance.getLightCoordsWithEmission(i, quad.getLightEmission());
                 if (writeEntity) {
-                    EntityVertex.write(ptr, xt, yt, zt, vertexColor, quad.getTexU(i), quad.getTexV(i), overlayCoords, light, normal);
+                    EntityVertex.write(ptr, xt, yt, zt, vertexColor, quad.getTexU(i), quad.getTexV(i), instance.overlayCoords(), light, normal);
                 } else {
                     BlockVertex.write(ptr, xt, yt, zt, vertexColor, quad.getTexU(i), quad.getTexV(i), light);
                 }

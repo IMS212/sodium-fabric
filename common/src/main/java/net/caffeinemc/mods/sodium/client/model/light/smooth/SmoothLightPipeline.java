@@ -336,8 +336,8 @@ public class SmoothLightPipeline implements LightPipeline {
      * @param shade Whether the block face is receiving directional light
      */
     private float getAmbientBrightness(Direction face, boolean shade) {
-        return this.lightCache.getLevel()
-                .getShade(face, shade);
+        return shade ? this.lightCache.getLevel()
+                .cardinalLighting().byFace(face) : this.lightCache.getLevel().cardinalLighting().up();
     }
 
     /**

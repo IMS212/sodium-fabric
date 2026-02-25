@@ -19,7 +19,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
@@ -138,7 +138,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
     }
 
     protected void prepareAoInfo(boolean modelAo) {
-        this.useAmbientOcclusion = Minecraft.useAmbientOcclusion();
+        this.useAmbientOcclusion = slice.ambientOcclusion();
         // Ignore the incorrect IDEA warning here.
         this.defaultLightMode = this.useAmbientOcclusion && modelAo && (state != null && PlatformBlockAccess.getInstance().getLightEmission(state, level, pos) == 0) ? LightMode.SMOOTH : LightMode.FLAT;
     }

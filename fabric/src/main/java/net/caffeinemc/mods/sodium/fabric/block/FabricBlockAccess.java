@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,30 +28,34 @@ public class FabricBlockAccess implements PlatformBlockAccess {
         float div = 0;
 
         if (normalX > 0) {
-            sum += normalX * blockView.getShade(Direction.EAST, hasShade);
+            sum += normalX * getShade(blockView, Direction.EAST, hasShade);
             div += normalX;
         } else if (normalX < 0) {
-            sum += -normalX * blockView.getShade(Direction.WEST, hasShade);
+            sum += -normalX * getShade(blockView, Direction.WEST, hasShade);
             div -= normalX;
         }
 
         if (normalY > 0) {
-            sum += normalY * blockView.getShade(Direction.UP, hasShade);
+            sum += normalY * getShade(blockView, Direction.UP, hasShade);
             div += normalY;
         } else if (normalY < 0) {
-            sum += -normalY * blockView.getShade(Direction.DOWN, hasShade);
+            sum += -normalY * getShade(blockView, Direction.DOWN, hasShade);
             div -= normalY;
         }
 
         if (normalZ > 0) {
-            sum += normalZ * blockView.getShade(Direction.SOUTH, hasShade);
+            sum += normalZ * getShade(blockView, Direction.SOUTH, hasShade);
             div += normalZ;
         } else if (normalZ < 0) {
-            sum += -normalZ * blockView.getShade(Direction.NORTH, hasShade);
+            sum += -normalZ * getShade(blockView, Direction.NORTH, hasShade);
             div -= normalZ;
         }
 
         return sum / div;
+    }
+
+    private float getShade(BlockAndTintGetter blockView, Direction direction, boolean hasShade) {
+        return hasShade ? blockView.cardinalLighting().byFace(direction) : blockView.cardinalLighting().up();
     }
 
     @Override

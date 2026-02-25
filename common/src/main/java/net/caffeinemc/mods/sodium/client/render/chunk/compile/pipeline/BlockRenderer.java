@@ -27,7 +27,7 @@ import net.caffeinemc.mods.sodium.client.render.model.SodiumShadeMode;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
 import net.caffeinemc.mods.sodium.client.services.PlatformModelEmitter;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -52,10 +52,12 @@ public class BlockRenderer extends AbstractBlockRenderContext {
     private ColorProvider<BlockState> colorProvider;
     private TranslucentGeometryCollector collector;
     private boolean forceOpaque;
+    private boolean cutoutLeaves;
 
-    public BlockRenderer(ColorProviderRegistry colorRegistry, LightPipelineProvider lighters) {
+    public BlockRenderer(ColorProviderRegistry colorRegistry, LightPipelineProvider lighters, boolean cutoutLeaves) {
         this.colorProviderRegistry = colorRegistry;
         this.lighters = lighters;
+        this.cutoutLeaves = cutoutLeaves;
 
         this.random = new SingleThreadedRandomSource(42L);
     }
@@ -93,7 +95,7 @@ public class BlockRenderer extends AbstractBlockRenderContext {
 
         random.setSeed(state.getSeed(pos));
 
-        this.forceOpaque = ItemBlockRenderTypes.forceOpaque(state);
+        this.forceOpaque = ModelBlockRenderer.forceOpaque(cutoutLeaves, state);
         PlatformModelEmitter.getInstance().emitModel(model, this::isFaceCulled, getForEmitting(), random, level, pos, state, this::bufferDefaultModel);
 
         this.forceOpaque = false;
