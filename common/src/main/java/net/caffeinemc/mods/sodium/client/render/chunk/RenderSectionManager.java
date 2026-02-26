@@ -46,6 +46,7 @@ import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
 import net.caffeinemc.mods.sodium.client.world.cloned.ClonedChunkSectionCache;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
@@ -54,9 +55,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.apache.commons.lang3.ArrayUtils;
+import org.joml.Vector3dc;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.joml.Vector3dc;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -66,12 +67,12 @@ public class RenderSectionManager {
     private static final float IMMEDIATE_PRESENT_DISTANCE = Mth.square(64.0f);
     private static final float NEARBY_SORT_DISTANCE = Mth.square(25.0f);
 
-    private static final float FRAME_DURATION_UPLOAD_FRACTION = 0.1f;
-    private static final long MIN_UPLOAD_DURATION_BUDGET = 2_000_000L; // 2ms
+    private static final float FRAME_DURATION_UPLOAD_FRACTION = 0.3f;
+    private static final long MIN_UPLOAD_DURATION_BUDGET = 10_000_000L; // 2ms
 
     private final ChunkBuilder builder;
 
-    private final RenderRegionManager regions;
+    public final RenderRegionManager regions;
     private final ClonedChunkSectionCache sectionCache;
 
     private final Long2ReferenceMap<RenderSection> sectionByPosition = new Long2ReferenceOpenHashMap<>();
@@ -872,21 +873,33 @@ public class RenderSectionManager {
                 continue;
             }
 
-            var geometryArena = resources.getGeometryArena();
-            geometryDeviceUsed += geometryArena.getDeviceUsedMemory();
-            geometryDeviceAllocated += geometryArena.getDeviceAllocatedMemory();
+            var geometryArena = resources.getGeometryAllocator();
+            if (geometryArena.isSingleOwner()) {
+                geometryDeviceUsed += geometryArena.getDeviceUsedMemory();
+                geometryDeviceAllocated += geometryArena.getDeviceAllocatedMemory();
+                count++;
+            }
 
-            var indexArena = resources.getIndexArena();
-            indexDeviceUsed += indexArena.getDeviceUsedMemory();
-            indexDeviceAllocated += indexArena.getDeviceAllocatedMemory();
-
-            count++;
+            var indexArena = resources.getIndexAllocator();
+            if (indexArena.isSingleOwner()) {
+                indexDeviceUsed += indexArena.getDeviceUsedMemory();
+                indexDeviceAllocated += indexArena.getDeviceAllocatedMemory();
+                count++;
+            }
         }
 
+        var aggregator = this.regions.getArenaAggregator();
+        geometryDeviceUsed += aggregator.getGeometryDeviceUsedMemory();
+        geometryDeviceAllocated += aggregator.getGeometryDeviceAllocatedMemory();
+        indexDeviceUsed += aggregator.getIndexDeviceUsedMemory();
+        indexDeviceAllocated += aggregator.getIndexDeviceAllocatedMemory();
+        count += aggregator.getBufferCount();
+
         if (verbose) {
-            list.add(String.format("Pools: Geometry %d/%d MiB, Index %d/%d MiB (%d buffers)",
+            list.add(String.format("Pools: Geometry %d/%d MiB, Index %d/%d MiB, Misc %d MiB, %d buffers",
                     MathUtil.toMib(geometryDeviceUsed), MathUtil.toMib(geometryDeviceAllocated),
-                    MathUtil.toMib(indexDeviceUsed), MathUtil.toMib(indexDeviceAllocated), count));
+                    MathUtil.toMib(indexDeviceUsed), MathUtil.toMib(indexDeviceAllocated),
+                    aggregator.getMiscAllocatedMemory(), count));
             list.add(String.format("Transfer Queue: %s", this.regions.getStagingBuffer().toString()));
         } else {
             list.add(String.format("G:%d/%d I:%d/%d MiB TQ: %s #%d",
@@ -956,5 +969,9 @@ public class RenderSectionManager {
 
     public Collection<RenderSection> getSectionsWithGlobalEntities() {
         return ReferenceSets.unmodifiable(this.sectionsWithGlobalEntities);
+    }
+
+    public void renderBufferDebug(GuiGraphics guiGraphics) {
+        this.regions.getArenaAggregator().renderBufferDebug(guiGraphics);
     }
 }
