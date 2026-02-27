@@ -1,12 +1,12 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferMapFlags;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferUsage;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.tessellation.GlIndexType;
-import net.caffeinemc.mods.sodium.client.gl.util.EnumBitField;
+import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
+import net.caffeinemc.mods.sodium.client.vk.buffer.VkBufferUsages;
+import net.caffeinemc.mods.sodium.client.vk.buffer.VkMappingType;
+import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
+import net.caffeinemc.mods.sodium.client.vk.buffer.VkIndexType;
+import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.vk.util.EnumBitField;
 import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
 
 import java.nio.ByteBuffer;
@@ -17,13 +17,12 @@ public class SharedQuadIndexBuffer {
     private static final int ELEMENTS_PER_PRIMITIVE = 6;
     private static final int VERTICES_PER_PRIMITIVE = 4;
 
-    private final GlMutableBuffer buffer;
+    private VkBuffer buffer;
     private final IndexType indexType;
 
     private int maxPrimitives;
 
     public SharedQuadIndexBuffer(CommandList commandList, IndexType indexType) {
-        this.buffer = commandList.createMutableBuffer();
         this.indexType = indexType;
     }
 
@@ -46,12 +45,14 @@ public class SharedQuadIndexBuffer {
     private void grow(CommandList commandList, int primitiveCount) {
         var bufferSize = primitiveCount * this.indexType.getBytesPerElement() * ELEMENTS_PER_PRIMITIVE;
 
-        commandList.allocateStorage(this.buffer, bufferSize, GlBufferUsage.STATIC_DRAW);
+        if (buffer != null) RenderDevice.INSTANCE.destroyObjectWhenSafe(buffer);
+        this.buffer = commandList.createBuffer(bufferSize, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST));
 
-        var mapped = commandList.mapBuffer(this.buffer, 0, bufferSize, EnumBitField.of(GlBufferMapFlags.INVALIDATE_BUFFER, GlBufferMapFlags.WRITE, GlBufferMapFlags.UNSYNCHRONIZED));
-        this.indexType.createIndexBuffer(mapped.getMemoryBuffer(), primitiveCount);
+        var host = commandList.createBuffer(bufferSize, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
+        RenderDevice.INSTANCE.destroyObjectWhenSafe(host);
+        this.indexType.createIndexBuffer(host.getMapping().getByteBuffer(), primitiveCount);
 
-        commandList.unmap(mapped);
+        commandList.copyBufferToBuffer(host, buffer, 0, 0, bufferSize);
 
         this.maxPrimitives = primitiveCount;
     }
@@ -65,7 +66,7 @@ public class SharedQuadIndexBuffer {
         return buffer;
     }
 
-    public GlBuffer getBufferObject() {
+    public VkBuffer getBufferObject() {
         return this.buffer;
     }
 
@@ -74,7 +75,7 @@ public class SharedQuadIndexBuffer {
     }
 
     public enum IndexType {
-        SHORT(GlIndexType.UNSIGNED_SHORT, 64 * 1024) {
+        SHORT(VkIndexType.UNSIGNED_SHORT, 64 * 1024) {
             @Override
             public void createIndexBuffer(ByteBuffer byteBuffer, int primitiveCount) {
                 ShortBuffer shortBuffer = byteBuffer.asShortBuffer();
@@ -93,7 +94,7 @@ public class SharedQuadIndexBuffer {
                 }
             }
         },
-        INTEGER(GlIndexType.UNSIGNED_INT, Integer.MAX_VALUE) {
+        INTEGER(VkIndexType.UNSIGNED_INT, Integer.MAX_VALUE) {
             @Override
             public void createIndexBuffer(ByteBuffer byteBuffer, int primitiveCount) {
                 IntBuffer intBuffer = byteBuffer.asIntBuffer();
@@ -115,10 +116,10 @@ public class SharedQuadIndexBuffer {
 
         public static final IndexType[] VALUES = IndexType.values();
 
-        private final GlIndexType format;
+        private final VkIndexType format;
         private final int maxElementCount;
 
-        IndexType(GlIndexType format, int maxElementCount) {
+        IndexType(VkIndexType format, int maxElementCount) {
             this.format = format;
             this.maxElementCount = maxElementCount;
         }
@@ -129,7 +130,7 @@ public class SharedQuadIndexBuffer {
             return this.format.getStride();
         }
 
-        public GlIndexType getFormat() {
+        public VkIndexType getFormat() {
             return this.format;
         }
 

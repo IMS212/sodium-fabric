@@ -16,8 +16,8 @@ import net.caffeinemc.mods.sodium.api.config.structure.*;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.OsUtils;
 import net.caffeinemc.mods.sodium.client.compatibility.workarounds.Workarounds;
-import net.caffeinemc.mods.sodium.client.gl.arena.staging.MappedStagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.vk.arena.staging.MappedStagingBuffer;
+import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.gui.options.control.ControlValueFormatterImpls;
 import net.caffeinemc.mods.sodium.client.render.chunk.DeferMode;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.QuadSplittingMode;
@@ -33,8 +33,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ParticleStatus;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GLCapabilities;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -600,9 +598,7 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                 .setDefaultValue(DEFAULTS.performance.useNoErrorGLContext)
                 .setBinding(value -> this.sodiumOpts.performance.useNoErrorGLContext = value, () -> this.sodiumOpts.performance.useNoErrorGLContext)
                 .setEnabledProvider((state) -> {
-                    GLCapabilities capabilities = GL.getCapabilities();
-                    return (capabilities.OpenGL46 || capabilities.GL_KHR_no_error)
-                            && !Workarounds.isWorkaroundEnabled(Workarounds.Reference.NO_ERROR_CONTEXT_UNSUPPORTED);
+                    return !Workarounds.isWorkaroundEnabled(Workarounds.Reference.NO_ERROR_CONTEXT_UNSUPPORTED);
                 })
                 .setImpact(OptionImpact.LOW)
                 .setFlags(OptionFlag.REQUIRES_GAME_RESTART);
@@ -610,8 +606,6 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
 
     private OptionPageBuilder buildAdvancedPage(ConfigBuilder builder) {
         var advancedPage = builder.createOptionPage().setName(Component.translatable("sodium.options.pages.advanced"));
-
-        boolean isPersistentMappingSupported = MappedStagingBuffer.isSupported(RenderDevice.INSTANCE);
 
         advancedPage.addOptionGroup(builder.createOptionGroup()
                 .addOption(
@@ -621,7 +615,6 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                                 .setTooltip(Component.translatable("sodium.options.use_persistent_mapping.tooltip"))
                                 .setDefaultValue(DEFAULTS.advanced.useAdvancedStagingBuffers)
                                 .setBinding(value -> this.sodiumOpts.advanced.useAdvancedStagingBuffers = value, () -> this.sodiumOpts.advanced.useAdvancedStagingBuffers)
-                                .setEnabled(isPersistentMappingSupported)
                                 .setImpact(OptionImpact.MEDIUM)
                                 .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
                 )

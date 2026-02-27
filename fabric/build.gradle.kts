@@ -86,6 +86,10 @@ dependencies {
     addEmbeddedFabricModule("fabric-resource-loader-v0")
     addEmbeddedFabricModule("fabric-resource-loader-v1")
     addEmbeddedFabricModule("fabric-transitive-access-wideners-v1")
+
+    implementation(files(rootDir.resolve("libs").resolve("cinnabar.jar")))
+    implementation("org.lwjgl:lwjgl-vulkan:3.4.1")
+    implementation("org.lwjgl:lwjgl-vma:3.4.1")
 }
 
 loom {
@@ -102,6 +106,7 @@ loom {
             appendProjectPathToConfigName = false
             ideConfigGenerated(true)
             runDir("run")
+            vmArg("-Dorg.lwjgl.system.stackSize=1024")
         }
     }
 }

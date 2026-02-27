@@ -1,7 +1,7 @@
 package net.caffeinemc.mods.sodium.mixin.core.render.world;
 
 import com.mojang.blaze3d.textures.GpuSampler;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import net.caffeinemc.mods.sodium.client.util.SodiumChunkSection;
@@ -34,14 +34,7 @@ public class ChunkSectionsToRenderMixin implements SodiumChunkSection {
     private void sodium$renderGroup(ChunkSectionLayerGroup chunkSectionLayerGroup, GpuSampler gpuSampler, CallbackInfo ci) {
         if (renderer != null) {
             ci.cancel();
-
-            RenderDevice.enterManagedCode();
-
-            try {
-                renderer.drawChunkLayer(chunkSectionLayerGroup, matrices, x, y, z, gpuSampler);
-            } finally {
-                RenderDevice.exitManagedCode();
-            }
+            renderer.drawChunkLayer(chunkSectionLayerGroup, matrices, x, y, z, gpuSampler);
         }
     }
 

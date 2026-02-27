@@ -8,7 +8,7 @@ import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import net.caffeinemc.mods.sodium.client.render.viewport.ViewportProvider;
@@ -120,13 +120,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
 
     @Inject(method = "setLevel", at = @At("RETURN"))
     private void onWorldChanged(ClientLevel level, CallbackInfo ci) {
-        RenderDevice.enterManagedCode();
-
-        try {
-            this.renderer.setLevel(level);
-        } finally {
-            RenderDevice.exitManagedCode();
-        }
+        this.renderer.setLevel(level);
     }
 
     /**
@@ -188,13 +182,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
             this.worldBorderRenderer.invalidate();
         }
 
-        RenderDevice.enterManagedCode();
-
-        try {
-            this.renderer.setupTerrain(camera, viewport, ((FogStorage) this.minecraft.gameRenderer).sodium$getFogParameters(), spectator, updateChunksImmediately, matrices);
-        } finally {
-            RenderDevice.exitManagedCode();
-        }
+        this.renderer.setupTerrain(camera, viewport, ((FogStorage) this.minecraft.gameRenderer).sodium$getFogParameters(), spectator, updateChunksImmediately, matrices);
     }
 
     /**
@@ -244,13 +232,7 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
 
     @Inject(method = "allChanged()V", at = @At("RETURN"))
     private void onReload(CallbackInfo ci) {
-        RenderDevice.enterManagedCode();
-
-        try {
-            this.renderer.reload();
-        } finally {
-            RenderDevice.exitManagedCode();
-        }
+        this.renderer.reload();
     }
 
     @Inject(method = "extractVisibleBlockEntities(Lnet/minecraft/client/Camera;FLnet/minecraft/client/renderer/state/LevelRenderState;)V", at = @At("HEAD"), cancellable = true, require = 1)

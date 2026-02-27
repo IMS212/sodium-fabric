@@ -1,7 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
 import com.mojang.blaze3d.textures.GpuSampler;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
+import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderListIterable;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.viewport.CameraTransform;

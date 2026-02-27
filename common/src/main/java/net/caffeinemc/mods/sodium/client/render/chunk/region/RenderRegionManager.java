@@ -4,13 +4,13 @@ import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
-import net.caffeinemc.mods.sodium.client.gl.arena.ArenaAggregator;
-import net.caffeinemc.mods.sodium.client.gl.arena.PendingUpload;
-import net.caffeinemc.mods.sodium.client.gl.arena.staging.FallbackStagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.arena.staging.MappedStagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.vk.arena.ArenaAggregator;
+import net.caffeinemc.mods.sodium.client.vk.arena.PendingUpload;
+import net.caffeinemc.mods.sodium.client.vk.arena.staging.FallbackStagingBuffer;
+import net.caffeinemc.mods.sodium.client.vk.arena.staging.MappedStagingBuffer;
+import net.caffeinemc.mods.sodium.client.vk.arena.staging.StagingBuffer;
+import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
+import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.BuilderTaskOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildOutput;
@@ -41,9 +41,9 @@ public class RenderRegionManager {
     }
 
     public void update() {
-        this.stagingBuffer.flip();
-
         try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
+            this.stagingBuffer.flip(commandList);
+
             this.arenaAggregator.update(commandList);
 
             Iterator<RenderRegion> it = this.regions.values()
@@ -272,7 +272,7 @@ public class RenderRegionManager {
     }
 
     private static StagingBuffer createStagingBuffer(CommandList commandList) {
-        if (SodiumClientMod.options().advanced.useAdvancedStagingBuffers && MappedStagingBuffer.isSupported(RenderDevice.INSTANCE)) {
+        if (SodiumClientMod.options().advanced.useAdvancedStagingBuffers) {
             return new MappedStagingBuffer(commandList);
         }
 

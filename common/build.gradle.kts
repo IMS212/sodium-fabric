@@ -12,7 +12,9 @@ base {
 val configurationPreLaunch = configurations.create("preLaunchDeps") {
     isCanBeResolved = true
 }
-
+configurations.all {
+    exclude(group = "org.lwjgl", module = "lwjgl-opengl")
+}
 sourceSets {
     val main = getByName("main")
     val api = create("api")
@@ -57,12 +59,16 @@ dependencies {
     // We need to be careful during pre-launch that we don't touch any Minecraft classes, since other mods
     // will not yet have an opportunity to apply transformations.
     configurationPreLaunch("org.lwjgl:lwjgl:3.4.1")
-    configurationPreLaunch("org.lwjgl:lwjgl-opengl:3.4.1")
+    configurationPreLaunch("org.lwjgl:lwjgl-vulkan:3.4.1")
     configurationPreLaunch("org.lwjgl:lwjgl-glfw:3.4.1")
     configurationPreLaunch("net.java.dev.jna:jna:5.14.0")
     configurationPreLaunch("net.java.dev.jna:jna-platform:5.14.0")
     configurationPreLaunch("org.slf4j:slf4j-api:2.0.9")
     configurationPreLaunch("org.jspecify:jspecify:1.0.0")
+
+    compileOnly(files(rootDir.resolve("libs").resolve("cinnabar.jar")))
+    compileOnly("org.lwjgl:lwjgl-vulkan:3.4.1")
+    compileOnly("org.lwjgl:lwjgl-vma:3.4.1")
 }
 
 loom {

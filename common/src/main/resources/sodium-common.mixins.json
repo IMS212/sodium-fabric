@@ -14,6 +14,7 @@
     "core.GlCommandEncoderAccessor",
     "core.MinecraftMixin",
     "core.WindowMixin",
+    "core.GpuDeviceAccessor",
     "core.gui.LevelLoadTrackerMixin",
     "core.model.colors.BlockColorsMixin",
     "core.render.BlockEntityTypeMixin",
@@ -78,9 +79,7 @@
     "features.textures.animations.upload.SpriteContentsFrameInfoAccessor",
     "features.textures.scan.SpriteContentsMixin",
     "features.textures.scan.TextureAtlasSpriteMixin",
-    "workarounds.context_creation.RenderSystemMixin",
     "workarounds.context_creation.WindowMixin",
-    "workarounds.context_creation.GlBackendMixin",
     "workarounds.event_loop.RenderSystemMixin",
     "workarounds.window_minimized_state.MinecraftMixin"
   ]

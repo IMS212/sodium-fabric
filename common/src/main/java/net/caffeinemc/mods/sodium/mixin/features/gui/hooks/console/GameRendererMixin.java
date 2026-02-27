@@ -3,6 +3,7 @@ package net.caffeinemc.mods.sodium.mixin.features.gui.hooks.console;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import net.caffeinemc.mods.sodium.client.gui.console.ConsoleHooks;
+import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -56,5 +57,10 @@ public class GameRendererMixin {
         Profiler.get().pop();
 
         HAS_RENDERED_OVERLAY_ONCE = true;
+    }
+
+    @Inject(method = "render", at = @At(value = "HEAD"))
+    private void onRenderStart(DeltaTracker deltaTracker, boolean bl, CallbackInfo ci) {
+        RenderDevice.INSTANCE.flip();
     }
 }
