@@ -36,7 +36,7 @@ public class DebugScreenEntryListMixin {
         this.allStatuses.put(DebugScreenEntries.CHUNK_RENDER_STATS, DebugScreenEntryStatus.IN_OVERLAY);
     }
 
-    @Inject(method = "resetToProfile", at = @At(value = "RETURN"))
+    @Inject(method = "resetToProfile", at = @At("HEAD"))
     private void injectLoadProfile(DebugScreenProfile debugScreenProfile, CallbackInfo ci) {
         if (debugScreenProfile == DebugScreenProfile.PERFORMANCE && !PlatformRuntimeInformation.getInstance().isDevelopmentEnvironment()) {
             this.setReducedDebugStatuses();

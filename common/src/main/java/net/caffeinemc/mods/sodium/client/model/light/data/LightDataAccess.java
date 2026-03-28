@@ -4,8 +4,8 @@ import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -65,7 +65,7 @@ public abstract class LightDataAccess {
         BlockState state = level.getBlockState(pos);
 
         boolean em = state.emissiveRendering(level, pos);
-        boolean op = state.isViewBlocking(level, pos) && state.getLightBlock() != 0;
+        boolean op = state.isViewBlocking(level, pos) && state.getLightDampening() != 0;
         boolean fo = state.isSolidRender();
         boolean fc = state.isCollisionShapeFullBlock(level, pos);
 
@@ -169,7 +169,7 @@ public abstract class LightDataAccess {
      * Computes the combined lightmap using block light, sky light, and luminance values.
      *
      * <p>This method's logic is equivalent to
-     * {@link LevelRenderer#getLightColor(BlockAndTintGetter, BlockPos)}, but without the
+     * {@link LevelRenderer#getLightCoords(BlockAndTintGetter, BlockPos)}, but without the
      * emissive check.
      */
     public static int getLightmap(int word) {
@@ -178,10 +178,10 @@ public abstract class LightDataAccess {
 
     /**
      * Like {@link #getLightmap(int)}, but checks {@link #unpackEM(int)} first and returns
-     * the {@link LightTexture#FULL_BRIGHT fullbright lightmap} if emissive.
+     * the {@link LightCoordsUtil#FULL_BRIGHT fullbright lightmap} if emissive.
      *
      * <p>This method's logic is equivalent to
-     * {@link LevelRenderer#getLightColor(BlockAndTintGetter, BlockPos)}.
+     * {@link LevelRenderer#getLightCoords(BlockAndTintGetter, BlockPos)}.
      */
     public static int getEmissiveLightmap(int word) {
         if (unpackEM(word)) {

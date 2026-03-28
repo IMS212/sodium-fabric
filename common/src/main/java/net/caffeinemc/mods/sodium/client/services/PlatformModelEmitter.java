@@ -1,8 +1,8 @@
 package net.caffeinemc.mods.sodium.client.services;
 
 import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -25,6 +25,6 @@ public interface PlatformModelEmitter {
 
     @FunctionalInterface
     public interface Bufferer {
-        void emit(BlockModelPart part, Predicate<Direction> cullTest, Consumer<MutableQuadViewImpl> emitter);
+        void emit(BlockStateModelPart part, Predicate<Direction> cullTest, Consumer<MutableQuadViewImpl> emitter);
     }
 }

@@ -1,6 +1,5 @@
 package net.caffeinemc.mods.sodium.client;
 
-import net.caffeinemc.mods.sodium.client.config.ConfigManager;
 import net.caffeinemc.mods.sodium.client.console.Console;
 import net.caffeinemc.mods.sodium.client.console.message.MessageLevel;
 import net.caffeinemc.mods.sodium.client.data.fingerprint.FingerprintMeasure;
@@ -24,15 +23,13 @@ public class SodiumClientMod {
     private static String MOD_VERSION;
 
     public static void onInitialization(String version) {
-        var entries = DebugScreenEntriesAccessor.getEntries();
+        var entries = DebugScreenEntriesAccessor.sodium$getEntries();
         entries.put(SODIUM_DEBUG_ENTRY_FULL, new SodiumDebugEntry(true));
         entries.put(SODIUM_DEBUG_ENTRY_REDUCED, new SodiumDebugEntry(false));
 
         MOD_VERSION = version;
 
         OPTIONS = loadConfig();
-
-        ConfigManager.registerConfigsEarly();
 
         try {
             updateFingerprint();
@@ -110,6 +107,7 @@ public class SodiumClientMod {
             HashedFingerprint.writeToDisk(current.hashed());
 
             OPTIONS.notifications.hasSeenDonationPrompt = false;
+            OPTIONS.notifications.hasEditedFullscreenOption = false; // This is to check language again in modpacks...
             OPTIONS.notifications.hasClearedDonationButton = false;
 
             try {

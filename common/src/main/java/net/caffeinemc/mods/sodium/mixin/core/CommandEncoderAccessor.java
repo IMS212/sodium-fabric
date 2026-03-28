@@ -7,6 +7,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(CommandEncoder.class)
 public interface CommandEncoderAccessor {
-    @Accessor
-    CommandEncoderBackend getBackend();
+    @Accessor("backend")
+    CommandEncoderBackend sodium$getBackend();
 }

@@ -6,7 +6,8 @@
     "defaultRequire": 1
   },
   "overwrites": {
-    "conformVisibility": true
+    "conformVisibility": true,
+    "requireAnnotations": true
   },
   "client": [
     "BakedModelMixin",
@@ -19,8 +20,8 @@
     "ItemRenderStateMixin",
     "ModelBlockRendererAccessor",
     "ModelBlockRendererMixin",
-    "QuadViewImplMixin",
     "MutableQuadViewImplMixin",
+    "QuadViewImplMixin",
     "SubmitNodeCollectionMixin",
     "SubmitNodeStorageMixin"
   ]

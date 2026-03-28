@@ -23,18 +23,14 @@ import net.caffeinemc.mods.sodium.client.render.frapi.render.NonTerrainBlockRend
 import net.caffeinemc.mods.sodium.client.render.frapi.render.SimpleBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.ExtendedMutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
-import net.caffeinemc.mods.sodium.client.services.FRAPIProvider;
-import net.caffeinemc.mods.sodium.mixin.frapi.BlockRenderDispatcherAccessor;
 import net.caffeinemc.mods.sodium.mixin.frapi.ModelBlockRendererAccessor;
-import net.fabricmc.fabric.api.client.renderer.v1.Renderer;
-import net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableMesh;
-import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
-import net.fabricmc.fabric.api.client.renderer.v1.render.BlockMultiBufferSource;
-import net.fabricmc.fabric.api.client.renderer.v1.render.ChunkSectionLayerHelper;
-import net.fabricmc.fabric.api.client.renderer.v1.render.FabricModelBlockRenderer;
-import net.fabricmc.fabric.api.client.renderer.v1.render.ItemRenderTypeGetter;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.fabricmc.fabric.api.renderer.v1.Renderer;
+import net.fabricmc.fabric.api.renderer.v1.mesh.MutableMesh;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.renderer.v1.render.BlockVertexConsumerProvider;
+import net.fabricmc.fabric.api.renderer.v1.render.FabricBlockModelRenderer;
+import net.fabricmc.fabric.api.renderer.v1.render.ItemRenderTypeGetter;
+import net.fabricmc.fabric.api.renderer.v1.render.RenderLayerHelper;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
@@ -64,12 +60,12 @@ public class SodiumRenderer implements Renderer {
 
 
     @Override
-    public void render(ModelBlockRenderer modelBlockRenderer, BlockAndTintGetter blockView, BlockStateModel model, BlockState state, BlockPos pos, PoseStack poseStack, BlockMultiBufferSource multiBufferSource, boolean cull, long seed, int overlay) {
-        NonTerrainBlockRenderContext.POOL.get().renderModel(blockView, ((ModelBlockRendererAccessor) modelBlockRenderer).getBlockColors(), model, state, pos, poseStack, multiBufferSource, cull, seed, overlay);
+    public void render(ModelBlockRenderer modelBlockRenderer, BlockAndTintGetter blockView, BlockStateModel model, BlockState state, BlockPos pos, PoseStack poseStack, BlockVertexConsumerProvider multiBufferSource, boolean cull, long seed, int overlay) {
+        NonTerrainBlockRenderContext.POOL.get().renderModel(blockView, ((ModelBlockRendererAccessor) modelBlockRenderer).sodium$getBlockColors(), model, state, pos, poseStack, multiBufferSource, cull, seed, overlay);
     }
 
     @Override
-    public void render(PoseStack.Pose entry, BlockMultiBufferSource vertexConsumers, BlockStateModel model, float red, float green, float blue, int light, int overlay, BlockAndTintGetter blockView, BlockPos pos, BlockState state) {
+    public void render(PoseStack.Pose entry, BlockVertexConsumerProvider vertexConsumers, BlockStateModel model, float red, float green, float blue, int light, int overlay, BlockAndTintGetter blockView, BlockPos pos, BlockState state) {
         SimpleBlockRenderContext.POOL.get().bufferModel(entry, vertexConsumers, model, red, green, blue, light, overlay, blockView, pos, state);
     }
 
@@ -79,13 +75,13 @@ public class SodiumRenderer implements Renderer {
 
         if (renderShape != RenderShape.INVISIBLE) {
             BlockStateModel model = renderManager.getBlockModel(state);
-            int tint = ((ModelBlockRendererAccessor) renderManager.getModelRenderer()).getBlockColors().getColor(state, null, null, 0);
+            int tint = ((ModelBlockRendererAccessor) renderManager.getModelRenderer()).sodium$getBlockColors().getColor(state, null, null, 0);
             float red = (tint >> 16 & 255) / 255.0F;
             float green = (tint >> 8 & 255) / 255.0F;
             float blue = (tint & 255) / 255.0F;
 
-            FabricModelBlockRenderer.render(poseStack.last(), ChunkSectionLayerHelper.entityDelegate(multiBufferSource), model, red, green, blue, light, overlay, blockView, pos, state);
-        }
+            FabricBlockModelRenderer.render(poseStack.last(), RenderLayerHelper.entityDelegate(multiBufferSource), model, red, green, blue, light, overlay, blockView, pos, state);
+            }
     }
 
     @Override

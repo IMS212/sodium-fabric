@@ -7,11 +7,10 @@ import net.caffeinemc.mods.sodium.client.model.quad.ModelQuadView;
 import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFlags;
 import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.LightCoordsUtil;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 
@@ -36,26 +35,29 @@ public class FlatLightPipeline implements LightPipeline {
     @Override
     public void calculate(ModelQuadView quad, BlockPos pos, QuadLightData out, Direction cullFace, Direction lightFace, boolean shade, boolean enhanced) {
         int lightmap;
-        CardinalLighting cardinalLighting = this.lightCache.getLevel().cardinalLighting();
 
         // To match vanilla behavior, use the cull face if it exists/is available
         if (cullFace != null) {
             lightmap = getOffsetLightmap(pos, cullFace);
-            Arrays.fill(out.br, shade ? cardinalLighting.byFace(lightFace) : cardinalLighting.up());
+            Arrays.fill(out.br, getShade(this.lightCache.getLevel(), lightFace, shade));
         } else {
             int flags = quad.getFlags();
             // If the face is aligned, use the light data above it
             // To match vanilla behavior, also treat the face as aligned if it is parallel and the block state is a full cube
             if ((flags & ModelQuadFlags.IS_ALIGNED) != 0 || ((flags & ModelQuadFlags.IS_PARALLEL) != 0 && unpackFC(this.lightCache.get(pos)))) {
                 lightmap = getOffsetLightmap(pos, lightFace);
-                Arrays.fill(out.br, shade ? cardinalLighting.byFace(lightFace) : cardinalLighting.up());
+                Arrays.fill(out.br, getShade(this.lightCache.getLevel(), lightFace, shade));
             } else {
                 lightmap = getEmissiveLightmap(this.lightCache.get(pos));
-                Arrays.fill(out.br, enhanced ? PlatformBlockAccess.getInstance().getNormalVectorShade(quad, this.lightCache.getLevel(), shade) : (shade ? cardinalLighting.byFace(lightFace) : cardinalLighting.up()));
+                Arrays.fill(out.br, enhanced ? PlatformBlockAccess.getInstance().getNormalVectorShade(quad, this.lightCache.getLevel(), shade) : getShade(this.lightCache.getLevel(), lightFace, shade));
             }
         }
 
         Arrays.fill(out.lm, lightmap);
+    }
+
+    private float getShade(BlockAndTintGetter level, Direction lightFace, boolean shade) {
+        return shade ? level.cardinalLighting().byFace(lightFace) : level.cardinalLighting().up();
     }
 
     /**

@@ -4,9 +4,9 @@ import net.caffeinemc.mods.sodium.api.util.NormI8;
 import net.caffeinemc.mods.sodium.client.model.quad.ModelQuadView;
 import net.caffeinemc.mods.sodium.client.render.model.AmbientOcclusionMode;
 import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
-import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandlerRegistry;
+import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderingRegistry;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -55,7 +55,11 @@ public class FabricBlockAccess implements PlatformBlockAccess {
     }
 
     private float getShade(BlockAndTintGetter blockView, Direction direction, boolean hasShade) {
-        return hasShade ? blockView.cardinalLighting().byFace(direction) : blockView.cardinalLighting().up();
+        if (hasShade) {
+            return blockView.cardinalLighting().byFace(direction);
+        } else {
+            return blockView.cardinalLighting().up();
+        }
     }
 
     @Override
@@ -70,7 +74,7 @@ public class FabricBlockAccess implements PlatformBlockAccess {
 
     @Override
     public boolean shouldShowFluidOverlay(BlockState block, BlockAndTintGetter level, BlockPos pos, FluidState fluidState) {
-        return FluidRenderHandlerRegistry.INSTANCE.isBlockTransparent(block.getBlock());
+        return FluidRenderingRegistry.isBlockTransparent(block.getBlock());
     }
 
     @Override
@@ -84,7 +88,7 @@ public class FabricBlockAccess implements PlatformBlockAccess {
     }
 
     @Override
-    public AmbientOcclusionMode usesAmbientOcclusion(BlockModelPart model, BlockState state, BlockAndTintGetter level, BlockPos pos) {
+    public AmbientOcclusionMode usesAmbientOcclusion(BlockStateModelPart model, BlockState state, ChunkSectionLayer renderType, BlockAndTintGetter level, BlockPos pos) {
         return model.useAmbientOcclusion() ? AmbientOcclusionMode.DEFAULT : AmbientOcclusionMode.DISABLED;
     }
 

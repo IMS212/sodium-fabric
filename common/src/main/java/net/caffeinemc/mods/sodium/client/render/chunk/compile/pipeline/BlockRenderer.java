@@ -1,9 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline;
 
-import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.api.util.ColorMixer;
-import net.caffeinemc.mods.sodium.client.compatibility.workarounds.Workarounds;
 import net.caffeinemc.mods.sodium.client.model.color.ColorProvider;
 import net.caffeinemc.mods.sodium.client.model.color.ColorProviderRegistry;
 import net.caffeinemc.mods.sodium.client.model.light.LightMode;
@@ -12,12 +10,8 @@ import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadOrientation;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkBuildBuffers;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.buffers.ChunkModelBuilder;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.material.DefaultMaterials;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.material.Material;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.material.parameters.AlphaCutoffParameter;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.material.parameters.MaterialParameters;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.TranslucentGeometryCollector;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.builder.ChunkMeshBufferBuilder;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexEncoder;
@@ -25,10 +19,12 @@ import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.AbstractBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumShadeMode;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
+import net.caffeinemc.mods.sodium.client.services.PlatformModelAccess;
 import net.caffeinemc.mods.sodium.client.services.PlatformModelEmitter;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
@@ -51,15 +47,16 @@ public class BlockRenderer extends AbstractBlockRenderContext {
     @Nullable
     private ColorProvider<BlockState> colorProvider;
     private TranslucentGeometryCollector collector;
-    private boolean forceOpaque;
     private boolean cutoutLeaves;
 
-    public BlockRenderer(ColorProviderRegistry colorRegistry, LightPipelineProvider lighters, boolean cutoutLeaves) {
+    private final ColorProvider<BlockState> mutableColorProvider = PlatformModelAccess.getInstance().createMutableColorProvider();
+
+    public BlockRenderer(ColorProviderRegistry colorRegistry, LightPipelineProvider lighters) {
         this.colorProviderRegistry = colorRegistry;
         this.lighters = lighters;
-        this.cutoutLeaves = cutoutLeaves;
 
         this.random = new SingleThreadedRandomSource(42L);
+        this.cutoutLeaves = Minecraft.getInstance().options.cutoutLeaves().get();
     }
 
     public void prepare(ChunkBuildBuffers buffers, LevelSlice level, TranslucentGeometryCollector collector) {
@@ -95,7 +92,8 @@ public class BlockRenderer extends AbstractBlockRenderContext {
 
         random.setSeed(state.getSeed(pos));
 
-        this.forceOpaque = ModelBlockRenderer.forceOpaque(cutoutLeaves, state);
+        this.forceOpaque = ModelBlockRenderer.forceOpaque(this.cutoutLeaves, state);
+
         PlatformModelEmitter.getInstance().emitModel(model, this::isFaceCulled, getForEmitting(), random, level, pos, state, this::bufferDefaultModel);
 
         this.forceOpaque = false;
@@ -129,6 +127,8 @@ public class BlockRenderer extends AbstractBlockRenderContext {
 
         if (tintIndex != -1) {
             ColorProvider<BlockState> colorProvider = this.colorProvider;
+
+            if (colorProvider == null && mutableColorProvider != null) colorProvider = mutableColorProvider;
 
             if (colorProvider != null) {
                 int[] vertexColors = this.vertexColors;
@@ -169,7 +169,6 @@ public class BlockRenderer extends AbstractBlockRenderContext {
         var materialBits = material.bits();
         ModelQuadFacing normalFace = quad.normalFace();
 
-        // attempt render pass downgrade if possible
         var pass = material.pass;
 
         // collect all translucent quads into the translucency sorting system if enabled,
@@ -187,23 +186,4 @@ public class BlockRenderer extends AbstractBlockRenderContext {
             builder.addSprite(atlasSprite);
         }
     }
-
-    private boolean validateQuadUVs(TextureAtlasSprite atlasSprite) {
-        // sanity check that the quad's UVs are within the sprite's bounds
-        var spriteUMin = atlasSprite.getU0();
-        var spriteUMax = atlasSprite.getU1();
-        var spriteVMin = atlasSprite.getV0();
-        var spriteVMax = atlasSprite.getV1();
-
-        for (int i = 0; i < 4; i++) {
-            var u = this.vertices[i].u;
-            var v = this.vertices[i].v;
-            if (u < spriteUMin || u > spriteUMax || v < spriteVMin || v > spriteVMax) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
 }

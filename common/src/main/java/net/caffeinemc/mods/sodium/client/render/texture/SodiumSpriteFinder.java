@@ -16,8 +16,6 @@
 
 package net.caffeinemc.mods.sodium.client.render.texture;
 
-import java.util.function.Predicate;
-
 import net.caffeinemc.mods.sodium.client.model.quad.ModelQuadView;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumQuadAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;

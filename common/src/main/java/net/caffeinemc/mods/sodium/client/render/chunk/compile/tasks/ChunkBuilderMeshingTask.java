@@ -29,7 +29,7 @@ import net.minecraft.CrashReport;
 import net.minecraft.CrashReportCategory;
 import net.minecraft.ReportedException;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.chunk.VisGraph;
@@ -157,7 +157,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         profiler.popPush("mesh appenders");
 
         PlatformLevelRenderHooks.INSTANCE.runChunkMeshAppenders(this.renderContext.getRenderers(), type -> buffers.get(DefaultMaterials.forChunkLayer(type)).asFallbackVertexConsumer(DefaultMaterials.forChunkLayer(type), collector),
-                slice);
+                slice, this.renderContext.getOrigin().origin());
 
         blockRenderer.release();
 
@@ -177,15 +177,20 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         TranslucentData translucentData = null;
         if (sortEnabled) {
             TranslucentData oldData = this.render.getTranslucentData();
-            
+
             // Reusing non-dynamic data leads to attempting to sort with it again,
             // which throws an exception since it can only generate a sorter once.
             // To prevent this, reusing data is prevented when forceSort is enabled and the data is not dynamic.
             if (this.forceSort && !(oldData instanceof DynamicData)) {
                 oldData = null;
             }
-            
-            translucentData = collector.getTranslucentData(oldData, this);
+
+            try {
+                translucentData = collector.getTranslucentData(oldData, this);
+            } catch (Exception ex) {
+                // Create a new crash report for exceptions thrown during sort preparation
+                throw fillCrashInfo(CrashReport.forThrowable(ex, "Encountered exception while preparing for translucency sorting"), slice, null);
+            }
             reuseUploadedData = !this.forceSort && translucentData == oldData;
         }
 
@@ -226,9 +231,14 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
             if (reuseUploadedData) {
                 output.markAsReusingUploadedData();
             } else if (translucentData instanceof PresentTranslucentData present) {
-                var sorter = present.getSorter();
-                sorter.writeIndexBuffer(this, true);
-                output.setSorter(sorter);
+                try {
+                    var sorter = present.getSorter();
+                    sorter.writeIndexBuffer(this, true);
+                    output.setSorter(sorter);
+                } catch (Exception ex) {
+                    // Create a new crash report for exceptions thrown during sorting
+                    throw fillCrashInfo(CrashReport.forThrowable(ex, "Encountered exception while writing index buffer for translucent geometry"), slice, null);
+                }
             }
         }
 
@@ -240,11 +250,14 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
     private ReportedException fillCrashInfo(CrashReport report, LevelSlice slice, BlockPos pos) {
         CrashReportCategory crashReportSection = report.addCategory("Block being rendered", 1);
 
-        BlockState state = null;
-        try {
-            state = slice.getBlockState(pos);
-        } catch (Exception ignored) {}
-        CrashReportCategory.populateBlockDetails(crashReportSection, slice, pos, state);
+        if (pos != null) {
+            BlockState state = null;
+            try {
+                state = slice.getBlockState(pos);
+            } catch (Exception ignored) {
+            }
+            CrashReportCategory.populateBlockDetails(crashReportSection, slice, pos, state);
+        }
 
         crashReportSection.setDetail("Chunk section", this.render);
         if (this.renderContext != null) {

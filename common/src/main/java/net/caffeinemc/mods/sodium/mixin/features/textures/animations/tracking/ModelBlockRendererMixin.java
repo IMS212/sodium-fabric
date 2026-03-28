@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.minecraft.client.renderer.block.BlockQuadOutput;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,8 +24,8 @@ public class ModelBlockRendererMixin {
      */
     @Inject(method = "putQuadWithTint", at = @At("HEAD"))
     private void preRenderQuad(BlockQuadOutput output, float x, float y, float z, BlockAndTintGetter level, BlockState state, BlockPos pos, BakedQuad quad, CallbackInfo ci) {
-        if (quad.spriteInfo().sprite() != null) {
-            SpriteUtil.INSTANCE.markSpriteActive(quad.spriteInfo().sprite());
+        if (quad.materialInfo().sprite() != null) {
+            SpriteUtil.INSTANCE.markSpriteActive(quad.materialInfo().sprite());
         }
     }
 }

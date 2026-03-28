@@ -73,7 +73,8 @@
   "depends" : {
     "fabricloader" : ">=0.16.0",
     "fabric-block-getter-api-v2" : "*",
-    "fabric-rendering-fluids-v1" : ">=2.0.0"
+    "fabric-rendering-fluids-v1" : ">=2.0.0",
+    "fabric-resource-loader-v0" : "*"
   },
   "breaks" : {
     "embeddium": "*",
@@ -91,7 +92,7 @@
     "custom_hud" : "<3.4.2",
     "farsight" : "<=1.21-4.3",
     "iceberg" : "<1.2.7",
-    "iris" : "<=1.10.4",
+    "iris" : "<=1.10.6",
     "movingelevators" : "<=1.4.7",
     "notenoughcrashes" : "<4.4.8",
     "noxesium" : "<2.3.3",

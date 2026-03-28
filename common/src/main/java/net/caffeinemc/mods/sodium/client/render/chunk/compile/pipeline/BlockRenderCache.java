@@ -27,10 +27,10 @@ public class BlockRenderCache {
 
         var colorRegistry = new ColorProviderRegistry(minecraft.getBlockColors());
 
-        this.blockRenderer = new BlockRenderer(colorRegistry, lightPipelineProvider, Minecraft.getInstance().options.cutoutLeaves().get());
+        this.blockRenderer = new BlockRenderer(colorRegistry, lightPipelineProvider);
         this.fluidRenderer = FluidRendererFactory.getInstance().createPlatformFluidRenderer(colorRegistry, lightPipelineProvider);
 
-        this.blockModels = minecraft.getModelManager().getBlockModelSet();
+        this.blockModels = minecraft.getModelManager().getBlockStateModelSet();
     }
 
     public BlockStateModelSet getBlockModels() {

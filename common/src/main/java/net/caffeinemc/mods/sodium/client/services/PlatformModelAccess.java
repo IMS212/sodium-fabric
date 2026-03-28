@@ -1,10 +1,11 @@
 package net.caffeinemc.mods.sodium.client.services;
 
+import net.caffeinemc.mods.sodium.client.model.color.ColorProvider;
 import net.caffeinemc.mods.sodium.client.render.helper.ListStorage;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -35,7 +36,7 @@ public interface PlatformModelAccess {
      * @param random The random source used by the current block renderer.
      * @return The list of quads used by the model.
      */
-    List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BlockModelPart model, BlockState state, Direction face, RandomSource random);
+    List<BakedQuad> getQuads(BlockAndTintGetter level, BlockPos pos, BlockStateModelPart model, BlockState state, Direction face, RandomSource random);
 
     /**
      * Gets the container holding model data for this chunk. <b>This operation is not thread safe.</b>
@@ -52,5 +53,8 @@ public interface PlatformModelAccess {
     @ApiStatus.Internal
     SodiumModelData getEmptyModelData();
 
-    List<BlockModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, @Nullable ListStorage emitter);
+    List<BlockStateModelPart> collectPartsOf(BlockStateModel blockStateModel, BlockAndTintGetter blockView, BlockPos pos, BlockState state, RandomSource random, @Nullable ListStorage emitter);
+
+    @Nullable
+    ColorProvider<BlockState> createMutableColorProvider();
 }

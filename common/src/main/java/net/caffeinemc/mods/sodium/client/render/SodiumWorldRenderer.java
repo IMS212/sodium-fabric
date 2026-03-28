@@ -4,8 +4,8 @@ import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.vertex.PoseStack;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
-import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
-import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
+import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderList;
@@ -23,7 +23,6 @@ import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
 import net.caffeinemc.mods.sodium.mixin.core.render.world.EntityRendererAccessor;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -32,7 +31,8 @@ import net.minecraft.client.renderer.chunk.ChunkSectionLayerGroup;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.state.LevelRenderState;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.BlockDestructionProgress;
@@ -65,7 +65,11 @@ public class SodiumWorldRenderer {
     private Vector3d lastCameraPos;
     private double lastCameraPitch, lastCameraYaw;
     private FogParameters lastFogParameters = FogParameters.NONE;
-    private Matrix4f lastProjectionMatrix;
+
+    /**
+     * This matrix is not the same one used for rendering! It does not correspond to anything specific, other than guaranteeing it'll change with rotation.
+     */
+    private Matrix4f cullMatrix;
 
     private boolean useEntityCulling;
 
@@ -167,7 +171,7 @@ public class SodiumWorldRenderer {
                              FogParameters fogParameters,
                              boolean spectator,
                              boolean updateChunksImmediately,
-                             ChunkRenderMatrices matrices) {
+                             Matrix4f cullMatrix) {
         NativeBuffer.reclaim(false);
 
         this.processChunkEvents();
@@ -195,15 +199,15 @@ public class SodiumWorldRenderer {
         if (this.lastCameraPos == null) {
             this.lastCameraPos = pos;
         }
-        if (this.lastProjectionMatrix == null) {
-            this.lastProjectionMatrix = new Matrix4f(matrices.projection());
+        if (this.cullMatrix == null) {
+            this.cullMatrix = new Matrix4f(cullMatrix);
         }
         boolean cameraLocationChanged = !pos.equals(this.lastCameraPos);
         boolean fogDistanceChanged = fogParameters.renderEnd() != this.lastFogParameters.renderEnd();
         boolean cameraAngleChanged = pitch != this.lastCameraPitch || yaw != this.lastCameraYaw;
-        boolean cameraProjectionChanged = !matrices.projection().equals(this.lastProjectionMatrix, 0.0001f);
+        boolean cameraProjectionChanged = !cullMatrix.equals(this.cullMatrix, 0.0001f);
 
-        this.lastProjectionMatrix.set(matrices.projection());
+        this.cullMatrix.set(cullMatrix);
 
         this.lastCameraPitch = pitch;
         this.lastCameraYaw = yaw;
@@ -433,7 +437,7 @@ public class SodiumWorldRenderer {
             return true;
         }
 
-        AABB bb = ((EntityRendererAccessor) renderer).getCullingBox(entity);
+        AABB bb = ((EntityRendererAccessor) renderer).sodium$getBoundingBoxForCulling(entity);
 
         // bail on very large entities to avoid checking many sections
         double entityVolume = (bb.maxX - bb.minX) * (bb.maxY - bb.minY) * (bb.maxZ - bb.minZ);
@@ -517,11 +521,5 @@ public class SodiumWorldRenderer {
 
     public boolean isSectionReady(int x, int y, int z) {
         return this.renderSectionManager.isSectionBuilt(x, y, z);
-    }
-
-    public void renderBufferDebug(GuiGraphics guiGraphics) {
-        if (this.renderSectionManager != null) {
-            this.renderSectionManager.renderBufferDebug(guiGraphics);
-        }
     }
 }

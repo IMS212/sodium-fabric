@@ -23,8 +23,8 @@ import net.caffeinemc.mods.sodium.client.render.helper.ColorHelper;
 import net.caffeinemc.mods.sodium.client.render.helper.ListStorage;
 import net.caffeinemc.mods.sodium.client.render.helper.TextureHelper;
 import net.caffeinemc.mods.sodium.client.render.texture.SodiumSpriteFinder;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -52,10 +52,10 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
     @Nullable
     private TextureAtlasSprite cachedSprite;
 
-    private List<BlockModelPart> cachedList;
+    private List<BlockStateModelPart> cachedList;
 
     @Override
-    public List<BlockModelPart> clearAndGet() {
+    public List<BlockStateModelPart> clearAndGet() {
         if (cachedList == null) {
             cachedList = new ArrayList<>();
             return cachedList;
@@ -105,8 +105,8 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
         TextureAtlasSprite sprite = cachedSprite;
 
         if (sprite == null) {
-            cachedSprite = finder.find(this);
-            sprite = cachedSprite;
+            sprite = finder.find(this);
+            cachedSprite = sprite;
         }
 
         return sprite;
@@ -164,7 +164,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
 
     public MutableQuadViewImpl setNormal(int vertexIndex, float x, float y, float z) {
         normalFlags(normalFlags() | (1 << vertexIndex));
-        this.normal[vertexIndex] = NormI8.pack(x, y, z);
+        data[baseIndex + vertexIndex * VERTEX_STRIDE + VERTEX_NORMAL] = NormI8.pack(x, y, z);
         return this;
     }
 
@@ -180,7 +180,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
 
         for (int v = 0; v < 4; v++) {
             if ((normalFlags & (1 << v)) == 0) {
-                normal[v] = packedFaceNormal;
+                data[baseIndex + v * VERTEX_STRIDE + VERTEX_NORMAL] = packedFaceNormal;
             }
         }
 
@@ -285,12 +285,11 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
     public final MutableQuadViewImpl fromBakedQuad(BakedQuad quad) {
         fromVanillaInternal(((BakedQuadView) (Object) quad));
         setNominalFace(quad.direction());
-        setDiffuseShade(quad.shade());
-        setTintIndex(quad.tintIndex());
+        setDiffuseShade(quad.materialInfo().shade());
+        setTintIndex(quad.materialInfo().tintIndex());
         setAmbientOcclusion(((BakedQuadView) (Object) quad).hasAO() ? TriState.DEFAULT : TriState.FALSE); // TODO: TRUE, or DEFAULT?
-        setRenderType(quad.spriteInfo().layer());
 
-        setEmissive(quad.lightEmission() == 15);
+        setEmissive(quad.materialInfo().lightEmission() == 15);
 
         // Copy geometry cached inside the quad
         BakedQuadView bakedView = (BakedQuadView) (Object) quad;
@@ -301,14 +300,14 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
         data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(headerBits, bakedView.getFlags());
         isGeometryInvalid = false;
 
-        SodiumQuadAtlas atlas = SodiumQuadAtlas.of(quad.spriteInfo().sprite().atlasLocation());
+        SodiumQuadAtlas atlas = SodiumQuadAtlas.of(quad.materialInfo().sprite().atlasLocation());
 
         if (atlas == null) {
             atlas = SodiumQuadAtlas.BLOCK;
         }
 
         setQuadAtlas(atlas);
-        cachedSprite(quad.spriteInfo().sprite());
+        cachedSprite(quad.materialInfo().sprite());
         return this;
     }
 

@@ -16,12 +16,13 @@ import net.caffeinemc.mods.sodium.api.config.structure.*;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.OsUtils;
 import net.caffeinemc.mods.sodium.client.compatibility.workarounds.Workarounds;
-import net.caffeinemc.mods.sodium.client.vk.arena.staging.MappedStagingBuffer;
-import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.config.structure.Config;
+import net.caffeinemc.mods.sodium.client.gl.arena.staging.MappedStagingBuffer;
+import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.gui.options.control.ControlValueFormatterImpls;
 import net.caffeinemc.mods.sodium.client.render.chunk.DeferMode;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.QuadSplittingMode;
-import net.caffeinemc.mods.sodium.client.services.PlatformRuntimeInformation;
+import net.caffeinemc.mods.sodium.mixin.features.gui.OptionsAccessor;
 import net.minecraft.client.*;
 import net.minecraft.client.renderer.texture.MipmapStrategy;
 import net.minecraft.client.renderer.texture.ReloadableTexture;
@@ -33,6 +34,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ParticleStatus;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GLCapabilities;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -79,6 +82,12 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
             return null;
         }
         return this.window.findBestMonitor();
+    }
+
+    public enum FullscreenMode {
+        OFF,
+        EXCLUSIVE,
+        BORDERLESS
     }
 
     public static void registerIcon(TextureManager textureManager) {
@@ -193,21 +202,61 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                                 .setBinding(this.vanillaOpts.guiScale()::set, this.vanillaOpts.guiScale()::get)
                 )
                 .addOption(
-                        builder.createBooleanOption(Identifier.parse("sodium:general.fullscreen"))
+                        builder.createEnumOption(Identifier.parse("sodium:general.fullscreen_mode"), FullscreenMode.class)
                                 .setStorageHandler(this.vanillaStorage)
-                                .setName(Component.translatable("options.fullscreen"))
-                                .setTooltip(Component.translatable("sodium.options.fullscreen.tooltip"))
-                                .setDefaultValue(false)
-                                .setBinding(value -> {
-                                    this.vanillaOpts.fullscreen().set(value);
+                                .setName(Component.translatable("sodium.options.fullscreen_mode.name"))
+                                .setTooltip(Component.translatable("sodium.options.fullscreen_mode.tooltip"))
+                                .setElementNameProvider(mode -> switch (mode) {
+                                    case OFF -> Component.translatable("sodium.options.fullscreen_mode.off");
+                                    case EXCLUSIVE ->
+                                            Component.translatable("sodium.options.fullscreen_mode.exclusive");
+                                    case BORDERLESS ->
+                                            Component.translatable("sodium.options.fullscreen_mode.borderless");
+                                })
+                                .setDefaultValue(FullscreenMode.OFF)
+                                .setImpact(OptionImpact.HIGH)
+                                .setBinding(
+                                        // modifies fullscreen and exclusive fullscreen together since they are interdependent in Vanilla's implementation
+                                        value -> {
+                                            switch (value) {
+                                                case OFF -> this.vanillaOpts.fullscreen().set(false);
+                                                case EXCLUSIVE -> {
+                                                    this.vanillaOpts.fullscreen().set(true);
+                                                    this.vanillaOpts.exclusiveFullscreen().set(true);
+                                                }
+                                                case BORDERLESS -> {
+                                                    this.vanillaOpts.fullscreen().set(true);
+                                                    this.vanillaOpts.exclusiveFullscreen().set(false);
+                                                }
+                                            }
 
-                                    if (this.window.isFullscreen() != this.vanillaOpts.fullscreen().get()) {
-                                        this.window.toggleFullScreen();
+                                            // apply the fullscreen state
+                                            if (this.window.isFullscreen() != this.vanillaOpts.fullscreen().get()) {
+                                                this.window.toggleFullScreen();
 
-                                        // The client might not be able to enter full-screen mode
-                                        this.vanillaOpts.fullscreen().set(this.window.isFullscreen());
+                                                // The client might not be able to enter full-screen mode
+                                                this.vanillaOpts.fullscreen().set(this.window.isFullscreen());
+                                            }
+                                        },
+                                        () -> {
+                                            boolean fullscreen = this.vanillaOpts.fullscreen().get();
+                                            boolean exclusive = this.vanillaOpts.exclusiveFullscreen().get();
+                                            if (fullscreen && exclusive) {
+                                                return FullscreenMode.EXCLUSIVE;
+                                            } else if (fullscreen) {
+                                                return FullscreenMode.BORDERLESS;
+                                            } else {
+                                                return FullscreenMode.OFF;
+                                            }
+                                        })
+                                .setApplyHook((_) -> {
+                                    // check for a change in the exclusivity of the fullscreen mode (though don't care if fullscreen mode has been turned off)
+                                    var initialExclusiveFullscreen = ((OptionsAccessor) Minecraft.getInstance().options).sodium$initialExclusiveFullscreen();
+                                    var currentExclusiveFullscreen = this.vanillaOpts.exclusiveFullscreen().get();
+                                    if (initialExclusiveFullscreen != currentExclusiveFullscreen) {
+                                        Config.onGameNeedsRestart();
                                     }
-                                }, this.vanillaOpts.fullscreen()::get)
+                                })
                 )
                 .addOption(
                         builder.createIntegerOption(Identifier.parse("sodium:general.fullscreen_resolution"))
@@ -239,10 +288,11 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                                                 return false;
                                             }
                                             var os = OsUtils.getOs();
+                                            var fullscreenMode = state.readEnumOption(Identifier.parse("sodium:general.fullscreen_mode"), FullscreenMode.class);
                                             return (os == OsUtils.OperatingSystem.WIN || os == OsUtils.OperatingSystem.MAC) &&
-                                                    state.readBooleanOption(Identifier.parse("sodium:general.fullscreen"));
+                                                    fullscreenMode == FullscreenMode.EXCLUSIVE;
                                         },
-                                        Identifier.parse("sodium:general.fullscreen"))
+                                        Identifier.parse("sodium:general.fullscreen_mode"))
                                 .setFlags(OptionFlag.REQUIRES_VIDEOMODE_RELOAD)
                 )
                 .addOption(
@@ -482,6 +532,28 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                                 }, Identifier.parse("sodium:quality.filtering_mode"))
                 )
         );
+
+        qualityPage.addOptionGroup(builder.createOptionGroup()
+                .addOption(
+                        builder.createBooleanOption(Identifier.parse("sodium:quality.hidden_fluid_culling"))
+                                .setStorageHandler(this.sodiumStorage)
+                                .setName(Component.translatable("sodium.options.hidden_fluid_culling.name"))
+                                .setTooltip(Component.translatable("sodium.options.hidden_fluid_culling.tooltip"))
+                                .setImpact(OptionImpact.MEDIUM)
+                                .setDefaultValue(DEFAULTS.quality.hiddenFluidCulling)
+                                .setBinding(value -> this.sodiumOpts.quality.hiddenFluidCulling = value, () -> this.sodiumOpts.quality.hiddenFluidCulling)
+                                .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+                )
+                .addOption(
+                        builder.createBooleanOption(Identifier.parse("sodium:quality.improved_fluid_shaping"))
+                                .setStorageHandler(this.sodiumStorage)
+                                .setName(Component.translatable("sodium.options.improved_fluid_shaping.name"))
+                                .setTooltip(Component.translatable("sodium.options.improved_fluid_shaping.tooltip"))
+                                .setDefaultValue(DEFAULTS.quality.improvedFluidShaping)
+                                .setBinding(value -> this.sodiumOpts.quality.improvedFluidShaping = value, () -> this.sodiumOpts.quality.improvedFluidShaping)
+                                .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+                )
+        );
         return qualityPage;
     }
 
@@ -572,21 +644,20 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                 )
         );
 
-        if (PlatformRuntimeInformation.getInstance().isDevelopmentEnvironment()) {
-            performancePage.addOptionGroup(builder.createOptionGroup()
-                    .addOption(
-                            builder.createEnumOption(Identifier.parse("sodium:performance.quad_splitting"), QuadSplittingMode.class)
-                                    .setStorageHandler(this.sodiumStorage)
-                                    .setName(Component.translatable("sodium.options.quad_splitting.name"))
-                                    .setTooltip(Component.translatable("sodium.options.quad_splitting.tooltip"))
-                                    .setImpact(OptionImpact.MEDIUM)
-                                    .setDefaultValue(DEFAULTS.performance.quadSplittingMode)
-                                    .setBinding(value -> this.sodiumOpts.performance.quadSplittingMode = value, () -> this.sodiumOpts.performance.quadSplittingMode)
-                                    .setEnabled(SodiumClientMod.options().debug.terrainSortingEnabled)
-                                    .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
-                    )
-            );
-        }
+        performancePage.addOptionGroup(builder.createOptionGroup()
+                .addOption(
+                        builder.createEnumOption(Identifier.parse("sodium:performance.quad_splitting"), QuadSplittingMode.class)
+                                .setStorageHandler(this.sodiumStorage)
+                                .setName(Component.translatable("sodium.options.quad_splitting.name"))
+                                .setTooltip(Component.translatable("sodium.options.quad_splitting.tooltip"))
+                                .setImpact(OptionImpact.MEDIUM)
+                                .setDefaultValue(DEFAULTS.performance.quadSplittingMode)
+                                .setBinding(value -> this.sodiumOpts.performance.quadSplittingMode = value, () -> this.sodiumOpts.performance.quadSplittingMode)
+                                .setEnabled(SodiumClientMod.options().debug.terrainSortingEnabled)
+                                .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+                )
+        );
+
         return performancePage;
     }
 
@@ -598,7 +669,9 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                 .setDefaultValue(DEFAULTS.performance.useNoErrorGLContext)
                 .setBinding(value -> this.sodiumOpts.performance.useNoErrorGLContext = value, () -> this.sodiumOpts.performance.useNoErrorGLContext)
                 .setEnabledProvider((state) -> {
-                    return !Workarounds.isWorkaroundEnabled(Workarounds.Reference.NO_ERROR_CONTEXT_UNSUPPORTED);
+                    GLCapabilities capabilities = GL.getCapabilities();
+                    return (capabilities.OpenGL46 || capabilities.GL_KHR_no_error)
+                            && !Workarounds.isWorkaroundEnabled(Workarounds.Reference.NO_ERROR_CONTEXT_UNSUPPORTED);
                 })
                 .setImpact(OptionImpact.LOW)
                 .setFlags(OptionFlag.REQUIRES_GAME_RESTART);
@@ -606,6 +679,8 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
 
     private OptionPageBuilder buildAdvancedPage(ConfigBuilder builder) {
         var advancedPage = builder.createOptionPage().setName(Component.translatable("sodium.options.pages.advanced"));
+
+        boolean isPersistentMappingSupported = MappedStagingBuffer.isSupported(RenderDevice.INSTANCE);
 
         advancedPage.addOptionGroup(builder.createOptionGroup()
                 .addOption(
@@ -615,6 +690,7 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                                 .setTooltip(Component.translatable("sodium.options.use_persistent_mapping.tooltip"))
                                 .setDefaultValue(DEFAULTS.advanced.useAdvancedStagingBuffers)
                                 .setBinding(value -> this.sodiumOpts.advanced.useAdvancedStagingBuffers = value, () -> this.sodiumOpts.advanced.useAdvancedStagingBuffers)
+                                .setEnabled(isPersistentMappingSupported)
                                 .setImpact(OptionImpact.MEDIUM)
                                 .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
                 )

@@ -36,7 +36,7 @@ public abstract class LevelRendererMixin {
      * @return
      */
     @WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;hasEffect(Lnet/minecraft/core/Holder;)Z", ordinal = 0))
-    private boolean preRenderSky(LivingEntity instance, Holder<MobEffect> p_316430_, Operation<Boolean> original) {
+    private boolean preRenderSky(LivingEntity instance, Holder<MobEffect> effect, Operation<Boolean> original) {
         // Cancels sky rendering when the camera is submersed underwater.
         // This prevents the sky from being visible through chunks culled by Sodium's fog occlusion.
         // Fixes https://bugs.mojang.com/browse/MC-152504.
@@ -45,6 +45,6 @@ public abstract class LevelRendererMixin {
             return true;
         }
 
-        return original.call(instance, p_316430_);
+        return original.call(instance, effect);
     }
 }

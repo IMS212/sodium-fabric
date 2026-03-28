@@ -2,7 +2,7 @@ plugins {
     id("multiloader-base")
     id("java-library")
 
-    id("net.fabricmc.fabric-loom") version ("1.15.1")
+    id("net.fabricmc.fabric-loom") version ("1.15.4")
 }
 
 base {
@@ -44,17 +44,25 @@ loom {
 
 dependencies {
     minecraft("com.mojang:minecraft:${BuildConfig.MINECRAFT_VERSION}")
-    implementation("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
+    mappings(loom.layered {
+        officialMojangMappings()
+
+        if (BuildConfig.PARCHMENT_VERSION != null) {
+            parchment("org.parchmentmc.data:parchment-${BuildConfig.MINECRAFT_VERSION}:${BuildConfig.PARCHMENT_VERSION}@zip")
+        }
+    })
+
+    modImplementation("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
 
     fun addEmbeddedFabricModule(name: String) {
         val module = fabricApi.module(name, BuildConfig.FABRIC_API_VERSION)
-        implementation(module)
+        modImplementation(module)
         include(module)
     }
 
     // Fabric API modules
     addEmbeddedFabricModule("fabric-api-base")
-    addEmbeddedFabricModule("fabric-block-getter-api-v2")
+    addEmbeddedFabricModule("fabric-block-view-api-v2")
     addEmbeddedFabricModule("fabric-rendering-v1")
     addEmbeddedFabricModule("fabric-renderer-api-v1")
 }
@@ -96,3 +104,4 @@ fun exportSourceSet(name: String, sourceSet: SourceSet) {
 
 exportSourceSet("frapiMain", sourceSets["main"])
 tasks.jar { enabled = false }
+tasks.remapJar { enabled = false }

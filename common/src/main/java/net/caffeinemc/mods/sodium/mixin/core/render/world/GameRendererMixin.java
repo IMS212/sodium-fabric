@@ -24,21 +24,21 @@ public class GameRendererMixin implements GameRendererStorage {
     private FogRenderer fogRenderer;
 
     @Unique
-    private final Matrix4f projectionMatrix = new Matrix4f();
+    private Matrix4f projection = new Matrix4f();
 
     @Override
     public FogParameters sodium$getFogParameters() {
         return ((FogStorage) this.fogRenderer).sodium$getFogParameters();
     }
 
-    @Override
-    public Matrix4fc sodium$getProjectionMatrix() {
-        return this.projectionMatrix;
+    @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/blaze3d/buffers/GpuBufferSlice;"))
+    private GpuBufferSlice sodium$setProjection(ProjectionMatrixBuffer instance, Matrix4f projectionMatrix, Operation<GpuBufferSlice> original) {
+        this.projection.set(projectionMatrix);
+        return original.call(instance, projectionMatrix);
     }
 
-    @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/blaze3d/buffers/GpuBufferSlice;"))
-    private GpuBufferSlice sodium$captureProjection(ProjectionMatrixBuffer instance, Matrix4f projectionMatrix, Operation<GpuBufferSlice> original) {
-        this.projectionMatrix.set(projectionMatrix);
-        return original.call(instance, projectionMatrix);
+    @Override
+    public Matrix4fc sodium$getProjectionMatrix() {
+        return projection;
     }
 }
