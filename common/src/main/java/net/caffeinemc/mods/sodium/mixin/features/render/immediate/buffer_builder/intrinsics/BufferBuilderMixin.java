@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.caffeinemc.mods.sodium.api.memory.MemoryIntrinsics;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
-import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
 import net.caffeinemc.mods.sodium.client.model.quad.ModelQuadView;
 import net.caffeinemc.mods.sodium.client.render.immediate.model.BakedModelEncoder;
@@ -22,11 +21,11 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public abstract class BufferBuilderMixin implements VertexConsumer {
     @Shadow
     @Final
-    private boolean fastFormat;
+    private boolean blockFormat;
 
     @Shadow
     @Final
-    private boolean fullFormat;
+    private boolean entityFormat;
 
     @Redirect(method = "*", at = @At(value = "INVOKE", target = "Lorg/lwjgl/system/MemoryUtil;memPutInt(JI)V"))
     private static void redirectInt(long address, int value) {
@@ -50,7 +49,7 @@ public abstract class BufferBuilderMixin implements VertexConsumer {
 
     @Override
     public void putBakedQuad(PoseStack.Pose pose, BakedQuad quad, QuadInstance instance) {
-        if (!this.fastFormat) { // check for ENTITY.
+        if (!this.blockFormat) { // check for ENTITY.
             VertexConsumer.super.putBakedQuad(pose, quad, instance);
 
             if (quad.materialInfo().sprite() != null) {

@@ -1,6 +1,5 @@
 package net.caffeinemc.mods.sodium.client.vk.arena.staging;
 
-import net.caffeinemc.mods.sodium.client.vk.CinnabarAccess;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBufferUsages;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkMappingType;
@@ -9,15 +8,12 @@ import net.caffeinemc.mods.sodium.client.vk.fence.VkFence;
 import net.caffeinemc.mods.sodium.client.vk.util.EnumBitField;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.vulkan.VkDevice;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
-import static org.lwjgl.util.vma.Vma.*;
-import static org.lwjgl.vulkan.VK10.*;
 
 public class FallbackStagingBuffer implements StagingBuffer {
     private final Deque<PendingUpload> pending = new ArrayDeque<>();
@@ -65,7 +61,6 @@ public class FallbackStagingBuffer implements StagingBuffer {
     @Override
     public void delete(CommandList commandList) {
         for (PendingUpload upload : pending) {
-            upload.fence.sync();
             commandList.deleteBuffer(upload.buffer);
         }
         pending.clear();

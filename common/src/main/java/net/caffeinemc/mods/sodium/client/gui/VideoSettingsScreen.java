@@ -388,7 +388,7 @@ public class VideoSettingsScreen extends Screen implements ScreenPromptable, Scr
         if (this.prompt == null && !this.searchWidget.isSearching()) {
             // shift + P opens the vanilla video settings screen
             if (event.key() == GLFW.GLFW_KEY_P && (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0) {
-                Minecraft.getInstance().setScreen(new net.minecraft.client.gui.screens.options.VideoSettingsScreen(this.prevScreen, Minecraft.getInstance(), Minecraft.getInstance().options));
+                Minecraft.getInstance().setScreenAndShow(new net.minecraft.client.gui.screens.options.VideoSettingsScreen(this.prevScreen, Minecraft.getInstance(), Minecraft.getInstance().options));
                 return true;
             }
 
@@ -484,7 +484,7 @@ public class VideoSettingsScreen extends Screen implements ScreenPromptable, Scr
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.prevScreen);
+        this.minecraft.setScreenAndShow(this.prevScreen);
     }
 
     @Override

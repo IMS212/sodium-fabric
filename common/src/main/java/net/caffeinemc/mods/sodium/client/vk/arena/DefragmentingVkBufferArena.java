@@ -3,7 +3,7 @@ package net.caffeinemc.mods.sodium.client.vk.arena;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.Mth;
 
 import java.util.Collection;
@@ -438,7 +438,7 @@ public class DefragmentingVkBufferArena extends VkBufferArena {
     }
 
     @Override
-    public void renderDebugMap(GuiGraphics graphics, int x, int y, int drawWidth, int drawHeight) {
+    public void renderDebugMap(GuiGraphicsExtractor graphics, int x, int y, int drawWidth, int drawHeight) {
         super.renderDebugMap(graphics, x, y, drawWidth, drawHeight);
 
         // render measure of fragmentation degree and copies performed per frame
@@ -447,6 +447,6 @@ public class DefragmentingVkBufferArena extends VkBufferArena {
         int barLength = (int) (drawHeight * fragmentationDegree);
         var thickness = 3;
         graphics.fill(x, y, x + thickness, y + barLength, 0xCFFFFFFF);
-        graphics.drawString(Minecraft.getInstance().font, Integer.toString(defragmentationSteps), x, y, 0xFFFFFFFF);
+        graphics.text(Minecraft.getInstance().font, Integer.toString(defragmentationSteps), x, y, 0xFFFFFFFF);
     }
 }

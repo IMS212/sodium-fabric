@@ -31,4 +31,6 @@ public interface CommandList extends AutoCloseable {
     VkFence createFence();
 
     VulkanRenderPass startRenderPass(long colorTextureView);
+
+    void deleteAllFences();
 }

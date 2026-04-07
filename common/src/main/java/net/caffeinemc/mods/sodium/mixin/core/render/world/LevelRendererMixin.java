@@ -8,7 +8,6 @@ import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import net.caffeinemc.mods.sodium.client.render.viewport.ViewportProvider;
@@ -122,13 +121,8 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
 
     @Inject(method = "setLevel", at = @At("RETURN"))
     private void onWorldChanged(ClientLevel level, CallbackInfo ci) {
-        RenderDevice.enterManagedCode();
-
-        try {
             this.renderer.setLevel(level);
-        } finally {
-            RenderDevice.exitManagedCode();
-        }
+
     }
 
     /**
@@ -189,13 +183,9 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
             this.worldBorderRenderer.invalidate();
         }
 
-        RenderDevice.enterManagedCode();
 
-        try {
-            this.renderer.setupTerrain(camera, viewport, ((FogStorage) this.minecraft.gameRenderer).sodium$getFogParameters(), spectator, updateChunksImmediately, ((FrustumAccessor) frustum).sodium$getMatrix());
-        } finally {
-            RenderDevice.exitManagedCode();
-        }
+        this.renderer.setupTerrain(camera, viewport, ((FogStorage) this.minecraft.gameRenderer).sodium$getFogParameters(), spectator, updateChunksImmediately, ((FrustumAccessor) frustum).sodium$getMatrix());
+
     }
 
     /**
@@ -245,13 +235,8 @@ public abstract class LevelRendererMixin implements LevelRendererExtension {
 
     @Inject(method = "allChanged()V", at = @At("RETURN"))
     private void onReload(CallbackInfo ci) {
-        RenderDevice.enterManagedCode();
+        this.renderer.reload();
 
-        try {
-            this.renderer.reload();
-        } finally {
-            RenderDevice.exitManagedCode();
-        }
     }
 
     @Inject(method = "extractVisibleBlockEntities", at = @At("HEAD"), cancellable = true, require = 1)

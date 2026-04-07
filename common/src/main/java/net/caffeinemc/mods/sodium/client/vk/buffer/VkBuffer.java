@@ -1,6 +1,6 @@
 package net.caffeinemc.mods.sodium.client.vk.buffer;
 
-import net.caffeinemc.mods.sodium.client.vk.CinnabarAccess;
+import net.caffeinemc.mods.sodium.client.vk.VulkanAccess;
 import net.caffeinemc.mods.sodium.client.vk.VkObjectDestroyable;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import org.jspecify.annotations.Nullable;
@@ -37,6 +37,6 @@ public class VkBuffer extends VkObjectDestroyable {
 
     @Override
     protected void destroyInternal(CommandList commandList) {
-        Vma.vmaDestroyBuffer(CinnabarAccess.getAllocator(), handle(), allocation);
+        Vma.vmaDestroyBuffer(VulkanAccess.getAllocator(), handle(), allocation);
     }
 }

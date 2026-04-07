@@ -1,7 +1,6 @@
 package net.caffeinemc.mods.sodium.client.vk.device;
 
-import net.caffeinemc.mods.sodium.client.compatibility.environment.OsUtils;
-import net.caffeinemc.mods.sodium.client.vk.CinnabarAccess;
+import net.caffeinemc.mods.sodium.client.vk.VulkanAccess;
 import net.caffeinemc.mods.sodium.client.vk.VkObjectDestroyable;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBufferUsages;
@@ -22,7 +21,6 @@ import org.lwjgl.vulkan.VkBufferCopy;
 import org.lwjgl.vulkan.VkBufferCreateInfo;
 import org.lwjgl.vulkan.VkCommandBuffer;
 
-import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +50,7 @@ public class VKRenderDevice implements RenderDevice {
 
     @Override
     public CommandList createCommandList() {
-        return this.commandList.using(CinnabarAccess.getCleanCommandBuffer());
+        return this.commandList.using(VulkanAccess.getCleanCommandBuffer());
     }
 
     @Override
@@ -62,7 +60,7 @@ public class VKRenderDevice implements RenderDevice {
 
     @Override
     public int getSubTexelPrecisionBits() {
-        return CinnabarAccess.getSubTexelBits();
+        return VulkanAccess.getSubTexelBits();
     }
 
     @Override
@@ -109,7 +107,7 @@ public class VKRenderDevice implements RenderDevice {
 
                 VmaAllocationInfo info = VmaAllocationInfo.calloc(stack);
 
-                int res = Vma.vmaCreateBuffer(CinnabarAccess.getAllocator(),
+                int res = Vma.vmaCreateBuffer(VulkanAccess.getAllocator(),
                         bufferCreateInfo,
                         allocationCreateInfo,
                         pBuffer,
@@ -157,7 +155,7 @@ public class VKRenderDevice implements RenderDevice {
         public VkMapping mapBuffer(VkBuffer buffer, long offset, long length) {
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 PointerBuffer pointerBuffer = stack.mallocPointer(1);
-                int res = Vma.vmaMapMemory(CinnabarAccess.getAllocator(), buffer.getAllocation(), pointerBuffer);
+                int res = Vma.vmaMapMemory(VulkanAccess.getAllocator(), buffer.getAllocation(), pointerBuffer);
                 if (res != VK13.VK_SUCCESS) {
                     throw new RuntimeException("Failed to map buffer memory " + res);
                 }
@@ -168,13 +166,13 @@ public class VKRenderDevice implements RenderDevice {
 
         @Override
         public void unmap(VkMapping map) {
-            Vma.vmaUnmapMemory(CinnabarAccess.getAllocator(), map.getBuffer().getAllocation());
+            Vma.vmaUnmapMemory(VulkanAccess.getAllocator(), map.getBuffer().getAllocation());
             map.getBuffer().setMapping(null);
         }
 
         @Override
         public void flushMappedRange(VkMapping map, int offset, int length) {
-            Vma.vmaFlushAllocation(CinnabarAccess.getAllocator(), map.getBuffer().getAllocation(), offset, length);
+            Vma.vmaFlushAllocation(VulkanAccess.getAllocator(), map.getBuffer().getAllocation(), offset, length);
         }
 
         @Override
@@ -185,6 +183,11 @@ public class VKRenderDevice implements RenderDevice {
         @Override
         public VulkanRenderPass startRenderPass(long colorTextureView) {
             return new VulkanRenderPass(commandBuffer, colorTextureView);
+        }
+
+        @Override
+        public void deleteAllFences() {
+            fenceQueue.freeAll();
         }
     }
 }

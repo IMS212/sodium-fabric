@@ -8,15 +8,11 @@ import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.platform.WindowEventHandler;
 import net.caffeinemc.mods.sodium.client.compatibility.checks.ModuleScanner;
 import net.caffeinemc.mods.sodium.client.compatibility.checks.PostLaunchChecks;
-import net.caffeinemc.mods.sodium.client.compatibility.workarounds.amd.AmdWorkarounds;
-import net.caffeinemc.mods.sodium.client.compatibility.workarounds.nvidia.NvidiaWorkarounds;
-import net.caffeinemc.mods.sodium.client.compatibility.environment.GlContextInfo;
 import net.caffeinemc.mods.sodium.client.platform.NativeWindowHandle;
 import net.caffeinemc.mods.sodium.client.services.PlatformRuntimeInformation;
 import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWNativeWin32;
-import org.lwjgl.opengl.WGL;
 import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
@@ -35,41 +31,5 @@ import java.util.function.Supplier;
 
 @Mixin(Window.class)
 public class WindowMixin {
-    @Redirect(method = "createGlfwWindow", at = @At(value = "INVOKE", target = "Lorg/lwjgl/glfw/GLFW;glfwCreateWindow(IILjava/lang/CharSequence;JJ)J"), expect = 0, require = 0)
-    private static long wrapGlfwCreateWindow(int width, int height, CharSequence title, long monitor, long share) {
-        NvidiaWorkarounds.applyEnvironmentChanges();
-        AmdWorkarounds.applyEnvironmentChanges();
 
-        long handles;
-
-        try {
-            handles = GLFW.glfwCreateWindow(width, height, title, monitor, share);
-        } finally {
-            NvidiaWorkarounds.undoEnvironmentChanges();
-            AmdWorkarounds.undoEnvironmentChanges();
-        }
-
-        return handles;
-    }
-
-    @SuppressWarnings("all")
-    @WrapOperation(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/neoforged/fml/loading/ImmediateWindowHandler;setupMinecraftWindow(Ljava/util/function/IntSupplier;Ljava/util/function/IntSupplier;Ljava/util/function/Supplier;Ljava/util/function/LongSupplier;)J"), expect = 0, require = 0)
-    private long wrapGlfwCreateWindowForge(final IntSupplier width, final IntSupplier height, final Supplier<String> title, final LongSupplier monitor, Operation<Long> op) {
-        boolean applyWorkaroundsLate = !PlatformRuntimeInformation.getInstance()
-                .platformHasEarlyLoadingScreen();
-
-        if (applyWorkaroundsLate) {
-            NvidiaWorkarounds.applyEnvironmentChanges();
-            AmdWorkarounds.applyEnvironmentChanges();
-        }
-
-        try {
-            return op.call(width, height, title, monitor);
-        } finally {
-            if (applyWorkaroundsLate) {
-                NvidiaWorkarounds.undoEnvironmentChanges();
-                AmdWorkarounds.undoEnvironmentChanges();
-            }
-        }
-    }
 }

@@ -1,6 +1,6 @@
 package net.caffeinemc.mods.sodium.client.vk.pipeline;
 
-import net.caffeinemc.mods.sodium.client.vk.CinnabarAccess;
+import net.caffeinemc.mods.sodium.client.vk.VulkanAccess;
 import net.caffeinemc.mods.sodium.client.vk.VkObjectDestroyable;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.caffeinemc.mods.sodium.client.vk.renderpass.VulkanRenderPass;
@@ -20,7 +20,7 @@ public final class VkPipeline<T> extends VkObjectDestroyable {
     }
 
     public static <T> VkPipeline<T> create(VkPipelineLayout layout, Function<VkGraphicsPipelineBuilder, VkGraphicsPipelineBuilder> pipelineSetup, Class<T> shaderInterfaceClass) {
-        VkGraphicsPipelineBuilder builder = VkGraphicsPipelineBuilder.create(CinnabarAccess.getDevice(), layout.handle());
+        VkGraphicsPipelineBuilder builder = VkGraphicsPipelineBuilder.create(VulkanAccess.getDevice(), layout.handle());
         builder = pipelineSetup.apply(builder);
 
         long pipeline = builder.build();
@@ -35,7 +35,7 @@ public final class VkPipeline<T> extends VkObjectDestroyable {
 
     @Override
     protected void destroyInternal(CommandList commandList) {
-        VK13.vkDestroyPipeline(CinnabarAccess.getDevice(), this.handle(), null);
+        VK13.vkDestroyPipeline(VulkanAccess.getDevice(), this.handle(), null);
     }
 
     public void bind(VulkanRenderPass renderPass) {

@@ -11,7 +11,7 @@ import net.caffeinemc.mods.sodium.client.vk.buffer.VkMappingType;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.caffeinemc.mods.sodium.client.vk.util.EnumBitField;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -474,7 +474,7 @@ public class ArenaAggregator {
         return count;
     }
 
-    public void renderBufferDebug(GuiGraphics graphics) {
+    public void renderBufferDebug(GuiGraphicsExtractor graphics) {
         int leftPadding = 10;
         int verticalPadding = 10;
         int arenaPadding = 4;
@@ -498,7 +498,7 @@ public class ArenaAggregator {
                     MathUtil.toMib(dataType.getDeviceUsedMemory()),
                     MathUtil.toMib(dataType.getDeviceAllocatedMemory()),
                     dataType.pauseDeallocation ? "deallocation paused" : "");
-            graphics.drawString(Minecraft.getInstance().font, str, leftPadding, y, Colors.FOREGROUND);
+            graphics.text(Minecraft.getInstance().font, str, leftPadding, y, Colors.FOREGROUND);
             y += verticalPadding;
             var x = leftPadding;
             var arenaCount = dataType.arenas.size();
@@ -517,20 +517,20 @@ public class ArenaAggregator {
         }
 
         // show total copies and bytes
-        graphics.drawString(Minecraft.getInstance().font,
+        graphics.text(Minecraft.getInstance().font,
                 String.format("Defragmentation copies: %d (%d MiB)",
                         this.totalCopyCount, MathUtil.toMib(this.totalCopyBytes)),
                 leftPadding, 30, Colors.FOREGROUND);
 
         // budget per frame
-        graphics.drawString(Minecraft.getInstance().font,
+        graphics.text(Minecraft.getInstance().font,
                 String.format("Defragmentation budget per frame: %d copies / %d MiB",
                         DEFRAG_COPIES_PER_FRAME_BUDGET,
                         MathUtil.toMib(DEFRAG_BYTES_PER_FRAME_BUDGET)),
                 leftPadding, 40, Colors.FOREGROUND);
 
         // allocation stats
-        graphics.drawString(Minecraft.getInstance().font,
+        graphics.text(Minecraft.getInstance().font,
                 String.format("Buffer allocations: %d (%d MiB)",
                         this.allocationCount, MathUtil.toMib(this.allocationBytes)),
                 leftPadding, 50, Colors.FOREGROUND);

@@ -46,7 +46,7 @@ import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
 import net.caffeinemc.mods.sodium.client.world.cloned.ClonedChunkSectionCache;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
@@ -975,7 +975,7 @@ public class RenderSectionManager {
         return ReferenceSets.unmodifiable(this.sectionsWithGlobalEntities);
     }
 
-    public void renderBufferDebug(GuiGraphics guiGraphics) {
-        this.regions.getArenaAggregator().renderBufferDebug(guiGraphics);
+    public void renderBufferDebug(GuiGraphicsExtractor guiGraphics) {
+        if (Minecraft.getInstance().hasAltDown()) this.regions.getArenaAggregator().renderBufferDebug(guiGraphics);
     }
 }

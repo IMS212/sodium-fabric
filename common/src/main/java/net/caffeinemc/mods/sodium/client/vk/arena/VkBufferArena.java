@@ -6,7 +6,7 @@ import net.caffeinemc.mods.sodium.client.vk.arena.staging.StagingBuffer;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
@@ -525,7 +525,7 @@ public class VkBufferArena implements AllocatorBase {
         Minecraft.getInstance().getTextureManager().register(this.textureId, this.texture);
     }
 
-    public void renderDebugMap(GuiGraphics graphics, int x, int y, int drawWidth, int drawHeight) {
+    public void renderDebugMap(GuiGraphicsExtractor graphics, int x, int y, int drawWidth, int drawHeight) {
         var image = this.texture.getPixels();
         int width = image.getWidth();
         int height = image.getHeight();
@@ -580,8 +580,8 @@ public class VkBufferArena implements AllocatorBase {
         graphics.blit(RenderPipelines.GUI_TEXTURED, this.textureId, x, y, 0, 0, drawWidth, drawHeight, 1, 1, 1, 1);
 
         int usageOffset = 3;
-        graphics.drawString(Minecraft.getInstance().font, String.format("%d MiB", MathUtil.toMib(this.getDeviceUsedMemory())), x + usageOffset, y + drawHeight - 30, 0xFFFFFFFF);
-        graphics.drawString(Minecraft.getInstance().font, "of", x + usageOffset, y + drawHeight - 20, 0xFFFFFFFF);
-        graphics.drawString(Minecraft.getInstance().font, String.format("%d MiB", MathUtil.toMib(this.getDeviceAllocatedMemory())), x + usageOffset, y + drawHeight - 10, 0xFFFFFFFF);
+        graphics.text(Minecraft.getInstance().font, String.format("%d MiB", MathUtil.toMib(this.getDeviceUsedMemory())), x + usageOffset, y + drawHeight - 30, 0xFFFFFFFF);
+        graphics.text(Minecraft.getInstance().font, "of", x + usageOffset, y + drawHeight - 20, 0xFFFFFFFF);
+        graphics.text(Minecraft.getInstance().font, String.format("%d MiB", MathUtil.toMib(this.getDeviceAllocatedMemory())), x + usageOffset, y + drawHeight - 10, 0xFFFFFFFF);
     }
 }

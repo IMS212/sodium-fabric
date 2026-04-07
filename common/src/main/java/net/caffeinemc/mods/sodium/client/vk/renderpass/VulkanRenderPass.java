@@ -1,7 +1,7 @@
 package net.caffeinemc.mods.sodium.client.vk.renderpass;
 
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
-import net.caffeinemc.mods.sodium.client.vk.CinnabarAccess;
+import net.caffeinemc.mods.sodium.client.vk.VulkanAccess;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkIndexType;
 import net.caffeinemc.mods.sodium.client.vk.device.MultiDrawBatch;
@@ -19,7 +19,7 @@ public class VulkanRenderPass implements AutoCloseable {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             var width = Minecraft.getInstance().getMainRenderTarget().width;
             var height = Minecraft.getInstance().getMainRenderTarget().height;
-            var depthTexture = CinnabarAccess.getView(Minecraft.getInstance().getMainRenderTarget().getDepthTextureView());
+            var depthTexture = VulkanAccess.getView(Minecraft.getInstance().getMainRenderTarget().getDepthTextureView());
 
             var renderingInfo = VkRenderingInfo.calloc(stack);
             renderingInfo.sType$Default().pColorAttachments(VkRenderingAttachmentInfo.calloc(1, stack).sType$Default().imageView(colorTexture)

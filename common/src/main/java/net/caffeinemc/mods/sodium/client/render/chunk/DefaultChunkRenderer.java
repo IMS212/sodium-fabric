@@ -1,6 +1,5 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
@@ -20,26 +19,21 @@ import net.caffeinemc.mods.sodium.client.render.viewport.CameraTransform;
 import net.caffeinemc.mods.sodium.client.util.BitwiseMath;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import net.caffeinemc.mods.sodium.client.util.UInt32;
-import net.caffeinemc.mods.sodium.client.vk.CinnabarAccess;
+import net.caffeinemc.mods.sodium.client.vk.VulkanAccess;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkIndexType;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
-import net.caffeinemc.mods.sodium.client.vk.device.DrawCommandList;
 import net.caffeinemc.mods.sodium.client.vk.device.MultiDrawBatch;
 import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.vk.renderpass.VulkanRenderPass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.data.AtlasIds;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.system.Pointer;
 import org.lwjgl.vulkan.VK13;
 import org.lwjgl.vulkan.VkDescriptorImageInfo;
 import org.lwjgl.vulkan.VkWriteDescriptorSet;
 
 import java.util.Iterator;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
 public class DefaultChunkRenderer extends ShaderChunkRenderer {
     private static final int MODEL_UNASSIGNED = ModelQuadFacing.UNASSIGNED.ordinal();
@@ -300,7 +294,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             }
         }
 
-        try (VulkanRenderPass pass = commandList.startRenderPass(CinnabarAccess.getView(renderPass.getTarget().getColorTextureView()))) {
+        try (VulkanRenderPass pass = commandList.startRenderPass(VulkanAccess.getView(renderPass.getTarget().getColorTextureView()))) {
             super.begin(pass, renderPass, parameters, terrainSampler);
 
             ChunkShaderInterface shader = this.activeProgram.getInterface();
@@ -335,16 +329,16 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                     VkWriteDescriptorSet.Buffer buf = VkWriteDescriptorSet.calloc(2, stack);
                     buf.sType$Default().dstSet(0).dstBinding(0).descriptorCount(1).descriptorType(VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER).dstArrayElement(0);
                     buf.pImageInfo(VkDescriptorImageInfo.calloc(1, stack)
-                            .imageView(CinnabarAccess.getView(Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getTextureView()))
+                            .imageView(VulkanAccess.getView(Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getTextureView()))
                             .imageLayout(VK13.VK_IMAGE_LAYOUT_GENERAL)
-                            .sampler(CinnabarAccess.getSampler(RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.NEAREST, FilterMode.NEAREST, true)))
+                            .sampler(VulkanAccess.getSampler(RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.NEAREST, FilterMode.NEAREST, true)))
                     );
                     buf.position(1);
                     buf.sType$Default().dstSet(0).dstBinding(1).descriptorCount(1).descriptorType(VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER).dstArrayElement(0);
                     buf.pImageInfo(VkDescriptorImageInfo.calloc(1, stack)
-                            .imageView(CinnabarAccess.getView(Minecraft.getInstance().gameRenderer.lightmap()))
+                            .imageView(VulkanAccess.getView(Minecraft.getInstance().gameRenderer.lightmap()))
                             .imageLayout(VK13.VK_IMAGE_LAYOUT_GENERAL)
-                            .sampler(CinnabarAccess.getSampler(RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.LINEAR, false)))
+                            .sampler(VulkanAccess.getSampler(RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.LINEAR, false)))
                     );
                     buf.position(0);
                     pass.pushDescriptors(this.activeProgram, buf);

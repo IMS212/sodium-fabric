@@ -34,7 +34,7 @@ public class User32 {
     public static void callMessageBoxIndirectW(MsgBoxParamSw params) {
         if (PFN_MessageBoxIndirectW == -1) return;
 
-        JNI.callPI(params.address(), PFN_MessageBoxIndirectW);
+        JNI.callPI(params.segment().address(), PFN_MessageBoxIndirectW);
     }
 
     public static long callGetKeyboardLayout(int thread) {

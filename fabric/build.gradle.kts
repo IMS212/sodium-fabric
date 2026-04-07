@@ -75,21 +75,15 @@ dependencies {
     // Fabric API modules
     addEmbeddedFabricModule("fabric-api-base")
     addEmbeddedFabricModule("fabric-block-getter-api-v2")
-    addEmbeddedFabricModule("fabric-rendering-v1")
 
     if (BuildConfig.SUPPORT_FRAPI) {
         addEmbeddedFabricModule("fabric-renderer-api-v1")
     }
 
-    addEmbeddedFabricModule("fabric-lifecycle-events-v1")
     addEmbeddedFabricModule("fabric-rendering-fluids-v1")
     addEmbeddedFabricModule("fabric-resource-loader-v0")
     addEmbeddedFabricModule("fabric-resource-loader-v1")
     addEmbeddedFabricModule("fabric-transitive-access-wideners-v1")
-
-    implementation(files(rootDir.resolve("libs").resolve("cinnabar.jar")))
-    implementation("org.lwjgl:lwjgl-vulkan:3.4.1")
-    implementation("org.lwjgl:lwjgl-vma:3.4.1")
 }
 
 loom {

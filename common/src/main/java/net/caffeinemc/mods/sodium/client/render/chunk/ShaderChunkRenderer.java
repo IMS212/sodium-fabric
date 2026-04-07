@@ -1,10 +1,9 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuSampler;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.caffeinemc.mods.sodium.client.gui.SodiumConfigBuilder;
-import net.caffeinemc.mods.sodium.client.vk.CinnabarAccess;
+import net.caffeinemc.mods.sodium.client.vk.VulkanAccess;
 import net.caffeinemc.mods.sodium.client.vk.attribute.VkVertexFormat;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
@@ -14,8 +13,6 @@ import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexT
 import net.caffeinemc.mods.sodium.client.vk.pipeline.*;
 import net.caffeinemc.mods.sodium.client.vk.renderpass.VulkanRenderPass;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
-import net.caffeinemc.mods.sodium.mixin.core.CommandEncoderAccessor;
-import net.caffeinemc.mods.sodium.mixin.core.GlCommandEncoderAccessor;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.vulkan.VK13;
@@ -42,9 +39,9 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         this.vertexType = vertexType;
         this.vertexFormat = vertexType.getVertexFormat();
 
-        this.setLayout = VkDescriptorSetLayoutBuilder.create(CinnabarAccess.getDevice())
+        this.setLayout = VkDescriptorSetLayoutBuilder.create(VulkanAccess.getDevice())
                 .addBinding(0, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL).addBinding(1, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL).flags(VK14.VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT).build();
-        this.layout = VkPipelineLayoutBuilder.create(CinnabarAccess.getDevice())
+        this.layout = VkPipelineLayoutBuilder.create(VulkanAccess.getDevice())
                 .pushConstants(new VkPipelineLayoutBuilder.PushConstantRange(VK13.VK_SHADER_STAGE_ALL, 0, DefaultShaderInterface.PUSH_CONSTANT_SIZE))
                 .setLayouts(setLayout.handle())
                 .build();
@@ -83,7 +80,7 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
                         .setLayouts(setLayout.handle())
                         .addVertexBinding(0, vertexType.getVertexFormat().getStride(), VK13.VK_VERTEX_INPUT_RATE_VERTEX)
                         .rasterization(VK13.VK_POLYGON_MODE_FILL, VK13.VK_CULL_MODE_BACK_BIT, VK13.VK_FRONT_FACE_CLOCKWISE)
-                        .depthStencil(true, true, VK13.VK_COMPARE_OP_LESS_OR_EQUAL)
+                        .depthStencil(true, true, VK13.VK_COMPARE_OP_GREATER_OR_EQUAL)
                         .setColorBlendAttachments(pass.isTranslucent() ? VkGraphicsPipelineBuilder.ColorBlendAttachment.alpha() : VkGraphicsPipelineBuilder.ColorBlendAttachment.disabled());
 
                 for (var attribute : vertexType.getVertexFormat().getShaderBindings()) {
