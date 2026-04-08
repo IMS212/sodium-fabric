@@ -53,7 +53,7 @@ VertexOutput vertexMain(VertexInput input) {
     output.pos = mul(pc.projectionMatrix, mul(pc.modelViewMatrix, float4(position, 1.0)));
 
     // Add the light color to the vertex color, and pass the texture coordinates to the fragment shader
-    output.color = vertex.color * lightTex.Sample(vertex.lightCoord); //  * texture(u_LightTex, vertex.lightCoord);
+    output.color = vertex.color * lightTex.SampleLevel(vertex.lightCoord, 0); //  * texture(u_LightTex, vertex.lightCoord);
     output.uv = (vertex.texCoordBias * pc.u_TexCoordShrink) + vertex.texCoord; // FMA for precision
 
     output.material = vertex.materialParams;

@@ -1,8 +1,12 @@
 package net.caffeinemc.mods.sodium.mixin.core;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vulkan.VulkanBackend;
 import com.mojang.blaze3d.vulkan.init.VulkanFeature;
 import com.mojang.blaze3d.vulkan.init.VulkanPNextStruct;
+import org.lwjgl.util.vma.Vma;
+import org.lwjgl.util.vma.VmaAllocatorCreateInfo;
 import org.lwjgl.vulkan.*;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,8 +39,15 @@ public class MixinVulkanInit {
 
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(A, "multiDraw", VkPhysicalDeviceMultiDrawFeaturesEXT.MULTIDRAW));
         VulkanPNextStruct B = new VulkanPNextStruct(VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, VkPhysicalDeviceVulkan11Features.SIZEOF);
+        VulkanPNextStruct C = new VulkanPNextStruct(VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, VkPhysicalDeviceVulkan12Features.SIZEOF);
 
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(B, "shaderDrawParameters", VkPhysicalDeviceVulkan11Features.SHADERDRAWPARAMETERS));
+        REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(C, "bufferDeviceAddress", VkPhysicalDeviceVulkan12Features.BUFFERDEVICEADDRESS));
 
+    }
+
+    @WrapOperation(method = "createVma", at = @At(value = "INVOKE", target = "Lorg/lwjgl/util/vma/VmaAllocatorCreateInfo;vulkanApiVersion(I)Lorg/lwjgl/util/vma/VmaAllocatorCreateInfo;"))
+    private static VmaAllocatorCreateInfo createVma(VmaAllocatorCreateInfo instance, int value, Operation<VmaAllocatorCreateInfo> original) {
+        return original.call(instance, value).flags(Vma.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT);
     }
 }

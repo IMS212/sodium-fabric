@@ -1,0 +1,1 @@
+slangc -matrix-layout-row-major -target spirv -o terrain.spv terrain.slang -fvk-use-entrypoint-name -g
