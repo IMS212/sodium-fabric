@@ -1,5 +1,9 @@
 import net.fabricmc.loom.task.RemapJarTask
 import net.fabricmc.loom.task.RemapSourcesJarTask
+import net.fabricmc.loom.task.RunGameTask
+import org.gradle.kotlin.dsl.named
+import kotlin.collections.component1
+import kotlin.collections.component2
 
 plugins {
     id("multiloader-platform")
@@ -84,6 +88,98 @@ dependencies {
     addEmbeddedFabricModule("fabric-resource-loader-v0")
     addEmbeddedFabricModule("fabric-resource-loader-v1")
     addEmbeddedFabricModule("fabric-transitive-access-wideners-v1")
+}
+
+// POSIX-ish quoting for the *inner* --args string that ngfx will parse.
+fun q(s: String): String = buildString {
+    append('"')
+    for (c in s) when (c) {
+        '\\', '"' -> { append('\\'); append(c) }
+        else -> append(c)
+    }
+    append('"')
+}
+
+val ngfxBin = providers.gradleProperty("ngfx")
+        .orElse("/opt/nvidia/nsight-graphics/host/linux-desktop-nomad-x64/ngfx.bin")
+
+fun RunGameTask.buildJavaCommand(): Pair<String, String> {
+    val javaExe = javaLauncher.get().executablePath.asFile.absolutePath
+    val args = buildString {
+        allJvmArgs.forEach { append(it).append(' ') }
+        append("-cp ").append(classpath.asPath).append(' ')
+        append(mainClass.get())
+    }
+    return javaExe to args
+}
+
+fun Exec.inheritRunEnvironment(run: RunGameTask) {
+    run.environment.forEach { (k, v) ->
+        environment(k, v)
+    }
+    workingDir = run.workingDir
+    standardInput = System.`in`
+}
+
+tasks.register<Exec>("nsightGpuTrace") {
+    group = "profiling"
+    dependsOn("classes")
+
+    val runTask = tasks.named<RunGameTask>("runClient").get()
+    val (javaExe, javaArgs) = runTask.buildJavaCommand()
+
+    environment("vblank_mode", "0")
+    environment("NV_ALLOW_RAYTRACING_VALIDATION", "1")
+    environment("MESA_VK_WSI_PRESENT_MODE", "immediate")
+
+    inheritRunEnvironment(runTask)
+
+    commandLine(
+            "C:\\Program Files\\NVIDIA Corporation\\Nsight Graphics 2026.1.0\\host\\windows-desktop-nomad-x64\\ngfx.exe",
+            "--activity=GPU Trace Profiler",
+            "--exe=$javaExe",
+            "--args=$javaArgs",
+            "--dir=D:\\sodium-opengl\\fabric\\run",
+            "--start-after-hotkey",
+            "--multi-pass-metrics",
+            "--auto-export",
+            "--max-duration-ms=50"
+    )
+}
+
+
+tasks.register<Exec>("nsightGraphicsCapture") {
+    group = "profiling"
+    dependsOn("classes")
+
+    val runTask = tasks.named<RunGameTask>("runClient").get()
+    val (javaExe, javaArgs) = runTask.buildJavaCommand()
+
+    environment("NV_ALLOW_RAYTRACING_VALIDATION", "1")
+
+    inheritRunEnvironment(runTask)
+
+    commandLine(
+            "C:\\Program Files\\NVIDIA Corporation\\Nsight Graphics 2025.5.0\\host\\windows-desktop-nomad-x64\\ngfx.exe",
+            "--activity=Graphics Capture",
+            "--exe=$javaExe",
+            "--args=$javaArgs",
+            "--dir=D:\\sodium-opengl\\fabric\\run",
+            "--no-timeout"
+    )
+
+    /*
+        commandLine(
+            "\"C:\\Program Files\\NVIDIA Corporation\\Nsight Graphics 2025.5.0\\host\\windows-desktop-nomad-x64\\ngfx-capture.exe\"",
+            "--exe=$javaExe",
+            "--args=$javaArgs",
+            "--wd=D:\\Aperture\\fabric\\run",
+            "--no-vulkan-private-data-lookups",
+            "--embed-logging-verbose",
+            "--no-bundle-replayer",
+            "--no-block-on-interfering-application",
+    )
+     */
 }
 
 loom {

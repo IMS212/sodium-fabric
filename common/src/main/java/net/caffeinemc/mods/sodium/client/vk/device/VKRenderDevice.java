@@ -49,6 +49,16 @@ public class VKRenderDevice implements RenderDevice {
     }
 
     @Override
+    public int getFrameIndex() {
+        return frame;
+    }
+
+    @Override
+    public int getFramesInFlight() {
+        return 3;
+    }
+
+    @Override
     public CommandList createCommandList() {
         return this.commandList.using(VulkanAccess.getCleanCommandBuffer());
     }
@@ -188,6 +198,11 @@ public class VKRenderDevice implements RenderDevice {
         @Override
         public void deleteAllFences() {
             fenceQueue.freeAll();
+        }
+
+        @Override
+        public VkCommandBuffer getCommandBuffer() {
+            return commandBuffer;
         }
     }
 }

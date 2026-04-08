@@ -15,4 +15,8 @@ public interface RenderDevice {
     void destroyObjectWhenSafe(VkObjectDestroyable destroyable);
 
     void flip();
+
+    int getFrameIndex();
+
+    int getFramesInFlight();
 }

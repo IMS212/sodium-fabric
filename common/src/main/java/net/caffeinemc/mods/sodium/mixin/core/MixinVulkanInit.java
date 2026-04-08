@@ -3,9 +3,7 @@ package net.caffeinemc.mods.sodium.mixin.core;
 import com.mojang.blaze3d.vulkan.VulkanBackend;
 import com.mojang.blaze3d.vulkan.init.VulkanFeature;
 import com.mojang.blaze3d.vulkan.init.VulkanPNextStruct;
-import org.lwjgl.vulkan.EXTMultiDraw;
-import org.lwjgl.vulkan.VkPhysicalDeviceMultiDrawFeaturesEXT;
-import org.lwjgl.vulkan.VkPhysicalDeviceSynchronization2Features;
+import org.lwjgl.vulkan.*;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
@@ -36,6 +34,9 @@ public class MixinVulkanInit {
         VulkanPNextStruct A = new VulkanPNextStruct(EXTMultiDraw.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT, VkPhysicalDeviceMultiDrawFeaturesEXT.SIZEOF);
 
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(A, "multiDraw", VkPhysicalDeviceMultiDrawFeaturesEXT.MULTIDRAW));
+        VulkanPNextStruct B = new VulkanPNextStruct(VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, VkPhysicalDeviceVulkan11Features.SIZEOF);
+
+        REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(B, "shaderDrawParameters", VkPhysicalDeviceVulkan11Features.SHADERDRAWPARAMETERS));
 
     }
 }

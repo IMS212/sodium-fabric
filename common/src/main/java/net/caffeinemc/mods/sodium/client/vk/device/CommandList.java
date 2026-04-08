@@ -7,6 +7,7 @@ import net.caffeinemc.mods.sodium.client.vk.buffer.VkMapping;
 import net.caffeinemc.mods.sodium.client.vk.fence.VkFence;
 import net.caffeinemc.mods.sodium.client.vk.renderpass.VulkanRenderPass;
 import net.caffeinemc.mods.sodium.client.vk.util.EnumBitField;
+import org.lwjgl.vulkan.VkCommandBuffer;
 
 public interface CommandList extends AutoCloseable {
     VkBuffer createBuffer(long bufferSize, VkMappingType mappingType, EnumBitField<VkBufferUsages> flags);
@@ -33,4 +34,6 @@ public interface CommandList extends AutoCloseable {
     VulkanRenderPass startRenderPass(long colorTextureView);
 
     void deleteAllFences();
+
+    VkCommandBuffer getCommandBuffer();
 }
