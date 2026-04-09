@@ -27,7 +27,7 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
     private final Matrix4f modelViewMatrix = new Matrix4f();
     private final Vector3f regionOffset = new Vector3f();
 
-    public static int PUSH_CONSTANT_SIZE = 152;
+    public static int PUSH_CONSTANT_SIZE = 156;
 
     @Override
     public void setupState(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler) {

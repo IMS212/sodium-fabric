@@ -14,10 +14,12 @@ public class SharedVkBufferArena extends DefragmentingVkBufferArena implements S
 
     private final int identifier;
     private static int nextIdentifier = 1;
+    private int id;
 
-    protected SharedVkBufferArena(ArenaAggregator allocator, VkBuffer initialBuffer, long capacity, int stride) {
+    protected SharedVkBufferArena(ArenaAggregator allocator, VkBuffer initialBuffer, long capacity, int stride, int id) {
         super(allocator, initialBuffer, capacity, stride);
         this.identifier = nextIdentifier++;
+        this.id = id;
     }
 
     @Override
@@ -439,5 +441,9 @@ public class SharedVkBufferArena extends DefragmentingVkBufferArena implements S
                 this.addFreeSegment(newFreeSegment);
             }
         }
+    }
+
+    public int getId() {
+        return this.id;
     }
 }

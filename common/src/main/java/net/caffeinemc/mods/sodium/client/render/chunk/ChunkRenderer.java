@@ -23,8 +23,9 @@ public interface ChunkRenderer {
      * @param parameters              The current fog state
      * @param indexedRenderingEnabled Whether indexed rendering is enabled
      * @param terrainSampler          The sampler to use for the atlas
+     * @param pageBuf
      */
-    void render(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass pass, CameraTransform camera, FogParameters parameters, boolean indexedRenderingEnabled, GpuSampler terrainSampler);
+    void render(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass pass, CameraTransform camera, FogParameters parameters, boolean indexedRenderingEnabled, GpuSampler terrainSampler, PageAddressBuffer pageBuf);
 
     /**
      * Deletes this render backend and any resources attached to it.

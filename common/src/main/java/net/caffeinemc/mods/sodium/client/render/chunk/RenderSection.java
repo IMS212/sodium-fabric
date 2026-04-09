@@ -68,10 +68,13 @@ public class RenderSection {
     private boolean disposed;
     private int fadeTime;
 
-    public RenderSection(RenderRegion region, int chunkX, int chunkY, int chunkZ) {
+    private final int sectionId;
+
+    public RenderSection(RenderRegion region, int chunkX, int chunkY, int chunkZ, int sectionId) {
         this.chunkX = chunkX;
         this.chunkY = chunkY;
         this.chunkZ = chunkZ;
+        this.sectionId = sectionId;
 
         int rX = this.getChunkX() & RenderRegion.REGION_WIDTH_M;
         int rY = this.getChunkY() & RenderRegion.REGION_HEIGHT_M;
@@ -141,6 +144,10 @@ public class RenderSection {
 
         this.clearRenderState();
         this.disposed = true;
+    }
+
+    public int getSectionId() {
+        return this.sectionId;
     }
 
     public boolean setInfo(@Nullable BuiltSectionInfo info) {

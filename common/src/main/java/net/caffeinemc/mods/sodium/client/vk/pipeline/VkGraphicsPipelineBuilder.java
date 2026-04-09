@@ -28,31 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static org.lwjgl.vulkan.VK10.VK_BLEND_FACTOR_ONE;
-import static org.lwjgl.vulkan.VK10.VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-import static org.lwjgl.vulkan.VK10.VK_BLEND_FACTOR_SRC_ALPHA;
-import static org.lwjgl.vulkan.VK10.VK_BLEND_FACTOR_ZERO;
-import static org.lwjgl.vulkan.VK10.VK_BLEND_OP_ADD;
-import static org.lwjgl.vulkan.VK10.VK_COLOR_COMPONENT_A_BIT;
-import static org.lwjgl.vulkan.VK10.VK_COLOR_COMPONENT_B_BIT;
-import static org.lwjgl.vulkan.VK10.VK_COLOR_COMPONENT_G_BIT;
-import static org.lwjgl.vulkan.VK10.VK_COLOR_COMPONENT_R_BIT;
-import static org.lwjgl.vulkan.VK10.VK_COMPARE_OP_LESS_OR_EQUAL;
-import static org.lwjgl.vulkan.VK10.VK_CULL_MODE_BACK_BIT;
-import static org.lwjgl.vulkan.VK10.VK_DYNAMIC_STATE_SCISSOR;
-import static org.lwjgl.vulkan.VK10.VK_DYNAMIC_STATE_VIEWPORT;
-import static org.lwjgl.vulkan.VK10.VK_FORMAT_UNDEFINED;
-import static org.lwjgl.vulkan.VK10.VK_FRONT_FACE_COUNTER_CLOCKWISE;
-import static org.lwjgl.vulkan.VK10.VK_NULL_HANDLE;
-import static org.lwjgl.vulkan.VK10.VK_POLYGON_MODE_FILL;
-import static org.lwjgl.vulkan.VK10.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-import static org.lwjgl.vulkan.VK10.VK_SAMPLE_COUNT_1_BIT;
-import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
-import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
-import static org.lwjgl.vulkan.VK10.VK_SUCCESS;
-import static org.lwjgl.vulkan.VK10.vkCreateGraphicsPipelines;
-import static org.lwjgl.vulkan.VK10.vkCreateShaderModule;
-import static org.lwjgl.vulkan.VK10.vkDestroyShaderModule;
+import static org.lwjgl.vulkan.VK10.*;
 
 public final class VkGraphicsPipelineBuilder {
     private final VkDevice device;
@@ -241,7 +217,7 @@ public final class VkGraphicsPipelineBuilder {
 
             LongBuffer pPipeline = stack.mallocLong(1);
             int result = vkCreateGraphicsPipelines(this.device, VK_NULL_HANDLE, pipelineInfo, null, pPipeline);
-            if (result != VK_SUCCESS) {
+            if (result != VK_SUCCESS && !(result == VK_ERROR_VALIDATION_FAILED)) {
                 throw new RuntimeException("Failed to create graphics pipeline: " + result);
             }
 

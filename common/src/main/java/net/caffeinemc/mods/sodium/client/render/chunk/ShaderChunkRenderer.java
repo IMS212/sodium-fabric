@@ -40,7 +40,10 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         this.vertexFormat = vertexType.getVertexFormat();
 
         this.setLayout = VkDescriptorSetLayoutBuilder.create(VulkanAccess.getDevice())
-                .addBinding(0, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL).addBinding(1, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL).flags(VK14.VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT).build();
+                .addBinding(0, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL)
+                .addBinding(1, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL)
+                .addBinding(2, VK13.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK13.VK_SHADER_STAGE_ALL)
+                .flags(VK14.VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT).build();
         this.layout = VkPipelineLayoutBuilder.create(VulkanAccess.getDevice())
                 .pushConstants(new VkPipelineLayoutBuilder.PushConstantRange(VK13.VK_SHADER_STAGE_ALL, 0, DefaultShaderInterface.PUSH_CONSTANT_SIZE))
                 .setLayouts(setLayout.handle())
@@ -78,14 +81,10 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
                         .dynamicRendering(new int[] { VK13.VK_FORMAT_R8G8B8A8_UNORM }, VK13.VK_FORMAT_D32_SFLOAT, VK13.VK_FORMAT_UNDEFINED)
                         .pushConstants(new VkGraphicsPipelineBuilder.PushConstantRange(VK13.VK_SHADER_STAGE_ALL, 0, DefaultShaderInterface.PUSH_CONSTANT_SIZE))
                         .setLayouts(setLayout.handle())
-                        .addVertexBinding(0, vertexType.getVertexFormat().getStride(), VK13.VK_VERTEX_INPUT_RATE_VERTEX)
                         .rasterization(VK13.VK_POLYGON_MODE_FILL, VK13.VK_CULL_MODE_BACK_BIT, VK13.VK_FRONT_FACE_CLOCKWISE)
                         .depthStencil(true, true, VK13.VK_COMPARE_OP_GREATER_OR_EQUAL)
                         .setColorBlendAttachments(pass.isTranslucent() ? VkGraphicsPipelineBuilder.ColorBlendAttachment.alpha() : VkGraphicsPipelineBuilder.ColorBlendAttachment.disabled());
 
-                for (var attribute : vertexType.getVertexFormat().getShaderBindings()) {
-                    builder.addVertexAttribute(attribute.getIndex(), 0, attribute.getFormat().vkFormat(), attribute.getPointer());
-                }
 
                 return builder;
             }, DefaultShaderInterface.class);

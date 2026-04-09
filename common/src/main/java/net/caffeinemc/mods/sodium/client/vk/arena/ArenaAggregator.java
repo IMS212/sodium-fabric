@@ -1,6 +1,8 @@
 package net.caffeinemc.mods.sodium.client.vk.arena;
 
 import net.caffeinemc.mods.sodium.client.gui.Colors;
+import net.caffeinemc.mods.sodium.client.render.chunk.PageAddressBuffer;
+import net.caffeinemc.mods.sodium.client.render.chunk.RollingBitSet;
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkMeshFormats;
 import net.caffeinemc.mods.sodium.client.util.MathUtil;
@@ -14,6 +16,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 // TODO: if the required capacity is huge, maybe it shouldn't be shared, or we should overshoot it more?
@@ -95,6 +98,10 @@ public class ArenaAggregator {
     private int allocationCount = 0;
     private long allocationBytes = 0;
 
+    public void fillOut(PageAddressBuffer pageAddressBuffer) {
+        geometry.fillOut(pageAddressBuffer);
+    }
+
     public static class DefragBudget {
         private final int startCopyCount;
         private final long startCopyBytes;
@@ -142,6 +149,7 @@ public class ArenaAggregator {
         final ArrayList<SharedVkBufferArena> arenas;
         long totalUsedLastCheckpoint;
         boolean pauseDeallocation = true;
+        RollingBitSet ids = new RollingBitSet();
 
         DataType(String name, int stride) {
             this.name = name;
@@ -154,7 +162,7 @@ public class ArenaAggregator {
         SharedVkBufferArena createSharedArena(CommandList commands, long requiredSize) {
             VkBuffer buffer = ArenaAggregator.this.getBufferOfSizeAtLeast(commands, requiredSize);
             long actualCapacity = buffer.getSize() / this.stride;
-            return new SharedVkBufferArena(ArenaAggregator.this, buffer, actualCapacity, this.stride);
+            return new SharedVkBufferArena(ArenaAggregator.this, buffer, actualCapacity, this.stride, this.ids.allocate());
         }
 
         SharedVkBufferArena ensureSharedArena(CommandList commands, long requiredCapacity, int newAllocationMode, long maxCapacity) {
@@ -214,6 +222,7 @@ public class ArenaAggregator {
 
                 if (arena.isEmpty() && canDeleteArena && !arena.isCompactionTarget()) {
                     arena.deleteShared(commands);
+                    ids.free(arena.getId());
                     it.remove();
                     continue;
                 }
@@ -244,6 +253,8 @@ public class ArenaAggregator {
                 // remove if emptying results in empty
                 else if (emptyingArena.continueEmptying(commands, budget)) {
                     emptyingArena.deleteShared(commands);
+                    ids.free(emptyingArena.getId());
+
                     this.arenas.remove(emptyingArena);
                     emptyingArena = null;
                 }
@@ -306,6 +317,18 @@ public class ArenaAggregator {
 //                    // emptyingArena = biggestFreeArena;
 //                }
 //            }
+        }
+
+        public void fillOut(PageAddressBuffer pageAddressBuffer) {
+            if (arenas.isEmpty()) return;
+
+            int arenaIdMax = arenas.stream().max(Comparator.comparingInt(SharedVkBufferArena::getId)).get().getId();
+            long[] buffers = new long[arenaIdMax + 1];
+            for (var arena : this.arenas) {
+                buffers[arena.getId()] = arena.getBufferObject().getDeviceAddress();
+            }
+
+            pageAddressBuffer.updateForFrame(buffers);
         }
     }
 
@@ -374,7 +397,7 @@ public class ArenaAggregator {
         }
 
         if (buffer == null) {
-            buffer = commands.createBuffer(bytes, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.VERTEX_BUFFER, VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST, VkBufferUsages.TRANSFER_SRC));
+            buffer = commands.createBuffer(bytes, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.VERTEX_BUFFER, VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST, VkBufferUsages.TRANSFER_SRC, VkBufferUsages.SHADER_DEVICE_ADDRESS));
             this.allocationCount++;
             this.allocationBytes += bytes;
         }

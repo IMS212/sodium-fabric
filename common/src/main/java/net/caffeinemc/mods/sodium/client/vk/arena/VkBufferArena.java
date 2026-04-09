@@ -42,6 +42,10 @@ public class VkBufferArena implements AllocatorBase {
 
     final int stride;
 
+    public int getId() {
+        return -1;
+    }
+
     protected VkBufferArena(ArenaAggregator parent, VkBuffer initialBuffer, long capacity, int stride) {
         this.parent = parent;
         this.stagingBuffer = parent.stagingBuffer;

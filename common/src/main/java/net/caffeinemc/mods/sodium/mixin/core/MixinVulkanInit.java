@@ -30,6 +30,10 @@ public class MixinVulkanInit {
     @Mutable
     public static Set<VulkanFeature> REQUIRED_DEVICE_FEATURES;
 
+    @Shadow
+    @Final
+    public static VulkanPNextStruct VK10_FEATURES_STRUCT;
+
     @Inject(method = "<clinit>", at = @At("RETURN"))
     private static void addExtension(CallbackInfo ci) {
         REQUIRED_DEVICE_EXTENSIONS = new HashSet<>(REQUIRED_DEVICE_EXTENSIONS);
@@ -42,7 +46,10 @@ public class MixinVulkanInit {
         VulkanPNextStruct C = new VulkanPNextStruct(VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, VkPhysicalDeviceVulkan12Features.SIZEOF);
 
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(B, "shaderDrawParameters", VkPhysicalDeviceVulkan11Features.SHADERDRAWPARAMETERS));
+        REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(VK10_FEATURES_STRUCT, "shaderInt64", VkPhysicalDeviceFeatures.SHADERINT64));
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(C, "bufferDeviceAddress", VkPhysicalDeviceVulkan12Features.BUFFERDEVICEADDRESS));
+        REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(C, "uniformBufferStandardLayout", VkPhysicalDeviceVulkan12Features.UNIFORMBUFFERSTANDARDLAYOUT));
+        REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(C, "scalarBlockLayout", VkPhysicalDeviceVulkan12Features.SCALARBLOCKLAYOUT));
 
     }
 

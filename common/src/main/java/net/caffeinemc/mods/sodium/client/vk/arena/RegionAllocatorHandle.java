@@ -24,6 +24,10 @@ public class RegionAllocatorHandle implements AllocatorBase, SizedTreeMap.Sized 
         this.backingArena.registerOwner(this);
     }
 
+    public int getId() {
+        return backingArena.getId();
+    }
+
     public interface AllocationChangeConsumer {
         void onBufferChanged(CommandList commandList);
 

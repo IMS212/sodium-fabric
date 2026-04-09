@@ -16,10 +16,7 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.vma.Vma;
 import org.lwjgl.util.vma.VmaAllocationCreateInfo;
 import org.lwjgl.util.vma.VmaAllocationInfo;
-import org.lwjgl.vulkan.VK13;
-import org.lwjgl.vulkan.VkBufferCopy;
-import org.lwjgl.vulkan.VkBufferCreateInfo;
-import org.lwjgl.vulkan.VkCommandBuffer;
+import org.lwjgl.vulkan.*;
 
 import java.nio.LongBuffer;
 import java.util.ArrayList;
@@ -124,7 +121,13 @@ public class VKRenderDevice implements RenderDevice {
                         pAllocation,
                         info);
 
-                var buffer = new VkBuffer(pBuffer.get(0), pAllocation.get(0), bufferSize, null);
+                long address = 0;
+
+                if (flags.contains(VkBufferUsages.SHADER_DEVICE_ADDRESS)) {
+                    address = VK13.vkGetBufferDeviceAddress(VulkanAccess.getDevice(), VkBufferDeviceAddressInfo.calloc(stack).sType$Default().buffer(pBuffer.get(0)));
+                }
+
+                var buffer = new VkBuffer(pBuffer.get(0), pAllocation.get(0), bufferSize, null, address);
 
                 if (mappingType == VkMappingType.CPU_ONLY) {
                     var mapping = new VkMapping(buffer, info.pMappedData(), bufferSize);

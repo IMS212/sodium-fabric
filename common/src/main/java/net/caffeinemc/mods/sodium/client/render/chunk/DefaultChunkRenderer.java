@@ -29,7 +29,9 @@ import net.caffeinemc.mods.sodium.client.vk.renderpass.VulkanRenderPass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.data.AtlasIds;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.vulkan.VK13;
+import org.lwjgl.vulkan.VkDescriptorBufferInfo;
 import org.lwjgl.vulkan.VkDescriptorImageInfo;
 import org.lwjgl.vulkan.VkWriteDescriptorSet;
 
@@ -262,7 +264,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                        CameraTransform camera,
                        FogParameters parameters,
                        boolean indexedRenderingEnabled,
-                       GpuSampler terrainSampler) {
+                       GpuSampler terrainSampler, PageAddressBuffer pageBuf) {
         final boolean useBlockFaceCulling = SodiumClientMod.options().performance.useBlockFaceCulling;
         final boolean useIndexedTessellation = renderPass.isTranslucent() && indexedRenderingEnabled;
 
@@ -324,9 +326,10 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                 try (MemoryStack stack = MemoryStack.stackPush()) {
                     long pushData = stack.nmalloc(DefaultShaderInterface.PUSH_CONSTANT_SIZE);
                     this.activeProgram.getInterface().fillPushConstants(pushData);
+                    MemoryUtil.memPutInt(pushData + 152, region.getResources().getGeometryAllocator().getId());
 
                     pass.pushConstants(this.activeProgram, pushData, DefaultShaderInterface.PUSH_CONSTANT_SIZE);
-                    VkWriteDescriptorSet.Buffer buf = VkWriteDescriptorSet.calloc(2, stack);
+                    VkWriteDescriptorSet.Buffer buf = VkWriteDescriptorSet.calloc(3, stack);
                     buf.sType$Default().dstSet(0).dstBinding(0).descriptorCount(1).descriptorType(VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER).dstArrayElement(0);
                     buf.pImageInfo(VkDescriptorImageInfo.calloc(1, stack)
                             .imageView(VulkanAccess.getView(Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getTextureView()))
@@ -340,6 +343,12 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                             .imageLayout(VK13.VK_IMAGE_LAYOUT_GENERAL)
                             .sampler(VulkanAccess.getSampler(RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.LINEAR, false)))
                     );
+                    buf.position(2);
+                    buf.sType$Default().dstSet(0).dstBinding(2).descriptorCount(1).descriptorType(VK13.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER).dstArrayElement(0);
+                    buf.pBufferInfo(VkDescriptorBufferInfo.calloc(1, stack)
+                            .buffer(pageBuf.getCurrent().handle())
+                            .offset(0)
+                            .range(256 * Long.BYTES));
                     buf.position(0);
                     pass.pushDescriptors(this.activeProgram, buf);
                 }

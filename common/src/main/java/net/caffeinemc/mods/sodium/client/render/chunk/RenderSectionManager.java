@@ -119,9 +119,15 @@ public class RenderSectionManager {
     private @Nullable Vector3dc cameraPosition;
 
     private final RemovableMultiForest renderableSectionTree;
+    private final RollingBitSet idProvider = new RollingBitSet();
+
+    private final SectionDataBuffer sectionDataBuffer;
+    private final PageAddressBuffer pageAddressBuffer;
 
     public RenderSectionManager(ClientLevel level, int renderDistance, SortBehavior sortBehavior, CommandList commandList) {
         this.meshTaskSizeEstimator = new MeshTaskSizeEstimator(level);
+        this.sectionDataBuffer = new SectionDataBuffer(commandList, renderDistance, level.getMinSectionY(), level.getMaxSectionY());
+        this.pageAddressBuffer = new PageAddressBuffer(commandList);
 
         this.chunkRenderer = new DefaultChunkRenderer(RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
 
@@ -211,6 +217,7 @@ public class RenderSectionManager {
             this.lastSectionCollector = this.sectionCollector;
             this.sectionCollector = null;
         }
+        regions.getArenaAggregator().fillOut(pageAddressBuffer);
     }
 
     private boolean isOutOfGraph(SectionPos pos) {
@@ -264,7 +271,7 @@ public class RenderSectionManager {
 
         RenderRegion region = this.regions.createForChunk(x, y, z);
 
-        RenderSection renderSection = new RenderSection(region, x, y, z);
+        RenderSection renderSection = new RenderSection(region, x, y, z, idProvider.allocate());
         region.addSection(renderSection);
 
         this.sectionByPosition.put(key, renderSection);
@@ -309,6 +316,7 @@ public class RenderSectionManager {
         this.updateSectionInfo(section, null);
 
         section.delete();
+        idProvider.free(section.getSectionId());
 
         // force update to remove section from render lists
         this.markGraphDirty();
@@ -318,7 +326,7 @@ public class RenderSectionManager {
         RenderDevice device = RenderDevice.INSTANCE;
         CommandList commandList = device.createCommandList();
 
-        this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z), fogParameters, this.sortBehavior != SortBehavior.OFF, terrainSampler);
+        this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z), fogParameters, this.sortBehavior != SortBehavior.OFF, terrainSampler, pageAddressBuffer);
 
         commandList.flush();
     }
