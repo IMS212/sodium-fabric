@@ -1,6 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.region;
 
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
+import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.vk.arena.ArenaAggregator;
 import net.caffeinemc.mods.sodium.client.vk.arena.RegionAllocatorHandle;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
@@ -167,11 +168,11 @@ public class RenderRegion {
         return this.sectionRenderData.get(pass);
     }
 
-    public SectionRenderDataStorage createStorage(TerrainRenderPass pass) {
+    public SectionRenderDataStorage createStorage(RenderSectionManager parent, TerrainRenderPass pass) {
         var storage = this.sectionRenderData.get(pass);
 
         if (storage == null) {
-            storage = new SectionRenderDataStorage(pass.isTranslucent());
+            storage = new SectionRenderDataStorage(parent, this, pass, pass.isTranslucent());
             this.sectionRenderData.put(pass, storage);
         }
 

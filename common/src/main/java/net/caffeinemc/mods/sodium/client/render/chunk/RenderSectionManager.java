@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.objects.*;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+import net.caffeinemc.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.BuilderTaskOutput;
@@ -121,14 +122,16 @@ public class RenderSectionManager {
     private final RemovableMultiForest renderableSectionTree;
     private final RollingBitSet idProvider = new RollingBitSet();
 
-    private final SectionDataBuffer sectionDataBuffer;
+    private final SectionDataBuffer[] sectionDataBuffer = new SectionDataBuffer[3];
     private final PageAddressBuffer pageAddressBuffer;
 
     public RenderSectionManager(ClientLevel level, int renderDistance, SortBehavior sortBehavior, CommandList commandList) {
         this.meshTaskSizeEstimator = new MeshTaskSizeEstimator(level);
-        this.sectionDataBuffer = new SectionDataBuffer(commandList, renderDistance, level.getMinSectionY(), level.getMaxSectionY());
         this.pageAddressBuffer = new PageAddressBuffer(commandList);
 
+        for (int i = 0; i < 3; i++) {
+            this.sectionDataBuffer[i] = new SectionDataBuffer(commandList, renderDistance, level.getMinSectionY(), level.getMaxSectionY());
+        }
         this.chunkRenderer = new DefaultChunkRenderer(RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
 
         this.level = level;
@@ -143,7 +146,7 @@ public class RenderSectionManager {
             this.sortTriggering = null;
         }
 
-        this.regions = new RenderRegionManager(commandList);
+        this.regions = new RenderRegionManager(commandList, this);
         this.sectionCache = new ClonedChunkSectionCache(this.level);
 
         this.renderLists = SortedRenderLists.empty();
@@ -178,6 +181,25 @@ public class RenderSectionManager {
         this.lastUpdatedFrame += 1;
 
         this.needsGraphUpdate = this.createTerrainRenderList(camera, viewport, fogParameters, this.lastUpdatedFrame, spectator);
+    }
+
+    public void updateSection(int sectionId, TerrainRenderPass pass, long addr, int @Nullable [] segmentRange) {
+        int passId;
+        if (pass.isTranslucent()) {
+            passId = 2;
+        } else if (pass.supportsFragmentDiscard()) {
+            passId = 1;
+        } else {
+            passId = 0;
+        }
+
+        if (addr == 0) {
+            sectionDataBuffer[passId].removeSection(sectionId);
+        } else if (segmentRange == null) {
+            sectionDataBuffer[passId].updateSection(sectionId, addr);
+        } else {
+            sectionDataBuffer[passId].writeSection(sectionId, addr, segmentRange);
+        }
     }
 
     private boolean createTerrainRenderList(Camera camera, Viewport viewport, FogParameters fogParameters, int frame, boolean spectator) {
@@ -216,6 +238,11 @@ public class RenderSectionManager {
             this.renderLists = this.sectionCollector.createRenderLists(viewport);
             this.lastSectionCollector = this.sectionCollector;
             this.sectionCollector = null;
+        }
+        try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
+            for (int i = 0; i < 3; i++) {
+                sectionDataBuffer[i].update(commandList);
+            }
         }
         regions.getArenaAggregator().fillOut(pageAddressBuffer);
     }
@@ -738,6 +765,12 @@ public class RenderSectionManager {
         try (CommandList commandList = RenderDevice.INSTANCE.createCommandList()) {
             this.regions.delete(commandList);
             this.chunkRenderer.delete(commandList);
+
+            for (SectionDataBuffer dataBuffer : sectionDataBuffer) {
+                dataBuffer.destroy(commandList);
+            }
+
+            pageAddressBuffer.destroy(commandList);
         }
     }
 

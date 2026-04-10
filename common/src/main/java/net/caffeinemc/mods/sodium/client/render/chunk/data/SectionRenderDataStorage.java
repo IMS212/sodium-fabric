@@ -1,5 +1,7 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.data;
 
+import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
+import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.vk.arena.VkBufferSegment;
 import net.caffeinemc.mods.sodium.client.vk.arena.PendingUpload;
 import net.caffeinemc.mods.sodium.client.vk.arena.RegionAllocatorHandle;
@@ -36,6 +38,9 @@ import java.util.stream.Stream;
 public class SectionRenderDataStorage {
     private final @Nullable VkBufferSegment[] vertexAllocations;
     private final @Nullable VkBufferSegment @Nullable [] elementAllocations;
+    private final RenderSectionManager manager;
+    private final RenderRegion parent;
+    private final TerrainRenderPass pass;
     private @Nullable VkBufferSegment sharedIndexAllocation;
     private int sharedIndexCapacity = 0;
     private boolean needsSharedIndexUpdate = false;
@@ -43,7 +48,10 @@ public class SectionRenderDataStorage {
 
     private final long pMeshDataArray;
 
-    public SectionRenderDataStorage(boolean storesIndices) {
+    public SectionRenderDataStorage(RenderSectionManager manager, RenderRegion parent, TerrainRenderPass pass, boolean storesIndices) {
+        this.manager = manager;
+        this.parent = parent;
+        this.pass = pass;
         this.vertexAllocations = new VkBufferSegment[RenderRegion.REGION_SIZE];
 
         if (storesIndices) {
@@ -83,6 +91,7 @@ public class SectionRenderDataStorage {
             }
         }
 
+        manager.updateSection(parent.getSection(localSectionIndex).getSectionId(), pass, allocation.getDeviceAddress(), vertexSegments);
         SectionRenderDataUnsafe.setBaseVertex(pMeshData, allocation.getOffset());
         SectionRenderDataUnsafe.setSliceMask(pMeshData, sliceMask);
         SectionRenderDataUnsafe.setFacingList(pMeshData, facingList);
@@ -258,6 +267,7 @@ public class SectionRenderDataStorage {
 
         var data = this.getDataPointer(sectionIndex);
         long offset = allocation.getOffset();
+        manager.updateSection(parent.getSection(sectionIndex).getSectionId(), pass, allocation.getDeviceAddress(), null);
         SectionRenderDataUnsafe.setBaseVertex(data, offset);
     }
 
@@ -290,6 +300,7 @@ public class SectionRenderDataStorage {
         }
 
         long offset = allocation.getOffset();
+        manager.updateSection(parent.getSection(sectionIndex).getSectionId(), pass, allocation.getDeviceAddress(), null);
         SectionRenderDataUnsafe.setBaseVertex(this.getDataPointer(sectionIndex), offset);
     }
 

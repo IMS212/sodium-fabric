@@ -32,4 +32,11 @@ public class PageAddressBuffer {
     public VkBuffer getCurrent() {
         return buffers[frame];
     }
+
+    public void destroy(CommandList commandList) {
+        for (int i = 0; i < 3; i++) {
+            commandList.unmap(mappings[i]);
+            commandList.deleteBuffer(buffers[i]);
+        }
+    }
 }

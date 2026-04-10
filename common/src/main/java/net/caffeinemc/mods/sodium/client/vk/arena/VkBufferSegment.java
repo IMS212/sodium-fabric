@@ -113,4 +113,8 @@ public class VkBufferSegment implements SizedTreeMap.Sized {
     public long getIdentifier() {
         return this.getOffset();
     }
+
+    public long getDeviceAddress() {
+        return owner.getBufferObject().getDeviceAddress() + offset;
+    }
 }

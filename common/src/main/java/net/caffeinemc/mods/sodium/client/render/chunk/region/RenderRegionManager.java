@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
+import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.vk.arena.ArenaAggregator;
 import net.caffeinemc.mods.sodium.client.vk.arena.PendingUpload;
 import net.caffeinemc.mods.sodium.client.vk.arena.staging.FallbackStagingBuffer;
@@ -34,9 +35,11 @@ public class RenderRegionManager {
 
     private final StagingBuffer stagingBuffer;
     private final ArenaAggregator arenaAggregator;
+    private final RenderSectionManager parent;
 
-    public RenderRegionManager(CommandList commandList) {
+    public RenderRegionManager(CommandList commandList, RenderSectionManager parent) {
         this.stagingBuffer = createStagingBuffer(commandList);
+        this.parent = parent;
         this.arenaAggregator = new ArenaAggregator(this.stagingBuffer);
     }
 
@@ -110,7 +113,7 @@ public class RenderRegionManager {
             if (result instanceof ChunkSortOutput indexDataOutput && !indexDataOutput.isReusingUploadedIndexData()) {
                 var sorter = indexDataOutput.getSorter();
                 if (sorter instanceof SharedIndexSorter sharedIndexSorter) {
-                    var storage = region.createStorage(DefaultTerrainRenderPasses.TRANSLUCENT);
+                    var storage = region.createStorage(parent, DefaultTerrainRenderPasses.TRANSLUCENT);
                     storage.removeIndexData(renderSectionIndex);
 
                     // clear batch cache if it's newly using the shared index buffer and was not previously.
@@ -170,7 +173,7 @@ public class RenderRegionManager {
 
             // Collect the upload results
             for (PendingSectionMeshUpload upload : uploads) {
-                var storage = region.createStorage(upload.pass);
+                var storage = region.createStorage(parent, upload.pass);
                 if (upload.relativeBuiltTime != -1) { // We don't want the animation to happen again on chunks changing!
                     double dx = upload.section.getCenterX() - cameraPosition.x;
                     double dy = upload.section.getCenterY() - cameraPosition.y;
@@ -195,7 +198,7 @@ public class RenderRegionManager {
                     .map(upload -> upload.indexBufferUpload));
 
             for (PendingSectionIndexBufferUpload upload : indexUploads) {
-                var storage = region.createStorage(DefaultTerrainRenderPasses.TRANSLUCENT);
+                var storage = region.createStorage(parent, DefaultTerrainRenderPasses.TRANSLUCENT);
                 storage.setIndexData(upload.section.getSectionIndex(), upload.indexBufferUpload.getResult());
             }
         }
