@@ -54,9 +54,10 @@ public class CompactChunkVertex implements ChunkVertexType {
     private static final int UV3_OFFSET = 410;
 
     private static final int LIGHT0_OFFSET = 442;
-    private static final int LIGHT1_OFFSET = 458;
-    private static final int LIGHT2_OFFSET = 474;
-    private static final int LIGHT3_OFFSET = 490;
+    private static final int LIGHT1_OFFSET = 456;
+    private static final int LIGHT2_OFFSET = 470;
+    private static final int LIGHT3_OFFSET = 484;
+    private static final int ID_OFFSET = 498;
     private static final VkVertexFormat EMPTY = VkVertexFormat.builder(16).build();
 
     @Override
@@ -144,12 +145,11 @@ public class CompactChunkVertex implements ChunkVertexType {
             packBits(words, UV1_OFFSET, 32, uv1);
             packBits(words, UV2_OFFSET, 32, uv2);
             packBits(words, UV3_OFFSET, 32, uv3);
-
-            packBits(words, LIGHT0_OFFSET, 16, light0);
-            packBits(words, LIGHT1_OFFSET, 16, light1);
-            packBits(words, LIGHT2_OFFSET, 16, light2);
-            packBits(words, LIGHT3_OFFSET, 16, light3);
-
+            packBits(words, LIGHT0_OFFSET, 14, light0);
+            packBits(words, LIGHT1_OFFSET, 14, light1);
+            packBits(words, LIGHT2_OFFSET, 14, light2);
+            packBits(words, LIGHT3_OFFSET, 14, light3);
+            packBits(words, ID_OFFSET, 8, section);
             writeWords(ptr, words);
 
             return ptr + STRIDE;
@@ -210,9 +210,9 @@ public class CompactChunkVertex implements ChunkVertexType {
     }
 
     private static int encodeLight(int light) {
-        int sky = Mth.clamp(((light >>> 16) & 0xFF) + 8, 8, 248);
-        int block = Mth.clamp(((light >>>  0) & 0xFF) + 8, 8, 248);
-        return (block << 0) | (sky << 8);
+        int sky   = Mth.clamp(((light >>> 16) & 0xFF) + 8, 8, 248) >>> 1;
+        int block = Mth.clamp(((light >>>  0) & 0xFF) + 8, 8, 248) >>> 1;
+        return (block << 0) | (sky << 7);
     }
 
     private static int sign(int x) {

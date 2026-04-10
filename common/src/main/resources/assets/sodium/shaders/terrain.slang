@@ -49,7 +49,7 @@ VertexOutput vertexMain(uint id: SV_VulkanVertexID) {
     VertexOutput output = VertexOutput();
 
     // Transform the chunk-local vertex position into world model space
-    float3 translation = pc.regionOffset /*+ _get_draw_translation(vertex.drawId)*/; // TODO
+    float3 translation = pc.regionOffset + _get_draw_translation(vertex.id); // TODO
     float3 position = vertex.position + translation;
 
     output.fragDistance = getFragDistance(position);

@@ -5,6 +5,7 @@ struct ChunkVertex {
     float4 color;
     float2 uv;
     float2 light;
+    uint id;
 };
 
 static const float MODEL_ORIGIN = 8.0;
@@ -97,8 +98,8 @@ float decodeTextureCoord(int raw) {
 }
 
 float2 decodeLight(uint raw) {
-    float block = float((raw >> 0) & 0xFF);
-    float sky   = float((raw >> 8) & 0xFF);
+    float block = float((raw >> 0) & 0x7F) * 2.0;
+    float sky = float((raw >> 7) & 0x7F) * 2.0;
     return float2(block, sky);
 }
 int signExtend14(uint x)
@@ -144,8 +145,8 @@ ChunkVertex decodeQuadVertex(uint4x4 data, uint vertexIndex)
     uint uvRaw = extractBits(data, 314 + vertexIndex * 32, 32);
     v.uv = decodeTexture(uvRaw);
 
-    uint lightRaw = extractBits(data, 442 + vertexIndex * 16, 16);
+    uint lightRaw = extractBits(data, 442 + vertexIndex * 14, 14);
     v.light = decodeLight(lightRaw);
-
+    v.id = extractBits(data, 498, 8); 
     return v;
 }

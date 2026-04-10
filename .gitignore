@@ -1,6 +1,7 @@
 # gradle
 
 .gradle/
+.gradle_user/
 build/
 out/
 classes/
