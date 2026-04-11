@@ -18,29 +18,17 @@ package net.caffeinemc.mods.sodium.client.render.frapi;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MutableMeshImpl;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.AccessLayerRenderState;
 import net.caffeinemc.mods.sodium.client.render.frapi.render.NonTerrainBlockRenderContext;
-import net.caffeinemc.mods.sodium.client.render.frapi.render.SimpleBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.ExtendedMutableQuadViewImpl;
+import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.MutableQuadViewWrapper;
+import net.caffeinemc.mods.sodium.client.render.model.EncodingFormat;
 import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
-import net.caffeinemc.mods.sodium.mixin.frapi.ModelBlockRendererAccessor;
-import net.fabricmc.fabric.api.renderer.v1.Renderer;
-import net.fabricmc.fabric.api.renderer.v1.mesh.MutableMesh;
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
-import net.fabricmc.fabric.api.renderer.v1.render.BlockVertexConsumerProvider;
-import net.fabricmc.fabric.api.renderer.v1.render.FabricBlockModelRenderer;
-import net.fabricmc.fabric.api.renderer.v1.render.ItemRenderTypeGetter;
-import net.fabricmc.fabric.api.renderer.v1.render.RenderLayerHelper;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
-import net.minecraft.client.renderer.item.ItemStackRenderState;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.state.BlockState;
+import net.fabricmc.fabric.api.client.renderer.v1.Renderer;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableMesh;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableQuadView;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.client.renderer.v1.render.AltModelBlockRenderer;
+import net.minecraft.client.color.block.BlockColors;
 
 import java.util.function.Consumer;
 
@@ -54,46 +42,35 @@ public class SodiumRenderer implements Renderer {
     private SodiumRenderer() { }
 
     @Override
+    public QuadEmitter quadEmitter(Consumer<? super MutableQuadView> consumer) {
+        MutableQuadViewWrapper wrapper = new MutableQuadViewWrapper(null);
+
+        MutableQuadViewImpl impl = new MutableQuadViewImpl() {
+            {
+                data = new int[EncodingFormat.TOTAL_STRIDE];
+                clear();
+            }
+
+            @Override
+            public void emitDirectly() {
+                consumer.accept(wrapper);
+            }
+        };
+
+        wrapper.setDelegate(impl);
+
+        return wrapper;
+    }
+
+    @Override
     public MutableMesh mutableMesh() {
         return new MutableMeshImpl();
     }
 
-
     @Override
-    public void render(ModelBlockRenderer modelBlockRenderer, BlockAndTintGetter blockView, BlockStateModel model, BlockState state, BlockPos pos, PoseStack poseStack, BlockVertexConsumerProvider multiBufferSource, boolean cull, long seed, int overlay) {
-        NonTerrainBlockRenderContext.POOL.get().renderModel(blockView, ((ModelBlockRendererAccessor) modelBlockRenderer).sodium$getBlockColors(), model, state, pos, poseStack, multiBufferSource, cull, seed, overlay);
+    public AltModelBlockRenderer altModelBlockRenderer(boolean ambientOcclusion, boolean cull, BlockColors blockColors) {
+        return new NonTerrainBlockRenderContext(ambientOcclusion, cull, blockColors);
     }
 
-    @Override
-    public void render(PoseStack.Pose entry, BlockVertexConsumerProvider vertexConsumers, BlockStateModel model, float red, float green, float blue, int light, int overlay, BlockAndTintGetter blockView, BlockPos pos, BlockState state) {
-        SimpleBlockRenderContext.POOL.get().bufferModel(entry, vertexConsumers, model, red, green, blue, light, overlay, blockView, pos, state);
-    }
 
-    @Override
-    public void renderBlockAsEntity(BlockRenderDispatcher renderManager, BlockState state, PoseStack poseStack, MultiBufferSource multiBufferSource, int light, int overlay, BlockAndTintGetter blockView, BlockPos pos) {
-        RenderShape renderShape = state.getRenderShape();
-
-        if (renderShape != RenderShape.INVISIBLE) {
-            BlockStateModel model = renderManager.getBlockModel(state);
-            int tint = ((ModelBlockRendererAccessor) renderManager.getModelRenderer()).sodium$getBlockColors().getColor(state, null, null, 0);
-            float red = (tint >> 16 & 255) / 255.0F;
-            float green = (tint >> 8 & 255) / 255.0F;
-            float blue = (tint & 255) / 255.0F;
-
-            FabricBlockModelRenderer.render(poseStack.last(), RenderLayerHelper.entityDelegate(multiBufferSource), model, red, green, blue, light, overlay, blockView, pos, state);
-            }
-    }
-
-    @Override
-    public void setLayerRenderTypeGetter(
-            ItemStackRenderState.LayerRenderState layer,
-            ItemRenderTypeGetter renderTypeGetter
-    ) {
-        ((AccessLayerRenderState) layer).fabric_setRenderTypeGetter(renderTypeGetter);
-    }
-
-    @Override
-    public QuadEmitter getLayerRenderStateEmitter(ItemStackRenderState.LayerRenderState layer) {
-        return ((AccessLayerRenderState) layer).fabric_getMutableMesh().emitter();
-    }
 }

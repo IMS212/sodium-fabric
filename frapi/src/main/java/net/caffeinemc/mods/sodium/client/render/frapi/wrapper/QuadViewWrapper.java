@@ -1,5 +1,8 @@
 package net.caffeinemc.mods.sodium.client.render.frapi.wrapper;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.QuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumQuadAtlas;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumShadeMode;
@@ -9,19 +12,21 @@ import net.fabricmc.fabric.api.client.renderer.v1.mesh.ShadeMode;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
+import org.joml.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.joml.Vector2f;
-import org.joml.Vector3f;
-import org.joml.Vector3fc;
 
 public class QuadViewWrapper implements QuadView {
     private static final TriState[] TO_FABRIC = new TriState[] {
         TriState.TRUE, TriState.FALSE, TriState.DEFAULT
     };
 
-    private final QuadViewImpl quad;
+    private QuadViewImpl quad;
+    private final Vector4f posVec = new Vector4f();
+    private final Vector3f normalVec = new Vector3f();
+    private final Vector3f normalVec1 = new Vector3f();
 
     public QuadViewWrapper(QuadViewImpl quad) {
         this.quad = quad;
@@ -128,6 +133,11 @@ public class QuadViewWrapper implements QuadView {
     }
 
     @Override
+    public RenderType itemRenderType() {
+        return quad.itemRenderType();
+    }
+
+    @Override
     public boolean emissive() {
         return quad.emissive();
     }
@@ -153,6 +163,10 @@ public class QuadViewWrapper implements QuadView {
     }
 
     @Override
+    public boolean animated() {
+        return quad.animated();
+    }
+
     public QuadAtlas atlas() {
         return quad.getQuadAtlas() == SodiumQuadAtlas.BLOCK ? QuadAtlas.BLOCK : QuadAtlas.ITEM;
     }
@@ -167,7 +181,84 @@ public class QuadViewWrapper implements QuadView {
         return quad.getTag();
     }
 
+    @Override
+    public final void buffer(int overlayCoords, VertexConsumer vertexConsumer) {
+        if (!quad.hasVertexNormals()) {
+            final Vector3fc faceNormal = faceNormal();
+
+            for (int i = 0; i < 4; i++) {
+                vertexConsumer.addVertex(x(i), y(i), z(i), color(i), u(i), v(i), overlayCoords, lightmap(i), faceNormal.x(), faceNormal.y(), faceNormal.z());
+            }
+        } else if (quad.hasAllVertexNormals()) {
+            final Vector3f normalVec = this.normalVec;
+
+            for (int i = 0; i < 4; i++) {
+                copyNormal(i, normalVec);
+                vertexConsumer.addVertex(x(i), y(i), z(i), color(i), u(i), v(i), overlayCoords, lightmap(i), normalVec.x(), normalVec.y(), normalVec.z());
+            }
+        } else {
+            final Vector3f normalVec = this.normalVec;
+            final Vector3fc faceNormal = faceNormal();
+
+            for (int i = 0; i < 4; i++) {
+                if (hasNormal(i)) {
+                    copyNormal(i, normalVec);
+                } else {
+                    normalVec.set(faceNormal);
+                }
+
+                vertexConsumer.addVertex(x(i), y(i), z(i), color(i), u(i), v(i), overlayCoords, lightmap(i), normalVec.x(), normalVec.y(), normalVec.z());
+            }
+        }
+    }
+
+    // TODO: Optimize this (26.1)
+    @Override
+    public final void buffer(int overlayCoords, PoseStack.Pose pose, VertexConsumer vertexConsumer) {
+        final Vector4f posVec = this.posVec;
+        final Vector3f normalVec = this.normalVec;
+        final Matrix4f posMatrix = pose.pose();
+
+        if (!quad.hasVertexNormals()) {
+            pose.transformNormal(faceNormal(), normalVec);
+
+            for (int i = 0; i < 4; i++) {
+                posVec.set(x(i), y(i), z(i), 1.0f);
+                posVec.mul(posMatrix);
+                vertexConsumer.addVertex(posVec.x(), posVec.y(), posVec.z(), color(i), u(i), v(i), overlayCoords, lightmap(i), normalVec.x(), normalVec.y(), normalVec.z());
+            }
+        } else if (quad.hasAllVertexNormals()) {
+            for (int i = 0; i < 4; i++) {
+                posVec.set(x(i), y(i), z(i), 1.0f);
+                posVec.mul(posMatrix);
+                copyNormal(i, normalVec);
+                pose.transformNormal(normalVec, normalVec);
+                vertexConsumer.addVertex(posVec.x(), posVec.y(), posVec.z(), color(i), u(i), v(i), overlayCoords, lightmap(i), normalVec.x(), normalVec.y(), normalVec.z());
+            }
+        } else {
+            final Vector3f transformedFaceNormal = pose.transformNormal(faceNormal(), normalVec1);
+
+            for (int i = 0; i < 4; i++) {
+                posVec.set(x(i), y(i), z(i), 1.0f);
+                posVec.mul(posMatrix);
+
+                if (hasNormal(i)) {
+                    copyNormal(i, normalVec);
+                    pose.transformNormal(normalVec, normalVec);
+                } else {
+                    normalVec.set(transformedFaceNormal);
+                }
+
+                vertexConsumer.addVertex(posVec.x(), posVec.y(), posVec.z(), color(i), u(i), v(i), overlayCoords, lightmap(i), normalVec.x(), normalVec.y(), normalVec.z());
+            }
+        }
+    }
+
     public QuadViewImpl getOriginal() {
         return quad;
+    }
+
+    protected void setDelegate(QuadViewImpl impl) {
+        this.quad = impl;
     }
 }

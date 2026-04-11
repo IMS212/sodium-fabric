@@ -75,7 +75,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
 
     private final ShapeComparisonCache occlusionCache = new ShapeComparisonCache();
     private final BlockPos.MutableBlockPos cachedPositionObject = new BlockPos.MutableBlockPos();
-    private boolean enableCulling = true;
+    protected boolean enableCulling = true;
     // Cull cache (as it's checked per-quad instead of once per side like in vanilla)
     private int cullCompletionFlags;
     private int cullResultFlags;
@@ -171,7 +171,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
     /**
      * Pipeline entrypoint - handles transform and culling checks.
      */
-    private void renderQuad(MutableQuadViewImpl quad) {
+    protected void renderQuad(MutableQuadViewImpl quad) {
         if (this.isFaceCulled(quad.getCullFace())) {
             return;
         }
@@ -238,8 +238,8 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
                 final BakedQuad q = quads.get(j);
                 editorQuad.fromBakedQuad(q);
                 editorQuad.setCullFace(cullFace);
-                editorQuad.setRenderType(q.materialInfo().layer());
                 editorQuad.setAmbientOcclusion(ao.toTriState());
+                editorQuad.setShadeMode(SodiumShadeMode.ENHANCED);
                 // Call processQuad instead of emit for efficiency
                 // (avoid unnecessarily clearing data, trying to apply transforms, and performing cull check again)
 

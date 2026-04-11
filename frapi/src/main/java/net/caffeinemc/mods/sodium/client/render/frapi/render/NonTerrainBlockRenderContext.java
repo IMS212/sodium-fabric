@@ -18,74 +18,153 @@ package net.caffeinemc.mods.sodium.client.render.frapi.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.api.util.ColorMixer;
+import net.caffeinemc.mods.sodium.api.vertex.attributes.common.ColorAttribute;
+import net.caffeinemc.mods.sodium.client.model.color.ColorProvider;
+import net.caffeinemc.mods.sodium.client.model.color.ColorProviderRegistry;
 import net.caffeinemc.mods.sodium.client.model.light.LightMode;
 import net.caffeinemc.mods.sodium.client.model.light.LightPipelineProvider;
 import net.caffeinemc.mods.sodium.client.model.light.data.SingleBlockLightDataCache;
 import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.ExtendedMutableQuadViewImpl;
+import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.MutableQuadViewWrapper;
 import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.AbstractBlockRenderContext;
 import net.caffeinemc.mods.sodium.client.render.model.QuadEncoder;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumShadeMode;
 import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableQuadView;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadTransform;
 import net.fabricmc.fabric.api.client.renderer.v1.model.FabricBlockStateModel;
-import net.fabricmc.fabric.api.client.renderer.v1.render.BlockMultiBufferSource;
+import net.fabricmc.fabric.api.client.renderer.v1.render.AltModelBlockRenderer;
 import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.color.block.BlockTintSource;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.TriState;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 
-public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
-    public static final ThreadLocal<NonTerrainBlockRenderContext> POOL = ThreadLocal.withInitial(NonTerrainBlockRenderContext::new);
+import java.util.List;
 
+public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext implements AltModelBlockRenderer, QuadTransform {
+    private final boolean allowAO;
     private BlockColors colorMap;
     private final SingleBlockLightDataCache lightDataCache = new SingleBlockLightDataCache();
 
-    private BlockMultiBufferSource vertexConsumer;
-    private Matrix4f matPosition;
-    private boolean trustedNormals;
-    private Matrix3f matNormal;
-    private int overlay;
+    private QuadEmitter output;
+    private boolean defaultAo;
+    private Vector3f offset = new Vector3f ();
+    private int[] vertexColors = new int[4];
+    private final BlockPos.MutableBlockPos scratchPos = new BlockPos.MutableBlockPos();
+    private ColorProvider<BlockState> colorProvider;
+    private int tintCacheIndex = -1;
+    private int tintCacheValue;
+    private boolean tintSourcesInitialized;
+    private final List<@Nullable BlockTintSource> tintSources = new ObjectArrayList<>();
+    private final IntList computedTintValues = new IntArrayList();
 
-    public NonTerrainBlockRenderContext() {
+    public NonTerrainBlockRenderContext(boolean ambientOcclusion, boolean cull, BlockColors blockColors) {
+        this.allowAO = ambientOcclusion;
+        this.enableCulling = cull;
+        this.colorMap = blockColors;
         this.lighters = new LightPipelineProvider(this.lightDataCache);
         this.random = new SingleThreadedRandomSource(42L);
     }
 
-    public void renderModel(BlockAndTintGetter blockView, BlockColors blockColors, BlockStateModel model, BlockState state, BlockPos pos, PoseStack poseStack, BlockMultiBufferSource buffer, boolean cull, long seed, int overlay) {
-        this.level = blockView;
-        this.state = state;
+    private void configureTintCache(final BlockState blockState) {
+        List<BlockTintSource> tintSources = colorMap.getTintSources(blockState);
+        int tintSourceCount = tintSources.size();
+
+        if (tintSourceCount > 0) {
+            this.tintSources.addAll(tintSources);
+
+            for (int i = 0; i < tintSourceCount; ++i) {
+                computedTintValues.add(-1);
+            }
+        }
+    }
+
+    private int computeTintColor(final BlockAndTintGetter level, final BlockState state, final BlockPos pos, final int tintIndex) {
+        if (!tintSourcesInitialized) {
+            configureTintCache(state);
+            tintSourcesInitialized = true;
+        }
+
+        if (tintIndex >= tintSources.size()) {
+            return -1;
+        } else {
+            BlockTintSource tintSource = tintSources.set(tintIndex, null);
+
+            if (tintSource != null) {
+                int computedTintValue = tintSource.colorInWorld(state, level, pos);
+                computedTintValues.set(tintIndex, computedTintValue);
+                return computedTintValue;
+            } else {
+                return computedTintValues.getInt(tintIndex);
+            }
+        }
+    }
+
+    private int getTintColor(final BlockAndTintGetter level, final BlockState state, final BlockPos pos, final int tintIndex) {
+        if (tintCacheIndex == tintIndex) {
+            return tintCacheValue;
+        } else {
+            int tintColor = ColorARGB.toABGR(computeTintColor(level, state, pos, tintIndex));
+            tintCacheIndex = tintIndex;
+            tintCacheValue = tintColor;
+            return tintColor;
+        }
+    }
+
+    private void resetTintCache() {
+        tintCacheIndex = -1;
+
+        if (tintSourcesInitialized) {
+            tintSources.clear();
+            computedTintValues.clear();
+            tintSourcesInitialized = false;
+        }
+    }
+
+    @Override
+    public void tesselateBlock(QuadEmitter output, float x, float y, float z, BlockAndTintGetter level, BlockPos pos, BlockState blockState, BlockStateModel model, long seed) {
+        this.level = level;
+        this.state = blockState;
         this.pos = pos;
-        this.colorMap = blockColors;
 
+        this.output = output;
+        Vec3 offset = blockState.getOffset(pos);
+        this.offset.set(x + offset.x, y + offset.y, z + offset.z);
+        defaultAo = allowAO && blockState.getLightEmission() == 0;
 
-        this.vertexConsumer = buffer;
-        this.matPosition = poseStack.last().pose();
-        this.trustedNormals = poseStack.last().trustedNormals;
-        this.matNormal = poseStack.last().normal();
-        this.overlay = overlay;
-        this.defaultRenderType = ItemBlockRenderTypes.getChunkRenderType(state);
-
-        this.lightDataCache.reset(pos, blockView);
-        this.prepareCulling(cull);
+        this.lightDataCache.reset(pos, level);
+        this.prepareCulling(enableCulling);
 
         random.setSeed(seed);
-        ((FabricBlockStateModel) model).emitQuads(((ExtendedMutableQuadViewImpl) getForEmitting()).getWrapper(), blockView, pos, state, this.random, this::isFaceCulled);
 
-        this.defaultRenderType = null;
+        output.clear();
+        output.pushTransform(this);
+
+        model.emitQuads(output, level, pos, state, this.random, this::isFaceCulled);
+
         this.level = null;
+        output.popTransform();
         this.lightDataCache.release();
-        this.vertexConsumer = null;
+        this.resetTintCache();
     }
 
     @Override
@@ -96,27 +175,27 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
         if (aoMode == TriState.DEFAULT) {
             lightMode = this.defaultLightMode;
         } else {
-            lightMode = this.useAmbientOcclusion && aoMode != TriState.FALSE ? LightMode.SMOOTH : LightMode.FLAT;
+            lightMode = this.useAmbientOcclusion && aoMode != TriState.FALSE && defaultAo ? LightMode.SMOOTH : LightMode.FLAT;
         }
         final boolean emissive = quad.emissive();
 
-        VertexConsumer vertexConsumer = getVertexConsumer(quad.getRenderType());
-
         tintQuad(quad);
         shadeQuad(quad, lightMode, emissive, shadeMode);
-        bufferQuad(quad, vertexConsumer);
-    }
-
-    private VertexConsumer getVertexConsumer(ChunkSectionLayer blendMode) {
-        return vertexConsumer.getBuffer(blendMode == null ? defaultRenderType : blendMode);
+        quad.translate(offset.x, offset.y, offset.z);
+        var sprite = quad.sprite(SpriteFinderCache.forBlockAtlas());
+        if (sprite != null) {
+            SpriteUtil.INSTANCE.markSpriteActive(sprite);
+        }
     }
 
     private void tintQuad(MutableQuadViewImpl quad) {
-        if (quad.getTintIndex() != -1) {
-            final int blockColor = 0xFF000000 | this.colorMap.getColor(this.state, this.level, this.pos, quad.getTintIndex());
+        int tintIndex = quad.getTintIndex();
+
+        if (tintIndex != -1) {
+            int tint = getTintColor(level, state, pos, tintIndex);
 
             for (int i = 0; i < 4; i++) {
-                quad.setColor(i, ColorMixer.mulComponentWise(blockColor, quad.baseColor(i)));
+                quad.setColor(i, ColorMixer.mulComponentWise(tint, quad.baseColor(i)));
             }
         }
     }
@@ -132,11 +211,9 @@ public class NonTerrainBlockRenderContext extends AbstractBlockRenderContext {
         }
     }
 
-    private void bufferQuad(MutableQuadViewImpl quad, VertexConsumer vertexConsumer) {
-        QuadEncoder.writeQuadVertices(quad, vertexConsumer, overlay, matPosition, trustedNormals, matNormal);
-        var sprite = quad.sprite(SpriteFinderCache.forBlockAtlas());
-        if (sprite != null) {
-            SpriteUtil.INSTANCE.markSpriteActive(sprite);
-        }
+    @Override
+    public boolean transform(MutableQuadView mutableQuadView) {
+        renderQuad(((MutableQuadViewWrapper) mutableQuadView).getOriginal());
+        return true;
     }
 }

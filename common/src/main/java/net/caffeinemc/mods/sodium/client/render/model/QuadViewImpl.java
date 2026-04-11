@@ -26,6 +26,7 @@ import net.caffeinemc.mods.sodium.client.render.helper.GeometryHelper;
 import net.caffeinemc.mods.sodium.client.render.helper.NormalHelper;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 import net.minecraft.util.TriState;
@@ -319,5 +320,13 @@ public class QuadViewImpl implements ModelQuadView {
 
     public SodiumQuadAtlas getQuadAtlas() {
         return EncodingFormat.quadAtlas(data[baseIndex + HEADER_BITS]);
+    }
+
+    public RenderType itemRenderType() {
+        return EncodingFormat.itemRenderType(data[baseIndex + HEADER_BITS]);
+    }
+
+    public boolean animated() {
+        return EncodingFormat.animated(data[baseIndex + HEADER_BITS]);
     }
 }
