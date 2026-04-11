@@ -42,7 +42,7 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         this.setLayout = VkDescriptorSetLayoutBuilder.create(VulkanAccess.getDevice())
                 .addBinding(0, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL)
                 .addBinding(1, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL)
-                .addBinding(2, VK13.VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK13.VK_SHADER_STAGE_ALL)
+                .addBinding(2, VK13.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK13.VK_SHADER_STAGE_ALL)
                 .flags(VK14.VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT).build();
         this.layout = VkPipelineLayoutBuilder.create(VulkanAccess.getDevice())
                 .pushConstants(new VkPipelineLayoutBuilder.PushConstantRange(VK13.VK_SHADER_STAGE_ALL, 0, DefaultShaderInterface.PUSH_CONSTANT_SIZE))

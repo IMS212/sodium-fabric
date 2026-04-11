@@ -16,35 +16,16 @@ static const float OFFSET_RANGE = 4.0;
 static const float OFFSET_ORIGIN = 2.0;
 static const float TEXTURE_MAX_VALUE = float(1 << 15);
 
-uint getWord(uint4x4 d, uint idx)
-{
-    switch (idx)
-    {
-    case 0: return d[0].x;
-    case 1: return d[0].y;
-    case 2: return d[0].z;
-    case 3: return d[0].w;
-    case 4: return d[1].x;
-    case 5: return d[1].y;
-    case 6: return d[1].z;
-    case 7: return d[1].w;
-    case 8: return d[2].x;
-    case 9: return d[2].y;
-    case 10: return d[2].z;
-    case 11: return d[2].w;
-    case 12: return d[3].x;
-    case 13: return d[3].y;
-    case 14: return d[3].z;
-    default: return d[3].w;
-    }
-}
 
 uint extractBits(uint4x4 d, uint bitOffset, uint count)
 {
     uint word = bitOffset >> 5;
     uint bit = bitOffset & 31;
 
-    uint lo = getWord(d, word) >> bit;
+    uint row = word / 4;
+    uint col = word % 4;
+
+    uint lo = d[row][col] >> bit;
 
     uint result;
     if (bit + count <= 32)
@@ -53,7 +34,9 @@ uint extractBits(uint4x4 d, uint bitOffset, uint count)
     }
     else
     {
-        uint hi = getWord(d, word + 1) << (32 - bit);
+        uint row2 = (word + 1) / 4;
+        uint col2 = (word + 1) % 4;
+        uint hi = d[row2][col2] << (32 - bit);
         result = lo | hi;
     }
 

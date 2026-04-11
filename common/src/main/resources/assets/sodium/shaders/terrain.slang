@@ -15,12 +15,11 @@ struct VertexOutput {
 }
 
 struct PC {
-    float3 regionOffset;
-    int padding;
     float4x4 modelViewMatrix;
     float4x4 projectionMatrix;
     float2 u_TexCoordShrink;
-    uint currentPage;
+    int3 cameraBlockPos;
+    float3 cameraFracPos;
 }
 
 [[vk::push_constant]]
@@ -33,41 +32,48 @@ Sampler2D blockAtlas;
 Sampler2D lightTex;
 
 [[vk::binding(2)]]
-ConstantBuffer<uint64_t[256], ScalarDataLayout> u_pageBuffer;
+ByteAddressBuffer instanceBuffer;
 
 [[shader("vertex")]]
-VertexOutput vertexMain(uint id: SV_VulkanVertexID) {
-
-    uint quadId = id >> 2;
-    uint vertexId = id & 3;
-
-    uint64_t basePtr = u_pageBuffer[pc.currentPage] + (64 * quadId);
-
-    uint4x4 loaded = loadAligned<16, uint4x4>(Ptr<uint4x4>(basePtr));
-    ChunkVertex vertex = decodeQuadVertex(loaded, vertexId);
-
+VertexOutput vertexMain(uint vertexId: SV_VulkanVertexID, uint instanceId: SV_InstanceID) {
     VertexOutput output = VertexOutput();
 
-    // Transform the chunk-local vertex position into world model space
-    float3 translation = pc.regionOffset + _get_draw_translation(vertex.id); // TODO
+    uint base = instanceId * 32;
+    uint4 d0 = instanceBuffer.Load4Aligned(base);
+    uint2 d1 = instanceBuffer.Load2Aligned(base + 16);
+
+    uint64_t quadAddr = uint64_t(d0.x) | (uint64_t(d0.y) << 32);
+    int originX = asint(d0.z);
+    int originY = asint(d0.w);
+    int originZ = asint(d1.x);
+    uint quadCount = d1.y;
+
+    uint quadId = vertexId >> 2;
+    uint localVert = vertexId & 3;
+
+    if (quadId >= quadCount) {
+        output.pos = float4(0.0, 0.0, 0.0, 1.0);
+        output.color = float4(0.0, 0.0, 0.0, 0.0);
+        output.uv = float2(0.0, 0.0);
+        output.fragDistance = float2(0.0, 0.0);
+        output.material = 0;
+        return output;
+    }
+
+    uint64_t quadPtr = quadAddr + uint64_t(quadId) * 64;
+    uint4x4 loaded = loadAligned<16, uint4x4>(Ptr<uint4x4>(quadPtr));
+    ChunkVertex vertex = decodeQuadVertex(loaded, localVert);
+
+    float3 sectionOrigin = float3(float(originX), float(originY), float(originZ));
+    float3 cameraBlock = float3(float(pc.cameraBlockPos.x), float(pc.cameraBlockPos.y), float(pc.cameraBlockPos.z));
+    float3 translation = (sectionOrigin - cameraBlock) - pc.cameraFracPos;
+
     float3 position = vertex.position + translation;
 
     output.fragDistance = getFragDistance(position);
-
-    //int chunkId = int(_draw_id);
-    //int chunkFade = u_chunkFades[chunkId >> 2][chunkId & 3];
-    //int fadeTime = u_CurrentTime - chunkFade;
-   // float elapsed = float(fadeTime);
-    //float fade = clamp(float(u_CurrentTime - chunkFade) * u_FadePeriodInv, 0.0, 1.0);
-    //fadeFactor = (chunkFade < 0) ? 1.0 : fade;
-
-    // Transform the vertex position into model-view-projection space
     output.pos = mul(pc.projectionMatrix, mul(pc.modelViewMatrix, float4(position, 1.0)));
-
-    // Add the light color to the vertex color, and pass the texture coordinates to the fragment shader
-    output.color = vertex.color * lightTex.SampleLevel(vertex.light, 0); //  * texture(u_LightTex, vertex.lightCoord);
-    output.uv = vertex.uv; // FMA for precision
-
+    output.color = vertex.color * lightTex.SampleLevel(vertex.light, 0);
+    output.uv = vertex.uv;
     output.material = 0;
 
     return output;

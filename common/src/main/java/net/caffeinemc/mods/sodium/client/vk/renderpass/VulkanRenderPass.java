@@ -55,22 +55,10 @@ public class VulkanRenderPass implements AutoCloseable {
 
     public void draw(MultiDrawBatch batch) {
        EXTMultiDraw.nvkCmdDrawMultiIndexedEXT(commandBuffer, batch.size, batch.pIndexedInfos, 1, 0, VkMultiDrawIndexedInfoEXT.SIZEOF, 0);
-       // long ptr = batch.pIndexedInfos;
+    }
 
-        //for (int i = 0; i < batch.size; i++) {
-       //     VkMultiDrawIndexedInfoEXT info =
-       //             VkMultiDrawIndexedInfoEXT.create(ptr + (long)i * VkMultiDrawIndexedInfoEXT.SIZEOF);
-
-        //    VK13.vkCmdDrawIndexed(
-        //            commandBuffer,
-         //           info.indexCount(),
-         //           1,
-         //           info.firstIndex(),
-         //           info.vertexOffset(),
-        //            0
-        //    );
-       //
-        // }
+    public void drawIndexedIndirect(VkBuffer buffer, long offset, int drawCount, int stride) {
+        VK13.vkCmdDrawIndexedIndirect(commandBuffer, buffer.handle(), offset, drawCount, stride);
     }
 
     public void bindPipeline(VkPipelineLayout layout, long pipeline) {

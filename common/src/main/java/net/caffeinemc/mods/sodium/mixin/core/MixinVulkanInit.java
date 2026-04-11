@@ -37,11 +37,11 @@ public class MixinVulkanInit {
     @Inject(method = "<clinit>", at = @At("RETURN"))
     private static void addExtension(CallbackInfo ci) {
         REQUIRED_DEVICE_EXTENSIONS = new HashSet<>(REQUIRED_DEVICE_EXTENSIONS);
-        REQUIRED_DEVICE_EXTENSIONS.add("VK_EXT_multi_draw");
+        //REQUIRED_DEVICE_EXTENSIONS.add("VK_EXT_multi_draw");
         REQUIRED_DEVICE_FEATURES = new HashSet<>(REQUIRED_DEVICE_FEATURES);
         VulkanPNextStruct A = new VulkanPNextStruct(EXTMultiDraw.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT, VkPhysicalDeviceMultiDrawFeaturesEXT.SIZEOF);
 
-        REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(A, "multiDraw", VkPhysicalDeviceMultiDrawFeaturesEXT.MULTIDRAW));
+        //REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(A, "multiDraw", VkPhysicalDeviceMultiDrawFeaturesEXT.MULTIDRAW));
         VulkanPNextStruct B = new VulkanPNextStruct(VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, VkPhysicalDeviceVulkan11Features.SIZEOF);
         VulkanPNextStruct C = new VulkanPNextStruct(VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, VkPhysicalDeviceVulkan12Features.SIZEOF);
 

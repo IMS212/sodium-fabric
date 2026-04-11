@@ -183,7 +183,9 @@ public class RenderSectionManager {
         this.needsGraphUpdate = this.createTerrainRenderList(camera, viewport, fogParameters, this.lastUpdatedFrame, spectator);
     }
 
-    public void updateSection(int sectionId, TerrainRenderPass pass, long addr, int @Nullable [] segmentRange) {
+    public void updateSection(int sectionId, TerrainRenderPass pass, long addr,
+                              int @Nullable [] vertexCounts, long facingList, int sliceMask,
+                              int originX, int originY, int originZ) {
         int passId;
         if (pass.isTranslucent()) {
             passId = 2;
@@ -195,10 +197,11 @@ public class RenderSectionManager {
 
         if (addr == 0) {
             sectionDataBuffer[passId].removeSection(sectionId);
-        } else if (segmentRange == null) {
+        } else if (vertexCounts == null) {
             sectionDataBuffer[passId].updateSection(sectionId, addr);
         } else {
-            sectionDataBuffer[passId].writeSection(sectionId, addr, segmentRange);
+            sectionDataBuffer[passId].writeSection(sectionId, addr, vertexCounts, facingList, sliceMask,
+                    originX, originY, originZ);
         }
     }
 
@@ -349,11 +352,23 @@ public class RenderSectionManager {
         this.markGraphDirty();
     }
 
+    public SectionDataBuffer getSectionDataBuffer(TerrainRenderPass pass) {
+        int passId;
+        if (pass.isTranslucent()) {
+            passId = 2;
+        } else if (pass.supportsFragmentDiscard()) {
+            passId = 1;
+        } else {
+            passId = 0;
+        }
+        return sectionDataBuffer[passId];
+    }
+
     public void renderLayer(ChunkRenderMatrices matrices, TerrainRenderPass pass, double x, double y, double z, FogParameters fogParameters, GpuSampler terrainSampler) {
         RenderDevice device = RenderDevice.INSTANCE;
         CommandList commandList = device.createCommandList();
 
-        this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z), fogParameters, this.sortBehavior != SortBehavior.OFF, terrainSampler, pageAddressBuffer);
+        this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z), fogParameters, this.sortBehavior != SortBehavior.OFF, terrainSampler, pageAddressBuffer, getSectionDataBuffer(pass));
 
         commandList.flush();
     }
@@ -953,40 +968,7 @@ public class RenderSectionManager {
                     this.regions.getStagingBuffer().toString(), count));
         }
 
-        if (verbose) {
-            list.add(String.format("Chunk Builder: Schd=%02d | Busy=%02d (%04d%%) | Total=%02d",
-                    this.builder.getScheduledJobCount(), this.builder.getBusyThreadCount(), (int) (this.builder.getBusyFraction(this.lastFrameDuration) * 100), this.builder.getTotalThreadCount())
-            );
-        } else {
-            list.add(String.format("B: S%02d/B%02d/T%02d",
-                    this.builder.getScheduledJobCount(), this.builder.getBusyThreadCount(), this.builder.getTotalThreadCount())
-            );
-        }
-        
-        if (verbose) {
-            list.add(String.format("Tasks: N0=%03d | N1=%03d | Def=%03d, Recv=%03d",
-                    this.thisFrameBlockingTasks, this.nextFrameBlockingTasks, this.deferredTasks, this.buildResults.size())
-            );
-        }
-
-        if (verbose && PlatformRuntimeInformation.getInstance().isDevelopmentEnvironment()) {
-            var meshTaskParameters = this.jobDurationEstimator.toString(ChunkBuilderMeshingTask.class);
-            var sortTaskParameters = this.jobDurationEstimator.toString(ChunkBuilderSortingTask.class);
-            var uploadDurationParameters = this.jobUploadDurationEstimator.toString(null);
-            list.add(String.format("Duration: Mesh %s, Sort %s, Upload %s", meshTaskParameters, sortTaskParameters, uploadDurationParameters));
-
-            var sizeEstimates = new ReferenceArrayList<String>();
-            for (var type : MeshResultSize.SectionCategory.values()) {
-                sizeEstimates.add(String.format("%s=%s", type, this.meshTaskSizeEstimator.toString(type)));
-            }
-            list.add(String.format("Size: %s", String.join(", ", sizeEstimates)));
-        }
-
-        if (this.sortBehavior != SortBehavior.OFF) {
-            this.sortTriggering.addDebugStrings(list, this.sortBehavior, verbose);
-        } else {
-            list.add("TS OFF");
-        }
+        list.add("Using mesh shader emulation (instancing)");
 
         return list;
     }

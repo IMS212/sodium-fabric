@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.client.render.chunk.data;
 
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
+import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkMeshFormats;
 import net.caffeinemc.mods.sodium.client.vk.arena.VkBufferSegment;
 import net.caffeinemc.mods.sodium.client.vk.arena.PendingUpload;
 import net.caffeinemc.mods.sodium.client.vk.arena.RegionAllocatorHandle;
@@ -46,7 +47,13 @@ public class SectionRenderDataStorage {
     private boolean needsSharedIndexUpdate = false;
     private final int[] sharedIndexUsage = new int[RenderRegion.REGION_SIZE];
 
+    private static final int GEOMETRY_STRIDE = ChunkMeshFormats.COMPACT.getVertexFormat().getStride();
+
     private final long pMeshDataArray;
+
+    private static long getByteDeviceAddress(VkBufferSegment allocation) {
+        return allocation.getDeviceAddress() - allocation.getOffset() + allocation.getOffset() * GEOMETRY_STRIDE;
+    }
 
     public SectionRenderDataStorage(RenderSectionManager manager, RenderRegion parent, TerrainRenderPass pass, boolean storesIndices) {
         this.manager = manager;
@@ -91,7 +98,15 @@ public class SectionRenderDataStorage {
             }
         }
 
-        manager.updateSection(parent.getSection(localSectionIndex).getSectionId(), pass, allocation.getDeviceAddress(), vertexSegments);
+        int[] vertexCounts = new int[ModelQuadFacing.COUNT];
+        for (int i = 0; i < ModelQuadFacing.COUNT; i++) {
+            vertexCounts[i] = vertexSegments[i << 1];
+        }
+
+        var section = parent.getSection(localSectionIndex);
+        manager.updateSection(section.getSectionId(), pass, getByteDeviceAddress(allocation),
+                vertexCounts, facingList, sliceMask,
+                section.getOriginX(), section.getOriginY(), section.getOriginZ());
         SectionRenderDataUnsafe.setBaseVertex(pMeshData, allocation.getOffset());
         SectionRenderDataUnsafe.setSliceMask(pMeshData, sliceMask);
         SectionRenderDataUnsafe.setFacingList(pMeshData, facingList);
@@ -267,7 +282,8 @@ public class SectionRenderDataStorage {
 
         var data = this.getDataPointer(sectionIndex);
         long offset = allocation.getOffset();
-        manager.updateSection(parent.getSection(sectionIndex).getSectionId(), pass, allocation.getDeviceAddress(), null);
+        manager.updateSection(parent.getSection(sectionIndex).getSectionId(), pass, getByteDeviceAddress(allocation),
+                null, 0, 0, 0, 0, 0);
         SectionRenderDataUnsafe.setBaseVertex(data, offset);
     }
 
@@ -300,7 +316,8 @@ public class SectionRenderDataStorage {
         }
 
         long offset = allocation.getOffset();
-        manager.updateSection(parent.getSection(sectionIndex).getSectionId(), pass, allocation.getDeviceAddress(), null);
+        manager.updateSection(parent.getSection(sectionIndex).getSectionId(), pass, getByteDeviceAddress(allocation),
+                null, 0, 0, 0, 0, 0);
         SectionRenderDataUnsafe.setBaseVertex(this.getDataPointer(sectionIndex), offset);
     }
 

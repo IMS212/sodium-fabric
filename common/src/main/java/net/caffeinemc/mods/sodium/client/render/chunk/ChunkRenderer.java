@@ -25,7 +25,7 @@ public interface ChunkRenderer {
      * @param terrainSampler          The sampler to use for the atlas
      * @param pageBuf
      */
-    void render(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass pass, CameraTransform camera, FogParameters parameters, boolean indexedRenderingEnabled, GpuSampler terrainSampler, PageAddressBuffer pageBuf);
+    void render(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass pass, CameraTransform camera, FogParameters parameters, boolean indexedRenderingEnabled, GpuSampler terrainSampler, PageAddressBuffer pageBuf, SectionDataBuffer sectionDataBuffer);
 
     /**
      * Deletes this render backend and any resources attached to it.
