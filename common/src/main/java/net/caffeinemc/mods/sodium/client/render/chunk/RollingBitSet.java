@@ -12,6 +12,7 @@ public class RollingBitSet {
     }
 
     public void free(int value) {
+        if (!bits.get(value)) throw new IllegalArgumentException("Value " + value + " is not allocated");
         bits.clear(value);
     }
 

@@ -472,7 +472,6 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         meshPipelineLayout.delete();
         meshSetLayout.delete();
 
-        cullPipeline.destroy(commandList);
         computeSetLayout.delete();
     }
 }
