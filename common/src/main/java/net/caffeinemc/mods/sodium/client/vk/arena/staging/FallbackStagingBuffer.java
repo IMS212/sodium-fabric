@@ -26,7 +26,7 @@ public class FallbackStagingBuffer implements StagingBuffer {
         int size = data.remaining();
 
         try (MemoryStack stack = stackPush()) {
-            var buffer = commandList.createBuffer(size, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
+            var buffer = commandList.createBuffer("Fallback staging buffer (temporary)", size, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
             long mapped = buffer.getMapping().getMappedData();
             MemoryUtil.memCopy(MemoryUtil.memAddress(data), mapped, size);
 

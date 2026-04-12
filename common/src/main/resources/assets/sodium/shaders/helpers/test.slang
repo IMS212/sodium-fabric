@@ -16,9 +16,8 @@ static const float OFFSET_RANGE = 4.0;
 static const float OFFSET_ORIGIN = 2.0;
 static const float TEXTURE_MAX_VALUE = float(1 << 15);
 
-
-uint extractBits(uint4x4 d, uint bitOffset, uint count)
-{
+// performance is a lie
+uint extractBits(uint4x4 d, uint bitOffset, uint count) {
     uint word = bitOffset >> 5;
     uint bit = bitOffset & 31;
 
@@ -85,12 +84,15 @@ float2 decodeLight(uint raw) {
     float sky = float((raw >> 7) & 0x7F) * 2.0;
     return float2(block, sky);
 }
-int signExtend14(uint x)
-{
+
+int signExtend14(uint x) {
     return (int(x << 18)) >> 18;
 }
-ChunkVertex decodeQuadVertex(uint4x4 data, uint vertexIndex)
-{
+
+// yes, this decoding logic is slop
+// but i have confirmed it works, so I shall keep it until the pre-production rewrite
+// (that always seems to happen)
+ChunkVertex decodeQuadVertex(uint4x4 data, uint vertexIndex) {
     ChunkVertex v;
 
     float3 baseQ = float3(
@@ -101,12 +103,9 @@ ChunkVertex decodeQuadVertex(uint4x4 data, uint vertexIndex)
 
     float3 finalQ;
 
-    if (vertexIndex == 0)
-    {
+    if (vertexIndex == 0) {
         finalQ = baseQ;
-    }
-    else
-    {
+    } else{
         uint base = 60 + (vertexIndex - 1) * 42;
 
         int dx = signExtend14(extractBits(data, base + 0, 14));

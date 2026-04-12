@@ -968,7 +968,11 @@ public class RenderSectionManager {
                     this.regions.getStagingBuffer().toString(), count));
         }
 
-        list.add("Using mesh shader emulation (instancing)");
+        if (DefaultChunkRenderer.USE_MESH_SHADERS) {
+            list.add("Using hardware mesh shaders");
+        } else {
+            list.add("Using mesh shader emulation (instancing)");
+        }
 
         return list;
     }

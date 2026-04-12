@@ -37,19 +37,22 @@ public class MixinVulkanInit {
     @Inject(method = "<clinit>", at = @At("RETURN"))
     private static void addExtension(CallbackInfo ci) {
         REQUIRED_DEVICE_EXTENSIONS = new HashSet<>(REQUIRED_DEVICE_EXTENSIONS);
-        //REQUIRED_DEVICE_EXTENSIONS.add("VK_EXT_multi_draw");
+        REQUIRED_DEVICE_EXTENSIONS.add("VK_EXT_mesh_shader");
         REQUIRED_DEVICE_FEATURES = new HashSet<>(REQUIRED_DEVICE_FEATURES);
         VulkanPNextStruct A = new VulkanPNextStruct(EXTMultiDraw.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT, VkPhysicalDeviceMultiDrawFeaturesEXT.SIZEOF);
 
         //REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(A, "multiDraw", VkPhysicalDeviceMultiDrawFeaturesEXT.MULTIDRAW));
         VulkanPNextStruct B = new VulkanPNextStruct(VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, VkPhysicalDeviceVulkan11Features.SIZEOF);
         VulkanPNextStruct C = new VulkanPNextStruct(VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, VkPhysicalDeviceVulkan12Features.SIZEOF);
+        VulkanPNextStruct M = new VulkanPNextStruct(EXTMeshShader.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT, VkPhysicalDeviceMeshShaderFeaturesEXT.SIZEOF);
 
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(B, "shaderDrawParameters", VkPhysicalDeviceVulkan11Features.SHADERDRAWPARAMETERS));
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(VK10_FEATURES_STRUCT, "shaderInt64", VkPhysicalDeviceFeatures.SHADERINT64));
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(C, "bufferDeviceAddress", VkPhysicalDeviceVulkan12Features.BUFFERDEVICEADDRESS));
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(C, "uniformBufferStandardLayout", VkPhysicalDeviceVulkan12Features.UNIFORMBUFFERSTANDARDLAYOUT));
         REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(C, "scalarBlockLayout", VkPhysicalDeviceVulkan12Features.SCALARBLOCKLAYOUT));
+        REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(M, "meshShader", VkPhysicalDeviceMeshShaderFeaturesEXT.MESHSHADER));
+        REQUIRED_DEVICE_FEATURES.add(new VulkanFeature(M, "taskShader", VkPhysicalDeviceMeshShaderFeaturesEXT.TASKSHADER));
 
     }
 

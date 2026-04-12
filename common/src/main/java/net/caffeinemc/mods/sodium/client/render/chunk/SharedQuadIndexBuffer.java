@@ -46,9 +46,9 @@ public class SharedQuadIndexBuffer {
         var bufferSize = primitiveCount * this.indexType.getBytesPerElement() * ELEMENTS_PER_PRIMITIVE;
 
         if (buffer != null) RenderDevice.INSTANCE.destroyObjectWhenSafe(buffer);
-        this.buffer = commandList.createBuffer(bufferSize, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST));
+        this.buffer = commandList.createBuffer("Shared index buffer " + primitiveCount, bufferSize, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST));
 
-        var host = commandList.createBuffer(bufferSize, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
+        var host = commandList.createBuffer("Shared index buffer staging", bufferSize, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
         RenderDevice.INSTANCE.destroyObjectWhenSafe(host);
         this.indexType.createIndexBuffer(host.getMapping().getByteBuffer(), primitiveCount);
 

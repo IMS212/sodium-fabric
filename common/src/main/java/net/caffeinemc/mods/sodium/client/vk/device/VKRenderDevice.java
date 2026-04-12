@@ -16,6 +16,7 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.vma.Vma;
 import org.lwjgl.util.vma.VmaAllocationCreateInfo;
 import org.lwjgl.util.vma.VmaAllocationInfo;
+import org.lwjgl.vulkan.KHRSynchronization2;
 import org.lwjgl.vulkan.*;
 
 import java.nio.LongBuffer;
@@ -88,7 +89,7 @@ public class VKRenderDevice implements RenderDevice {
         }
 
         @Override
-        public VkBuffer createBuffer(long bufferSize, VkMappingType mappingType, EnumBitField<VkBufferUsages> flags) {
+        public VkBuffer createBuffer(String name, long bufferSize, VkMappingType mappingType, EnumBitField<VkBufferUsages> flags) {
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 LongBuffer pBuffer = stack.mallocLong(1);
                 PointerBuffer pAllocation = stack.mallocPointer(1);
@@ -138,6 +139,11 @@ public class VKRenderDevice implements RenderDevice {
                     throw new RuntimeException("Failed to create buffer " + res);
                 }
 
+                VkDebugUtilsObjectNameInfoEXT nameInfo = VkDebugUtilsObjectNameInfoEXT.calloc(stack)
+                        .sType$Default().objectType(VK13.VK_OBJECT_TYPE_BUFFER).objectHandle(buffer.handle()).pObjectName(stack.UTF8(name));
+
+                EXTDebugUtils.vkSetDebugUtilsObjectNameEXT(VulkanAccess.getDevice(), nameInfo);
+
                 return buffer;
             }
         }
@@ -145,6 +151,19 @@ public class VKRenderDevice implements RenderDevice {
         @Override
         public void copyBufferToBuffer(VkBuffer src, VkBuffer dst, long readOffset, long writeOffset, long bytes) {
             try (MemoryStack stack = MemoryStack.stackPush()) {
+                // I give up. Just... throw a barrier everywhere for now. (TODO)
+                VkMemoryBarrier2.Buffer barriers = VkMemoryBarrier2.calloc(1, stack);
+                barriers.get(0).sType$Default()
+                        .srcStageMask(KHRSynchronization2.VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR)
+                        .srcAccessMask(KHRSynchronization2.VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR)
+                        .dstStageMask(KHRSynchronization2.VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR)
+                        .dstAccessMask(KHRSynchronization2.VK_ACCESS_2_TRANSFER_READ_BIT_KHR
+                                | KHRSynchronization2.VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR);
+
+                VkDependencyInfo depInfo = VkDependencyInfo.calloc(stack).sType$Default()
+                        .pMemoryBarriers(barriers);
+                KHRSynchronization2.vkCmdPipelineBarrier2KHR(commandBuffer, depInfo);
+
                 VK13.vkCmdCopyBuffer(commandBuffer, src.handle(), dst.handle(), VkBufferCopy.calloc(1, stack).size(bytes).srcOffset(readOffset).dstOffset(writeOffset));
             }
         }

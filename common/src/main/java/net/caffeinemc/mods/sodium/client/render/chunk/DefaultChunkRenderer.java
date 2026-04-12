@@ -25,6 +25,10 @@ import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.caffeinemc.mods.sodium.client.vk.device.RenderDevice;
 import net.caffeinemc.mods.sodium.client.vk.pipeline.VkComputePipeline;
 import net.caffeinemc.mods.sodium.client.vk.pipeline.VkDescriptorSetLayoutBuilder;
+import net.caffeinemc.mods.sodium.client.vk.pipeline.VkGraphicsPipelineBuilder;
+import net.caffeinemc.mods.sodium.client.vk.pipeline.VkPipeline;
+import net.caffeinemc.mods.sodium.client.vk.pipeline.VkPipelineLayout;
+import net.caffeinemc.mods.sodium.client.vk.pipeline.VkPipelineLayoutBuilder;
 import net.caffeinemc.mods.sodium.client.vk.renderpass.VulkanRenderPass;
 import net.caffeinemc.mods.sodium.client.vk.util.EnumBitField;
 import net.minecraft.client.Minecraft;
@@ -36,7 +40,9 @@ import org.lwjgl.vulkan.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.IntBuffer;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 public class DefaultChunkRenderer extends ShaderChunkRenderer {
     private static final int MODEL_UNASSIGNED = ModelQuadFacing.UNASSIGNED.ordinal();
@@ -54,15 +60,24 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
     private static final int INDIRECT_CMD_SIZE = 20;
     private static final int MAX_INSTANCES = 1 << 20;
 
+    static final boolean USE_MESH_SHADERS = true;
+
     private final VkComputePipeline cullPipeline;
     private final VkDescriptorSetLayoutBuilder.VkDescriptorSetLayout computeSetLayout;
+
+    private final VkDescriptorSetLayoutBuilder.VkDescriptorSetLayout meshSetLayout;
+    private final VkPipelineLayout meshPipelineLayout;
+    private final Map<TerrainRenderPass, VkPipeline<DefaultShaderInterface>> meshPipelines = new HashMap<>();
+    private final byte[] taskSpv;
+    private final byte[] meshSpv;
+    private final byte[] fragSpv;
 
     private final VkBuffer indexBuffer16Quad;
     private final VkBuffer[] indirectCmdBuffer = new VkBuffer[3];
     private final VkBuffer[] instanceBuffer = new VkBuffer[3];
-    private final VkBuffer visibleSectionsStaging;
+    private final VkBuffer[] visibleSectionsStaging = new VkBuffer[3];
     private final VkBuffer[] visibleSectionsGpu = new VkBuffer[3];
-    private final long visibleSectionsStagingAddr;
+    private final long[] visibleSectionsStagingAddr = new long[3];
     private final int maxVisibleSections;
 
     public DefaultChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
@@ -71,7 +86,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         CommandList cmd = device.createCommandList();
 
         int indexBufSize = INDICES_PER_GROUP * Integer.BYTES;
-        VkBuffer indexStaging = cmd.createBuffer(indexBufSize, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
+        VkBuffer indexStaging = cmd.createBuffer("Index buffer stage", indexBufSize, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
         long ptr = indexStaging.getMapping().getMappedData();
         for (int q = 0; q < QUADS_PER_GROUP; q++) {
             int base = q * 4;
@@ -83,26 +98,26 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             MemoryUtil.memPutInt(ptr + off + 16, base + 3);
             MemoryUtil.memPutInt(ptr + off + 20, base);
         }
-        this.indexBuffer16Quad = cmd.createBuffer(indexBufSize, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST));
+        this.indexBuffer16Quad = cmd.createBuffer("16 quad index buffer", indexBufSize, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST));
         cmd.copyBufferToBuffer(indexStaging, indexBuffer16Quad, 0, 0, indexBufSize);
         device.destroyObjectWhenSafe(indexStaging);
 
         for (int i = 0; i < 3; i++) {
-            this.indirectCmdBuffer[i] = cmd.createBuffer(INDIRECT_CMD_SIZE, VkMappingType.GPU_ONLY,
+            this.indirectCmdBuffer[i] = cmd.createBuffer("indirect command buffer " + i, INDIRECT_CMD_SIZE, VkMappingType.GPU_ONLY,
                     EnumBitField.of(VkBufferUsages.INDIRECT_BUFFER, VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.TRANSFER_DST));
         }
 
         for (int i = 0; i < 3; i++) {
-            this.instanceBuffer[i] = cmd.createBuffer((long) MAX_INSTANCES * INSTANCE_DATA_STRIDE, VkMappingType.GPU_ONLY,
+            this.instanceBuffer[i] = cmd.createBuffer("instance buffer " + i, (long) MAX_INSTANCES * INSTANCE_DATA_STRIDE, VkMappingType.GPU_ONLY,
                     EnumBitField.of(VkBufferUsages.STORAGE_BUFFER));
         }
 
         this.maxVisibleSections = 100_000;
         int visBufSize = maxVisibleSections * VISIBLE_SECTION_STRIDE;
-        this.visibleSectionsStaging = cmd.createBuffer(visBufSize, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
-        this.visibleSectionsStagingAddr = visibleSectionsStaging.getMapping().getMappedData();
         for (int i = 0; i < 3; i++) {
-            this.visibleSectionsGpu[i] = cmd.createBuffer(visBufSize, VkMappingType.GPU_ONLY,
+            this.visibleSectionsStaging[i] = cmd.createBuffer("visible sections stage buffer " + i, visBufSize, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
+            this.visibleSectionsStagingAddr[i] = visibleSectionsStaging[i].getMapping().getMappedData();
+            this.visibleSectionsGpu[i] = cmd.createBuffer("visible section list " + i, visBufSize, VkMappingType.GPU_ONLY,
                     EnumBitField.of(VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.TRANSFER_DST));
         }
 
@@ -114,16 +129,68 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                 .flags(VK14.VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT)
                 .build();
 
-        byte[] computeShaderData;
-        try (InputStream is = SodiumConfigBuilder.class.getResourceAsStream("/assets/sodium/shaders/instance_cull.spv")) {
-            computeShaderData = is.readAllBytes();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to load instance_cull.spv", e);
-        }
+        this.cullPipeline = null;// new VkComputePipeline(loadShader("/assets/sodium/shaders/instance_cull.spv"), "instance_cull", computeSetLayout, "cullMain", 4);
 
-        this.cullPipeline = new VkComputePipeline(computeShaderData, "instance_cull", computeSetLayout, "cullMain", 4);
+        this.taskSpv = loadShader("/assets/sodium/shaders/terrain_task.spv");
+        this.meshSpv = loadShader("/assets/sodium/shaders/terrain_mesh.spv");
+        this.fragSpv = loadShader("/assets/sodium/shaders/terrain.spv");
+
+        this.meshSetLayout = VkDescriptorSetLayoutBuilder.create(VulkanAccess.getDevice())
+                .addBinding(0, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL)
+                .addBinding(1, VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK13.VK_SHADER_STAGE_ALL)
+                .addBinding(3, VK13.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK13.VK_SHADER_STAGE_ALL)
+                .addBinding(4, VK13.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK13.VK_SHADER_STAGE_ALL)
+                .flags(VK14.VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT)
+                .build();
+
+        this.meshPipelineLayout = VkPipelineLayoutBuilder.create(VulkanAccess.getDevice())
+                .pushConstants(new VkPipelineLayoutBuilder.PushConstantRange(VK13.VK_SHADER_STAGE_ALL, 0, DefaultShaderInterface.PUSH_CONSTANT_SIZE))
+                .setLayouts(meshSetLayout.handle())
+                .build();
 
         cmd.flush();
+    }
+
+    private static byte[] loadShader(String path) {
+        try (InputStream is = SodiumConfigBuilder.class.getResourceAsStream(path)) {
+            return is.readAllBytes();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load " + path, e);
+        }
+    }
+
+    private VkPipeline<DefaultShaderInterface> getMeshPipeline(TerrainRenderPass pass) {
+        VkPipeline<DefaultShaderInterface> pipeline = meshPipelines.get(pass);
+        if (pipeline != null) {
+            return pipeline;
+        }
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            long specData = stack.nmalloc(4);
+            MemoryUtil.memPutInt(specData, pass.supportsFragmentDiscard() ? 1 : 0);
+
+            VkGraphicsPipelineBuilder.Specialization spec = new VkGraphicsPipelineBuilder.Specialization(
+                    new int[]{0}, new int[]{0}, new int[]{4}, MemoryUtil.memByteBuffer(specData, 4));
+
+            // You will be *really tempted* to merge these into one spv file.
+            // Do not.
+            // NVIDIA drivers will crash due to a really silly bug involving task/mesh interaction.
+            // https://github.com/shader-slang/slang/issues/10123
+            pipeline = VkPipeline.create(meshPipelineLayout, builder -> {
+                builder.mesh(taskSpv, meshSpv, fragSpv, "taskMain", "meshMain", "fragmentMain", spec)
+                        .dynamicRendering(new int[]{VK13.VK_FORMAT_R8G8B8A8_UNORM}, VK13.VK_FORMAT_D32_SFLOAT, VK13.VK_FORMAT_UNDEFINED)
+                        .setLayouts(meshSetLayout.handle())
+                        .rasterization(VK13.VK_POLYGON_MODE_FILL, VK13.VK_CULL_MODE_BACK_BIT, VK13.VK_FRONT_FACE_CLOCKWISE)
+                        .depthStencil(true, true, VK13.VK_COMPARE_OP_GREATER_OR_EQUAL)
+                        .setColorBlendAttachments(pass.isTranslucent()
+                                ? VkGraphicsPipelineBuilder.ColorBlendAttachment.alpha()
+                                : VkGraphicsPipelineBuilder.ColorBlendAttachment.disabled());
+                return builder;
+            }, DefaultShaderInterface.class);
+        }
+
+        meshPipelines.put(pass, pipeline);
+        return pipeline;
     }
 
     public static int getVisibleFaces(int originX, int originY, int originZ, int chunkX, int chunkY, int chunkZ) {
@@ -163,7 +230,9 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         pipelineBarrier(vkCmd,
                 KHRSynchronization2.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT_KHR
                         | KHRSynchronization2.VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT_KHR
-                        | KHRSynchronization2.VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT_KHR,
+                        | KHRSynchronization2.VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT_KHR
+                        | EXTMeshShader.VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT
+                        | EXTMeshShader.VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT,
                 KHRSynchronization2.VK_ACCESS_2_SHADER_READ_BIT_KHR
                         | KHRSynchronization2.VK_ACCESS_2_SHADER_WRITE_BIT_KHR
                         | KHRSynchronization2.VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT_KHR,
@@ -171,18 +240,19 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                         | KHRSynchronization2.VK_PIPELINE_STAGE_2_CLEAR_BIT_KHR,
                 KHRSynchronization2.VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR);
 
-        final boolean useBlockFaceCulling = SodiumClientMod.options().performance.useBlockFaceCulling;
         int frameIndex = RenderDevice.INSTANCE.getFrameIndex();
 
         int visibleCount = 0;
-        long visPtr = this.visibleSectionsStagingAddr;
+        long visPtr = this.visibleSectionsStagingAddr[frameIndex];
+        int sectionDataCapacity = sectionDataBuffer.getCapacity();
 
         Iterator<ChunkRenderList> iterator = renderLists.iterator(false);
         while (iterator.hasNext()) {
             ChunkRenderList renderList = iterator.next();
             var region = renderList.getRegion();
 
-            if (region.getStorage(renderPass) == null) {
+            var storage = region.getStorage(renderPass);
+            if (storage == null) {
                 continue;
             }
 
@@ -197,19 +267,19 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                 int sectionIndex = sectIter.nextByteAsInt();
                 var section = region.getSection(sectionIndex);
                 if (section == null) continue;
+                if (!storage.hasVertexData(sectionIndex)) continue;
+
+                int sectionId = section.getSectionId();
+                if (sectionId >= sectionDataCapacity) continue;
 
                 int chunkX = originX + LocalSectionIndex.unpackX(sectionIndex);
                 int chunkY = originY + LocalSectionIndex.unpackY(sectionIndex);
                 int chunkZ = originZ + LocalSectionIndex.unpackZ(sectionIndex);
 
-                int visibleFaces = useBlockFaceCulling
-                        ? getVisibleFaces(camera.intX, camera.intY, camera.intZ, chunkX, chunkY, chunkZ)
-                        : ModelQuadFacing.ALL;
-
                 if (visibleCount < maxVisibleSections) {
                     long offset = (long) visibleCount * VISIBLE_SECTION_STRIDE;
-                    MemoryUtil.memPutInt(visPtr + offset, section.getSectionId());
-                    MemoryUtil.memPutInt(visPtr + offset + 4, visibleFaces);
+                    MemoryUtil.memPutInt(visPtr + offset, sectionId);
+                    MemoryUtil.memPutInt(visPtr + offset + 4, ModelQuadFacing.ALL); // turn off culling for now, i do not want to
                     visibleCount++;
                 }
             }
@@ -221,8 +291,22 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
 
         VkBuffer visBuf = visibleSectionsGpu[frameIndex];
         VkBuffer indirectBuf = indirectCmdBuffer[frameIndex];
+        VkBuffer sectionDataBufGpu = sectionDataBuffer.getBuffer();
 
-        commandList.copyBufferToBuffer(visibleSectionsStaging, visBuf, 0, 0, (long) visibleCount * VISIBLE_SECTION_STRIDE);
+        commandList.copyBufferToBuffer(visibleSectionsStaging[frameIndex], visBuf, 0, 0, (long) visibleCount * VISIBLE_SECTION_STRIDE);
+
+        if (USE_MESH_SHADERS) {
+            pipelineBarrier(vkCmd,
+                    KHRSynchronization2.VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR,
+                    KHRSynchronization2.VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR,
+                    EXTMeshShader.VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT
+                            | EXTMeshShader.VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT,
+                    KHRSynchronization2.VK_ACCESS_2_SHADER_READ_BIT_KHR);
+
+            renderMesh(matrices, commandList, renderPass, camera, parameters, terrainSampler,
+                    visibleCount, visBuf, sectionDataBufGpu);
+            return;
+        }
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer data = stack.callocInt(5);
@@ -233,10 +317,12 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         pipelineBarrier(vkCmd,
                 KHRSynchronization2.VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR,
                 KHRSynchronization2.VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR,
-                KHRSynchronization2.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT_KHR,
-                KHRSynchronization2.VK_ACCESS_2_SHADER_READ_BIT_KHR | KHRSynchronization2.VK_ACCESS_2_SHADER_WRITE_BIT_KHR);
-
-        VkBuffer sectionDataBuf = sectionDataBuffer.getBuffer();
+                KHRSynchronization2.VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT_KHR
+                        | KHRSynchronization2.VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT_KHR
+                        | KHRSynchronization2.VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT_KHR,
+                KHRSynchronization2.VK_ACCESS_2_SHADER_READ_BIT_KHR
+                        | KHRSynchronization2.VK_ACCESS_2_SHADER_WRITE_BIT_KHR
+                        | KHRSynchronization2.VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT_KHR);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             long pcData = stack.nmalloc(4);
@@ -244,7 +330,7 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
             cullPipeline.pushConstants(commandList, pcData, 4);
 
             VkWriteDescriptorSet.Buffer writes = VkWriteDescriptorSet.calloc(4, stack);
-            writeStorageBufferDescriptor(writes, stack, 0, sectionDataBuf, VK13.VK_WHOLE_SIZE);
+            writeStorageBufferDescriptor(writes, stack, 0, sectionDataBufGpu, VK13.VK_WHOLE_SIZE);
             writeStorageBufferDescriptor(writes, stack, 1, visBuf, VK13.VK_WHOLE_SIZE);
             writeStorageBufferDescriptor(writes, stack, 2, instanceBuffer[frameIndex], VK13.VK_WHOLE_SIZE);
             writeStorageBufferDescriptor(writes, stack, 3, indirectBuf, INDIRECT_CMD_SIZE);
@@ -299,6 +385,52 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         }
     }
 
+    private void renderMesh(ChunkRenderMatrices matrices, CommandList commandList, TerrainRenderPass renderPass,
+                            CameraTransform camera, FogParameters parameters, GpuSampler terrainSampler,
+                            int visibleCount, VkBuffer visBuf, VkBuffer sectionDataBufGpu) {
+        VkPipeline<DefaultShaderInterface> pipeline = getMeshPipeline(renderPass);
+
+        try (VulkanRenderPass pass = commandList.startRenderPass(VulkanAccess.getView(renderPass.getTarget().getColorTextureView()))) {
+            pipeline.bind(pass);
+
+            DefaultShaderInterface shader = pipeline.getInterface();
+            shader.setProjectionMatrix(matrices.projection());
+            shader.setModelViewMatrix(matrices.modelView());
+            shader.setCameraTransform(camera);
+
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                long pushData = stack.nmalloc(DefaultShaderInterface.PUSH_CONSTANT_SIZE);
+                shader.fillPushConstants(pushData);
+                pass.pushConstants(pipeline, pushData, DefaultShaderInterface.PUSH_CONSTANT_SIZE);
+
+                VkWriteDescriptorSet.Buffer buf = VkWriteDescriptorSet.calloc(4, stack);
+                buf.get(0).sType$Default().dstSet(0).dstBinding(0).descriptorCount(1)
+                        .descriptorType(VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER).dstArrayElement(0)
+                        .pImageInfo(VkDescriptorImageInfo.calloc(1, stack)
+                                .imageView(VulkanAccess.getView(Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getTextureView()))
+                                .imageLayout(VK13.VK_IMAGE_LAYOUT_GENERAL)
+                                .sampler(VulkanAccess.getSampler(RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.NEAREST, FilterMode.NEAREST, true))));
+                buf.get(1).sType$Default().dstSet(0).dstBinding(1).descriptorCount(1)
+                        .descriptorType(VK13.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER).dstArrayElement(0)
+                        .pImageInfo(VkDescriptorImageInfo.calloc(1, stack)
+                                .imageView(VulkanAccess.getView(Minecraft.getInstance().gameRenderer.lightmap()))
+                                .imageLayout(VK13.VK_IMAGE_LAYOUT_GENERAL)
+                                .sampler(VulkanAccess.getSampler(RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.LINEAR, false))));
+                buf.get(2).sType$Default().dstSet(0).dstBinding(3).descriptorCount(1)
+                        .descriptorType(VK13.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER).dstArrayElement(0)
+                        .pBufferInfo(VkDescriptorBufferInfo.calloc(1, stack)
+                                .buffer(sectionDataBufGpu.handle()).offset(0).range(VK13.VK_WHOLE_SIZE));
+                buf.get(3).sType$Default().dstSet(0).dstBinding(4).descriptorCount(1)
+                        .descriptorType(VK13.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER).dstArrayElement(0)
+                        .pBufferInfo(VkDescriptorBufferInfo.calloc(1, stack)
+                                .buffer(visBuf.handle()).offset(0).range(VK13.VK_WHOLE_SIZE));
+                pass.pushDescriptors(pipeline, buf);
+            }
+
+            pass.drawMeshTasks(visibleCount, 1, 1);
+        }
+    }
+
     private static void writeStorageBufferDescriptor(VkWriteDescriptorSet.Buffer writes, MemoryStack stack,
                                                      int binding, VkBuffer buffer, long range) {
         writes.get(binding).sType$Default().dstSet(0).dstBinding(binding).descriptorCount(1)
@@ -324,13 +456,21 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         super.delete(commandList);
 
         commandList.deleteBuffer(indexBuffer16Quad);
-        commandList.deleteBuffer(visibleSectionsStaging);
 
         for (int i = 0; i < 3; i++) {
             commandList.deleteBuffer(indirectCmdBuffer[i]);
             commandList.deleteBuffer(instanceBuffer[i]);
+            commandList.deleteBuffer(visibleSectionsStaging[i]);
             commandList.deleteBuffer(visibleSectionsGpu[i]);
         }
+
+        for (VkPipeline<DefaultShaderInterface> pipeline : meshPipelines.values()) {
+            pipeline.destroy(commandList);
+        }
+
+        meshPipelines.clear();
+        meshPipelineLayout.delete();
+        meshSetLayout.delete();
 
         cullPipeline.destroy(commandList);
         computeSetLayout.delete();

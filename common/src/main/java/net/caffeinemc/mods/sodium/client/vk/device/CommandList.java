@@ -10,7 +10,7 @@ import net.caffeinemc.mods.sodium.client.vk.util.EnumBitField;
 import org.lwjgl.vulkan.VkCommandBuffer;
 
 public interface CommandList extends AutoCloseable {
-    VkBuffer createBuffer(long bufferSize, VkMappingType mappingType, EnumBitField<VkBufferUsages> flags);
+    VkBuffer createBuffer(String name, long bufferSize, VkMappingType mappingType, EnumBitField<VkBufferUsages> flags);
 
     void copyBufferToBuffer(VkBuffer src, VkBuffer dst, long readOffset, long writeOffset, long bytes);
 

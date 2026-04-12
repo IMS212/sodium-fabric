@@ -14,7 +14,7 @@ public class PageAddressBuffer {
 
     public PageAddressBuffer(CommandList commandList) {
         for (int i = 0; i < 3; i++) {
-            buffers[i] = commandList.createBuffer(Long.BYTES * 256, VkMappingType.CPU_MAPPABLE, EnumBitField.of(VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.UNIFORM_BUFFER, VkBufferUsages.SHADER_DEVICE_ADDRESS, VkBufferUsages.TRANSFER_DST));
+            buffers[i] = commandList.createBuffer("PAB " + i, Long.BYTES * 256, VkMappingType.CPU_MAPPABLE, EnumBitField.of(VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.UNIFORM_BUFFER, VkBufferUsages.SHADER_DEVICE_ADDRESS, VkBufferUsages.TRANSFER_DST));
             mappings[i] = commandList.mapBuffer(buffers[i], 0, Long.BYTES * 256);
         }
     }

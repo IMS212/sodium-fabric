@@ -38,7 +38,7 @@ public class MappedStagingBuffer implements StagingBuffer {
     }
 
     public MappedStagingBuffer(CommandList commandList, int capacity) {
-        this.buffer = commandList.createBuffer(capacity, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC, VkBufferUsages.TRANSFER_DST));
+        this.buffer = commandList.createBuffer("Persistently mapped staging", capacity, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC, VkBufferUsages.TRANSFER_DST));
         this.mapping = buffer.getMapping().getMappedData();
 
         this.fallbackStagingBuffer = new FallbackStagingBuffer(commandList);

@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.client.vk.pipeline;
 
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.vulkan.EXTMeshShader;
 import org.lwjgl.vulkan.KHRDynamicRendering;
 import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo;
@@ -65,6 +66,16 @@ public final class VkGraphicsPipelineBuilder {
         this.stages.clear();
         this.stages.add(ShaderStage.vertex(spv).withEntryPoint(vertexName).withSpecialization(specialization));
         this.stages.add(ShaderStage.fragment(spv).withEntryPoint(fragmentName).withSpecialization(specialization));
+        return this;
+    }
+
+    public VkGraphicsPipelineBuilder mesh(byte[] taskSpv, byte[] meshSpv, byte[] fragSpv,
+                                          String taskName, String meshName, String fragmentName,
+                                          Specialization specialization) {
+        this.stages.clear();
+        this.stages.add(ShaderStage.task(taskSpv).withEntryPoint(taskName).withSpecialization(specialization));
+        this.stages.add(ShaderStage.mesh(meshSpv).withEntryPoint(meshName).withSpecialization(specialization));
+        this.stages.add(ShaderStage.fragment(fragSpv).withEntryPoint(fragmentName).withSpecialization(specialization));
         return this;
     }
 
@@ -144,14 +155,26 @@ public final class VkGraphicsPipelineBuilder {
                 }
             }
 
-            VkPipelineVertexInputStateCreateInfo vertexInput = VkPipelineVertexInputStateCreateInfo.calloc(stack).sType$Default();
-            vertexInput.pVertexBindingDescriptions(this.toVkVertexBindings(stack));
-            vertexInput.pVertexAttributeDescriptions(this.toVkVertexAttributes(stack));
+            boolean hasVertexStage = false;
+            for (ShaderStage s : this.stages) {
+                if (s.stage == VK_SHADER_STAGE_VERTEX_BIT) {
+                    hasVertexStage = true;
+                    break;
+                }
+            }
 
-            VkPipelineInputAssemblyStateCreateInfo inputAssembly = VkPipelineInputAssemblyStateCreateInfo.calloc(stack)
-                    .sType$Default()
-                    .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-                    .primitiveRestartEnable(false);
+            VkPipelineVertexInputStateCreateInfo vertexInput = null;
+            VkPipelineInputAssemblyStateCreateInfo inputAssembly = null;
+            if (hasVertexStage) {
+                vertexInput = VkPipelineVertexInputStateCreateInfo.calloc(stack).sType$Default();
+                vertexInput.pVertexBindingDescriptions(this.toVkVertexBindings(stack));
+                vertexInput.pVertexAttributeDescriptions(this.toVkVertexAttributes(stack));
+
+                inputAssembly = VkPipelineInputAssemblyStateCreateInfo.calloc(stack)
+                        .sType$Default()
+                        .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+                        .primitiveRestartEnable(false);
+            }
 
             VkPipelineViewportStateCreateInfo viewportState = VkPipelineViewportStateCreateInfo.calloc(stack)
                     .sType$Default()
@@ -217,7 +240,7 @@ public final class VkGraphicsPipelineBuilder {
 
             LongBuffer pPipeline = stack.mallocLong(1);
             int result = vkCreateGraphicsPipelines(this.device, VK_NULL_HANDLE, pipelineInfo, null, pPipeline);
-            if (result != VK_SUCCESS && !(result == VK_ERROR_VALIDATION_FAILED)) {
+            if (result != VK_SUCCESS && result != VK_ERROR_VALIDATION_FAILED) {
                 throw new RuntimeException("Failed to create graphics pipeline: " + result);
             }
 
@@ -246,7 +269,7 @@ public final class VkGraphicsPipelineBuilder {
 
             LongBuffer pModule = stack.mallocLong(1);
             int result = vkCreateShaderModule(this.device, info, null, pModule);
-            if (result != VK_SUCCESS) {
+            if (result != VK_SUCCESS && result != VK_ERROR_VALIDATION_FAILED) {
                 throw new RuntimeException("failed to create shader module " + result);
             }
 
@@ -330,6 +353,14 @@ public final class VkGraphicsPipelineBuilder {
 
         public static ShaderStage fragment(byte[] spirv) {
             return new ShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, spirv, "main", null);
+        }
+
+        public static ShaderStage task(byte[] spirv) {
+            return new ShaderStage(EXTMeshShader.VK_SHADER_STAGE_TASK_BIT_EXT, spirv, "main", null);
+        }
+
+        public static ShaderStage mesh(byte[] spirv) {
+            return new ShaderStage(EXTMeshShader.VK_SHADER_STAGE_MESH_BIT_EXT, spirv, "main", null);
         }
 
         public ShaderStage withEntryPoint(String entryPoint) {

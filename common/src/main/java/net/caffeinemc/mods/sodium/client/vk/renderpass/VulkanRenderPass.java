@@ -61,6 +61,10 @@ public class VulkanRenderPass implements AutoCloseable {
         VK13.vkCmdDrawIndexedIndirect(commandBuffer, buffer.handle(), offset, drawCount, stride);
     }
 
+    public void drawMeshTasks(int groupCountX, int groupCountY, int groupCountZ) {
+        EXTMeshShader.vkCmdDrawMeshTasksEXT(commandBuffer, groupCountX, groupCountY, groupCountZ);
+    }
+
     public void bindPipeline(VkPipelineLayout layout, long pipeline) {
         VK13.vkCmdBindPipeline(commandBuffer, VK13.VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     }

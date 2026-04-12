@@ -14,15 +14,6 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.lwjgl.system.MemoryUtil;
 
-/*
- * struct PC {
- *     float4x4 modelViewMatrix;   // 0
- *     float4x4 projectionMatrix;  // 64
- *     float2   u_TexCoordShrink;  // 128
- *     int3     cameraBlockPos;    // 136
- *     float3   cameraFracPos;     // 148
- * };
- */
 public class DefaultShaderInterface implements ChunkShaderInterface {
     private final Matrix4f projectionMatrix = new Matrix4f();
     private final Matrix4f modelViewMatrix = new Matrix4f();

@@ -104,7 +104,8 @@ public class SectionRenderDataStorage {
         }
 
         var section = parent.getSection(localSectionIndex);
-        manager.updateSection(section.getSectionId(), pass, getByteDeviceAddress(allocation),
+        long byteAddr = getByteDeviceAddress(allocation);
+        manager.updateSection(section.getSectionId(), pass, byteAddr,
                 vertexCounts, facingList, sliceMask,
                 section.getOriginX(), section.getOriginY(), section.getOriginZ());
         SectionRenderDataUnsafe.setBaseVertex(pMeshData, allocation.getOffset());
@@ -244,6 +245,13 @@ public class SectionRenderDataStorage {
                 prev.delete();
                 this.vertexAllocations[localSectionIndex] = null;
             }
+
+            // this shouldn't be needed but ok
+            var section = parent.getSection(localSectionIndex);
+            if (section != null) {
+                manager.updateSection(section.getSectionId(), pass, 0,
+                        null, 0, 0, 0, 0, 0);
+            }
         }
         if (removeIndexData && this.storesIndexData()) {
             VkBufferSegment prev = this.elementAllocations[localSectionIndex];
@@ -282,7 +290,9 @@ public class SectionRenderDataStorage {
 
         var data = this.getDataPointer(sectionIndex);
         long offset = allocation.getOffset();
-        manager.updateSection(parent.getSection(sectionIndex).getSectionId(), pass, getByteDeviceAddress(allocation),
+        var section = parent.getSection(sectionIndex);
+        long byteAddr = getByteDeviceAddress(allocation);
+        manager.updateSection(section.getSectionId(), pass, byteAddr,
                 null, 0, 0, 0, 0, 0);
         SectionRenderDataUnsafe.setBaseVertex(data, offset);
     }
@@ -316,7 +326,9 @@ public class SectionRenderDataStorage {
         }
 
         long offset = allocation.getOffset();
-        manager.updateSection(parent.getSection(sectionIndex).getSectionId(), pass, getByteDeviceAddress(allocation),
+        var section = parent.getSection(sectionIndex);
+        long byteAddr = getByteDeviceAddress(allocation);
+        manager.updateSection(section.getSectionId(), pass, byteAddr,
                 null, 0, 0, 0, 0, 0);
         SectionRenderDataUnsafe.setBaseVertex(this.getDataPointer(sectionIndex), offset);
     }
@@ -351,6 +363,10 @@ public class SectionRenderDataStorage {
 
     public long getDataPointer(int sectionIndex) {
         return SectionRenderDataUnsafe.heapPointer(this.pMeshDataArray, sectionIndex);
+    }
+
+    public boolean hasVertexData(int sectionIndex) {
+        return this.vertexAllocations[sectionIndex] != null;
     }
 
     public void delete() {

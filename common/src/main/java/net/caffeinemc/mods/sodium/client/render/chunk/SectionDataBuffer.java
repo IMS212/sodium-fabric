@@ -1,25 +1,22 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBuffer;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkBufferUsages;
 import net.caffeinemc.mods.sodium.client.vk.buffer.VkMappingType;
 import net.caffeinemc.mods.sodium.client.vk.device.CommandList;
 import net.caffeinemc.mods.sodium.client.vk.util.EnumBitField;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.vulkan.VK13;
+import org.lwjgl.vulkan.VkBufferCopy;
+import org.lwjgl.vulkan.VkCommandBuffer;
 
-// struct SectionData { // 64 bytes, ScalarDataLayout
-//   uint64_t vertexAddr;     // [0]
-//   int      originX, Y, Z;  // [8]
-//   uint     sliceMask;       // [20]
-//   uint     vertexCount[7];  // [24]
-//   uint     facingListLo;    // [52]
-//   uint     facingListHi;    // [56]
-//   uint     _pad;            // [60]
-// };
 public class SectionDataBuffer {
     private static final int SIZE = 64;
+    private static final int MAX_PER_RUN = 512;
 
     private static final int OFFSET_VERTEX_ADDR = 0;
     private static final int OFFSET_ORIGIN_X = 8;
@@ -27,35 +24,46 @@ public class SectionDataBuffer {
     private static final int OFFSET_ORIGIN_Z = 16;
     private static final int OFFSET_SLICE_MASK = 20;
     private static final int OFFSET_VERTEX_COUNTS = 24;
-    private static final int OFFSET_FACING_LIST_LO = 52;
-    private static final int OFFSET_FACING_LIST_HI = 56;
 
-    private final VkBuffer staging;
+    private final long masterAddr;
+
+    private final VkBuffer[] staging = new VkBuffer[3];
+    private final long[] stagingAddr = new long[3];
     private final VkBuffer[] buffer = new VkBuffer[3];
-    private final IntList[] toReload = new IntList[3];
-    private final long stagingAddr;
-    private final int bufferSize;
+    private final IntSet[] dirtySections = new IntSet[3];
+    private final int capacity;
+
+    public int getCapacity() {
+        return capacity;
+    }
 
     public SectionDataBuffer(CommandList commandList, int renderDistance, int minSectionY, int maxSectionY) {
-        int diameter = 2 * renderDistance + 1;
-        int totalSections = diameter * diameter * (maxSectionY - minSectionY + 1);
+        int diameter = 2 * (renderDistance * 2 + 1) + 1;
+        int sectionsByRd = diameter * diameter * (maxSectionY - minSectionY + 1);
+        // TODO: I AM TIRED OF THIS RUNNING OUT
+        int totalSections = Math.max(sectionsByRd, 1 << 18);
 
+        this.capacity = totalSections;
         int size = totalSections * SIZE;
-        this.bufferSize = size;
 
-        this.staging = commandList.createBuffer(size, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
-        this.stagingAddr = staging.getMapping().getMappedData();
-        MemoryUtil.memSet(stagingAddr, 0, size);
+        this.masterAddr = MemoryUtil.nmemAlloc(size);
+        MemoryUtil.memSet(masterAddr, 0, size);
 
         for (int i = 0; i < 3; i++) {
-            toReload[i] = new IntArrayList();
-            this.buffer[i] = commandList.createBuffer(size, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_DST, VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.SHADER_DEVICE_ADDRESS));
+            this.dirtySections[i] = new IntOpenHashSet();
+            this.staging[i] = commandList.createBuffer("staging section buffer " + i, size, VkMappingType.CPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_SRC));
+            this.stagingAddr[i] = staging[i].getMapping().getMappedData();
+            this.buffer[i] = commandList.createBuffer("section buffer " + i, size, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.TRANSFER_DST, VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.SHADER_DEVICE_ADDRESS));
         }
     }
 
     public void writeSection(int sectionId, long addr, int[] vertexCounts, long facingList, int sliceMask,
                              int originX, int originY, int originZ) {
-        long base = stagingAddr + ((long) sectionId * SIZE);
+        if (sectionId >= capacity) {
+            System.out.println("FUCK");
+            return;
+        }
+        long base = masterAddr + ((long) sectionId * SIZE);
 
         MemoryUtil.memPutLong(base + OFFSET_VERTEX_ADDR, addr);
         MemoryUtil.memPutInt(base + OFFSET_ORIGIN_X, originX);
@@ -67,26 +75,31 @@ public class SectionDataBuffer {
             MemoryUtil.memPutInt(base + OFFSET_VERTEX_COUNTS + (i * Integer.BYTES), vertexCounts[i]);
         }
 
-        MemoryUtil.memPutInt(base + OFFSET_FACING_LIST_LO, (int) (facingList & 0xFFFFFFFFL));
-        MemoryUtil.memPutInt(base + OFFSET_FACING_LIST_HI, (int) ((facingList >>> 32) & 0xFFFFFFFFL));
-
-        for (int i = 0; i < 3; i++) {
-            toReload[i].add(sectionId);
-        }
+        markDirty(sectionId);
     }
 
     public void updateSection(int sectionId, long newAddr) {
-        MemoryUtil.memPutLong(stagingAddr + ((long) sectionId * SIZE) + OFFSET_VERTEX_ADDR, newAddr);
-        for (int i = 0; i < 3; i++) {
-            toReload[i].add(sectionId);
+        if (sectionId >= capacity) {
+            System.out.println("FUCK");
+            return;
         }
+        MemoryUtil.memPutLong(masterAddr + ((long) sectionId * SIZE) + OFFSET_VERTEX_ADDR, newAddr);
+        markDirty(sectionId);
     }
 
     public void removeSection(int sectionId) {
-        MemoryUtil.memSet(stagingAddr + ((long) sectionId * SIZE), 0, SIZE);
-        for (int i = 0; i < 3; i++) {
-            toReload[i].add(sectionId);
+        if (sectionId >= capacity) {
+            System.out.println("FUCK");
+            return;
         }
+        MemoryUtil.memSet(masterAddr + ((long) sectionId * SIZE), 0, SIZE);
+        markDirty(sectionId);
+    }
+
+    private void markDirty(int sectionId) {
+        dirtySections[0].add(sectionId);
+        dirtySections[1].add(sectionId);
+        dirtySections[2].add(sectionId);
     }
 
     private int frame = 0;
@@ -94,10 +107,40 @@ public class SectionDataBuffer {
     public void update(CommandList commandList) {
         frame = (frame + 1) % 3;
 
-        if (!toReload[frame].isEmpty()) {
-            commandList.copyBufferToBuffer(staging, buffer[frame], 0, 0, bufferSize);
-            toReload[frame].clear();
+        IntSet dirty = dirtySections[frame];
+        int count = dirty.size();
+        if (count == 0) {
+            return;
         }
+
+        VkCommandBuffer cmd = commandList.getCommandBuffer();
+        long stageAddr = stagingAddr[frame];
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            VkBufferCopy.Buffer regions = VkBufferCopy.calloc(Math.min(count, MAX_PER_RUN), stack);
+            int batchCount = 0;
+            IntIterator it = dirty.iterator();
+            while (it.hasNext()) {
+                int sectionId = it.nextInt();
+                long offset = (long) sectionId * SIZE;
+                MemoryUtil.memCopy(masterAddr + offset, stageAddr + offset, SIZE);
+                regions.get(batchCount++).srcOffset(offset).dstOffset(offset).size(SIZE);
+
+                if (batchCount == regions.capacity()) {
+                    regions.limit(batchCount);
+                    VK13.vkCmdCopyBuffer(cmd, staging[frame].handle(), buffer[frame].handle(), regions);
+                    regions.limit(regions.capacity());
+                    batchCount = 0;
+                }
+            }
+
+            if (batchCount > 0) {
+                regions.limit(batchCount);
+                VK13.vkCmdCopyBuffer(cmd, staging[frame].handle(), buffer[frame].handle(), regions);
+            }
+        }
+
+        dirty.clear();
     }
 
     public VkBuffer getBuffer() {
@@ -105,10 +148,11 @@ public class SectionDataBuffer {
     }
 
     public void destroy(CommandList commandList) {
-        for (VkBuffer vkBuffer : buffer) {
-            commandList.deleteBuffer(vkBuffer);
-        }
+        MemoryUtil.nmemFree(masterAddr);
 
-        commandList.deleteBuffer(staging);
+        for (int i = 0; i < 3; i++) {
+            commandList.deleteBuffer(staging[i]);
+            commandList.deleteBuffer(buffer[i]);
+        }
     }
 }

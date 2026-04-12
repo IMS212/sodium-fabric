@@ -397,7 +397,7 @@ public class ArenaAggregator {
         }
 
         if (buffer == null) {
-            buffer = commands.createBuffer(bytes, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.VERTEX_BUFFER, VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST, VkBufferUsages.TRANSFER_SRC, VkBufferUsages.SHADER_DEVICE_ADDRESS));
+            buffer = commands.createBuffer("An arena buffer", bytes, VkMappingType.GPU_ONLY, EnumBitField.of(VkBufferUsages.VERTEX_BUFFER, VkBufferUsages.STORAGE_BUFFER, VkBufferUsages.INDEX_BUFFER, VkBufferUsages.TRANSFER_DST, VkBufferUsages.TRANSFER_SRC, VkBufferUsages.SHADER_DEVICE_ADDRESS));
             this.allocationCount++;
             this.allocationBytes += bytes;
         }
