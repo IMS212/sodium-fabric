@@ -18,16 +18,24 @@ package net.caffeinemc.mods.sodium.mixin.frapi;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.entity.ItemRenderer;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
-@Mixin(ItemRenderer.class)
-public interface ItemRendererAccessor {
-    @Invoker("getSpecialFoilBuffer")
-    static VertexConsumer sodium$getSpecialFoilBuffer(MultiBufferSource provider, RenderType layer, PoseStack.Pose entry) {
-        throw new AssertionError();
-    }
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.world.item.ItemDisplayContext;
+
+@Mixin(ItemFeatureRenderer.class)
+public interface ItemFeatureRendererAccessor {
+	@Invoker("getFoilBuffer")
+	static VertexConsumer fabric_getFoilBuffer(MultiBufferSource bufferSource, RenderType renderType, PoseStack.@Nullable Pose foilDecalPose) {
+		throw new AssertionError();
+	}
+
+	@Invoker("computeFoilDecalPose")
+	static PoseStack.Pose fabric_computeFoilDecalPose(ItemDisplayContext type, PoseStack.Pose pose) {
+		throw new AssertionError();
+	}
 }

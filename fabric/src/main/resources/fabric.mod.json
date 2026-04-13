@@ -68,6 +68,7 @@
   "accessWidener" : "sodium-fabric.accesswidener",
   "mixins" : [
     "sodium-common.mixins.json",
+    "sodium-frapi.mixins.json",
     "sodium-fabric.mixins.json"
   ],
   "depends" : {
@@ -92,12 +93,12 @@
     "custom_hud" : "<3.4.2",
     "farsight" : "<=1.21-4.3",
     "iceberg" : "<1.2.7",
-    "iris" : "<=1.10.6",
+    "iris" : "<=1.10.8",
     "movingelevators" : "<=1.4.7",
     "notenoughcrashes" : "<4.4.8",
     "noxesium" : "<2.3.3",
     "reeses-sodium-options" : "<2.0.2",
-    "fabric-api": "<0.140.0",
+    "fabric-api": "<0.145.1",
     "sodium-extra" : "<0.8.0",
     "audio_engine_tweaks" : "<1.2.12",
     "sspb" : "<6.0.0",

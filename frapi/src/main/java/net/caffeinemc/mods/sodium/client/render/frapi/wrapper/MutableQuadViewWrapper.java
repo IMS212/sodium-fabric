@@ -2,11 +2,11 @@ package net.caffeinemc.mods.sodium.client.render.frapi.wrapper;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
-import net.caffeinemc.mods.sodium.client.render.model.QuadViewImpl;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumQuadAtlas;
 import net.caffeinemc.mods.sodium.client.render.model.SodiumShadeMode;
 import net.fabricmc.fabric.api.client.renderer.v1.mesh.*;
 import net.fabricmc.fabric.api.util.TriState;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
@@ -21,7 +21,7 @@ public class MutableQuadViewWrapper extends QuadViewWrapper implements QuadEmitt
             net.minecraft.util.TriState.DEFAULT,
             net.minecraft.util.TriState.TRUE
     };
-    private final MutableQuadViewImpl mutableQuad;
+    private MutableQuadViewImpl mutableQuad;
 
     protected QuadTransform activeTransform = NO_TRANSFORM;
     private final ObjectArrayList<QuadTransform> transformStack = new ObjectArrayList<>();
@@ -40,6 +40,12 @@ public class MutableQuadViewWrapper extends QuadViewWrapper implements QuadEmitt
     public MutableQuadViewWrapper(MutableQuadViewImpl quad) {
         super(quad);
         this.mutableQuad = quad;
+    }
+
+    @Override
+    public QuadEmitter translate(float x, float y, float z) {
+        mutableQuad.translate(x, y, z);
+        return this;
     }
 
     @Override
@@ -91,6 +97,12 @@ public class MutableQuadViewWrapper extends QuadViewWrapper implements QuadEmitt
     }
 
     @Override
+    public QuadEmitter itemRenderType(RenderType renderType) {
+        mutableQuad.setItemRenderType(renderType);
+        return this;
+    }
+
+    @Override
     public QuadEmitter emissive(boolean emissive) {
         mutableQuad.setEmissive(emissive);
         return this;
@@ -117,6 +129,12 @@ public class MutableQuadViewWrapper extends QuadViewWrapper implements QuadEmitt
     @Override
     public QuadEmitter shadeMode(ShadeMode mode) {
         mutableQuad.setShadeMode(mode == ShadeMode.ENHANCED ? SodiumShadeMode.ENHANCED : SodiumShadeMode.VANILLA);
+        return this;
+    }
+
+    @Override
+    public QuadEmitter animated(boolean b) {
+        mutableQuad.setAnimated(b);
         return this;
     }
 
@@ -151,6 +169,12 @@ public class MutableQuadViewWrapper extends QuadViewWrapper implements QuadEmitt
     }
 
     @Override
+    public QuadEmitter clear() {
+        mutableQuad.clear();
+        return this;
+    }
+
+    @Override
     public void pushTransform(QuadTransform transform) {
         if (transform == null) {
             throw new NullPointerException("QuadTransform cannot be null!");
@@ -176,11 +200,6 @@ public class MutableQuadViewWrapper extends QuadViewWrapper implements QuadEmitt
         }
     }
 
-    @Override
-    public QuadEmitter spriteBake(TextureAtlasSprite sprite, int bakeFlags) {
-        mutableQuad.spriteBake(sprite, bakeFlags);
-        return this;
-    }
 
     /**
      * Apply transforms and then if transforms return true, emit the quad without clearing the underlying data.
@@ -207,4 +226,8 @@ public class MutableQuadViewWrapper extends QuadViewWrapper implements QuadEmitt
         return mutableQuad.getQuadAtlas() == SodiumQuadAtlas.BLOCK ? QuadAtlas.BLOCK : QuadAtlas.ITEM;
     }
 
+    public void setDelegate(MutableQuadViewImpl impl) {
+        super.setDelegate(impl);
+        this.mutableQuad = impl;
+    }
 }

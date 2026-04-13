@@ -10,19 +10,9 @@
     "requireAnnotations": true
   },
   "client": [
-    "BakedModelMixin",
-    "BlockModelPartMixin",
-    "BlockRenderDispatcherAccessor",
-    "BlockRenderDispatcherMixin",
     "ItemFeatureRendererMixin",
-    "ItemLayerRenderStateMixin",
-    "ItemRendererAccessor",
-    "ItemRenderStateMixin",
-    "ModelBlockRendererAccessor",
-    "ModelBlockRendererMixin",
+    "ItemFeatureRendererAccessor",
     "MutableQuadViewImplMixin",
-    "QuadViewImplMixin",
-    "SubmitNodeCollectionMixin",
-    "SubmitNodeStorageMixin"
+    "QuadViewImplMixin"
   ]
 }
