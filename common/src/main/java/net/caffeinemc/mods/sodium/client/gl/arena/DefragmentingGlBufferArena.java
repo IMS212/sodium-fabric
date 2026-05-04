@@ -8,7 +8,7 @@ import net.minecraft.util.Mth;
 
 import java.util.Collection;
 
-public class DefragmentingGlBufferArena extends GlBufferArena {
+public abstract class DefragmentingGlBufferArena extends GlBufferArena {
     private static final float DEFRAG_STOP_AFTER_FREE_SEEN_FRACTION = 0.95f;
     private static final float DEFRAG_MIN_FREE_FRACTION = 0.03f;
     private static final int MAX_DEFRAG_STEPS = 5;
@@ -338,6 +338,7 @@ public class DefragmentingGlBufferArena extends GlBufferArena {
         return this.freeSegmentsByLength.removeFirstOfSizeAtLeast(size);
     }
 
+    @Override
     GlBufferSegment alloc(long size, RegionAllocatorHandle owner, int ownerIndex) {
         this.checkAssertions();
 

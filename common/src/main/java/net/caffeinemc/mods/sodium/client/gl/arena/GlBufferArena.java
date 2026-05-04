@@ -20,7 +20,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Stream;
 
-public class GlBufferArena implements AllocatorBase {
+public abstract class GlBufferArena implements AllocatorBase {
     public static boolean CHECK_ASSERTIONS = false;
     public static boolean CHECK_SEGMENT_ASSERTIONS = true;
 
@@ -53,78 +53,9 @@ public class GlBufferArena implements AllocatorBase {
         this.head = GlBufferSegment.createFreeSegment(this, 0, capacity);
     }
 
-    private void resize(CommandList commandList, long newCapacity) {
-        if (this.used > newCapacity) {
-            throw new UnsupportedOperationException("New capacity must be larger than used size");
-        }
+    protected abstract void handleResizeUploads(CommandList commandList, RegionAllocatorHandle owner, List<PendingUpload> queue, long totalUploadBytes);
 
-        this.checkAssertions();
-
-        long endOfFreeHead = newCapacity - this.used;
-
-        List<GlBufferSegment> usedSegments = this.getUsedSegments();
-        List<PendingBufferCopyCommand> pendingCopies = this.buildTransferList(usedSegments, endOfFreeHead);
-
-        this.transferSegments(commandList, pendingCopies, newCapacity);
-
-        this.finalizeCompactedSegments(endOfFreeHead, usedSegments);
-    }
-
-    private void transferSegments(CommandList commandList, Collection<PendingBufferCopyCommand> list, long capacity) {
-        long bufferSize = capacity * this.stride;
-        if (bufferSize >= (1L << 32)) {
-            throw new IllegalArgumentException("Maximum arena buffer size is 4 GiB");
-        }
-
-        GlMutableBuffer srcBufferObj = this.arenaBuffer;
-        GlMutableBuffer dstBufferObj = this.parent.getBufferOfSizeAtLeast(commandList, bufferSize);
-
-        executeCopyCommands(commandList, list, srcBufferObj, dstBufferObj);
-
-        this.parent.releaseBufferForReuse(commandList, srcBufferObj);
-
-        this.arenaBuffer = dstBufferObj;
-
-        // set the capacity using the size of the buffer since it may be larger than the expected capacity due to buffer reuse
-        this.capacity = this.arenaBuffer.getSize() / this.stride;
-    }
-
-    int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GlMutableBuffer srcBufferObj, RegionAllocatorHandle owner) {
-        this.used = owner.used;
-        this.usedSegments = segments.size();
-        if (this.used > this.capacity) {
-            throw new UnsupportedOperationException("New capacity must be larger than used size");
-        }
-
-        long endOfFreeHead = this.capacity - this.used;
-        var pendingCopies = this.buildTransferList(segments, endOfFreeHead);
-
-        long bufferSize = this.capacity * this.stride;
-        if (bufferSize >= (1L << 32)) {
-            throw new IllegalArgumentException("Maximum arena buffer size is 4 GiB");
-        }
-
-        this.executeCopyCommands(commandList, pendingCopies, srcBufferObj, this.arenaBuffer);
-
-        this.finalizeCompactedSegments(endOfFreeHead, segments);
-
-        return pendingCopies.size();
-    }
-
-    private void finalizeCompactedSegments(long tail, List<GlBufferSegment> usedSegments) {
-        this.head = GlBufferSegment.createFreeSegment(this, 0, tail);
-
-        if (usedSegments.isEmpty()) {
-            // this.head.setNext(null);
-            // TODO: when would this ever happen??
-            throw new IllegalStateException("No used segments after compaction");
-        } else {
-            this.head.setNext(usedSegments.getFirst());
-            this.head.getNext().setPrev(this.head);
-        }
-
-        this.checkAssertions();
-    }
+    protected abstract int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GlMutableBuffer srcBufferObj, RegionAllocatorHandle owner);
 
     List<PendingBufferCopyCommand> buildTransferList(List<GlBufferSegment> usedSegments, long base) {
         List<PendingBufferCopyCommand> pendingCopies = new ArrayList<>();
@@ -173,23 +104,6 @@ public class GlBufferArena implements AllocatorBase {
         for (PendingBufferCopyCommand cmd : list) {
             commandList.copyBufferSubData(srcBufferObj, dstBufferObj, cmd.getReadOffset() * this.stride, cmd.getWriteOffset() * this.stride, cmd.getLength() * this.stride);
         }
-    }
-
-    private ArrayList<GlBufferSegment> getUsedSegments() {
-        ArrayList<GlBufferSegment> used = new ArrayList<>();
-        GlBufferSegment seg = this.head;
-
-        while (seg != null) {
-            GlBufferSegment next = seg.getNext();
-
-            if (!seg.isFree()) {
-                used.add(seg);
-            }
-
-            seg = next;
-        }
-
-        return used;
     }
 
     @Override
@@ -337,19 +251,6 @@ public class GlBufferArena implements AllocatorBase {
         }
 
         return this.arenaBuffer != prevBuffer;
-    }
-
-    void handleResizeUploads(CommandList commandList, RegionAllocatorHandle owner, List<PendingUpload> queue, long totalUploadBytes) {
-        // resize to the new estimated capacity
-        this.resize(commandList, estimateNewCapacityAfterUpload(owner.getFillFractionInv(), queue));
-
-        // Try again to upload any buffers that failed last time
-        this.tryUploads(commandList, owner, queue);
-
-        // If we still had failures, something has gone wrong
-        if (!queue.isEmpty()) {
-            throw new RuntimeException("Failed to upload all buffers");
-        }
     }
 
     static long estimateNewCapacity(int newSegmentCount, float regionFillFractionInv, long requiredNewSize) {

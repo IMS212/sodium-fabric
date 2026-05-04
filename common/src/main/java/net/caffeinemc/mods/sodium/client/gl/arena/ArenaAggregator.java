@@ -343,7 +343,7 @@ public class ArenaAggregator {
     GlBufferArena createDedicatedArena(CommandList commands, long requiredCapacity, int stride) {
         GlMutableBuffer buffer = getBufferOfSizeAtLeast(commands, requiredCapacity * stride);
         long actualCapacity = buffer.getSize() / stride;
-        return new GlBufferArena(this, buffer, actualCapacity, stride);
+        return new SingleOwnerGlBufferArena(this, buffer, actualCapacity, stride);
     }
 
     GlMutableBuffer getBufferOfSizeAtLeast(CommandList commands, long bytes) {

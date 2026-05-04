@@ -170,7 +170,7 @@ public class SharedGlBufferArena extends DefragmentingGlBufferArena implements S
     }
 
     @Override
-    void handleResizeUploads(CommandList commands, RegionAllocatorHandle uploadingOwner, List<PendingUpload> queue, long totalOwnerUsageAfterUploads) {
+    protected void handleResizeUploads(CommandList commands, RegionAllocatorHandle uploadingOwner, List<PendingUpload> queue, long totalOwnerUsageAfterUploads) {
         boolean relocatedUploadingOwner = false;
 
         // this needs to be a loop because the shared buffer isn't guaranteed to be fully defragmented so we may need to evict more than one owner
@@ -241,7 +241,7 @@ public class SharedGlBufferArena extends DefragmentingGlBufferArena implements S
     }
 
     @Override
-    int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GlMutableBuffer srcBufferObj, RegionAllocatorHandle owner) {
+    protected int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GlMutableBuffer srcBufferObj, RegionAllocatorHandle owner) {
         this.used += owner.used;
         this.usedSegments += segments.size();
         if (this.used > this.capacity) {
