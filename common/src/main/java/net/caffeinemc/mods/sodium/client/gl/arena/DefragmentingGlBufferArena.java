@@ -104,21 +104,15 @@ public class DefragmentingGlBufferArena extends GlBufferArena {
     private void defragmentationStep(CommandList commands, Collection<GlBufferSegment> descendingFreeSegments, long requiredSeenFreeSize, ArenaAggregator.DefragBudget budget) {
         // find the biggest free segment that can receive defragmentation
         long seenFreeSize = 0;
-        var it = descendingFreeSegments.iterator();
-        GlBufferSegment biggestFree;
-        var secondBiggestFree = it.next();
-        while (it.hasNext() || secondBiggestFree != null) {
-            biggestFree = secondBiggestFree;
-            secondBiggestFree = it.hasNext() ? it.next() : null;
+        for (GlBufferSegment segmentToMove : descendingFreeSegments) {
+            seenFreeSize += segmentToMove.getLength();
 
-            seenFreeSize += biggestFree.getLength(); // biggestFree guaranteed non-null here
-
-            // stop if we've already seen enough free and defragmentation must be low
+            // stop if we've already seen enough free and thus the degree of fragmentation is low
             if (seenFreeSize >= requiredSeenFreeSize) {
                 return;
             }
 
-            if (defragmentDirectional(commands, budget, biggestFree, descendingFreeSegments)) {
+            if (defragmentDirectional(commands, budget, segmentToMove, descendingFreeSegments)) {
                 return;
             }
         }
