@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.mixin.features.gui.hooks.debug;
 
+import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -12,8 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(DebugScreenOverlay.class)
 public class DebugScreenOverlayMixin {
     @Inject(method = "extractRenderState", at = @At(value = "RETURN"))
-    private void injectAfterPop(GuiGraphicsExtractor graphics, CallbackInfo ci) {
-        if (Minecraft.getInstance().debugEntries.isOverlayVisible()) {
+    private void sodium$renderBufferArenaOverlay(GuiGraphicsExtractor graphics, CallbackInfo ci) {
+        var debugEntries = Minecraft.getInstance().debugEntries;
+        if (debugEntries.isOverlayVisible() && debugEntries.isCurrentlyEnabled(SodiumClientMod.SODIUM_DEBUG_ENTRY_BUFFER_ARENA)) {
             SodiumWorldRenderer.instance().renderBufferDebug(graphics);
         }
     }
