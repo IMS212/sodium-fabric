@@ -50,6 +50,7 @@
     "features.gui.hooks.debug.DebugEntryMemoryMixin",
     "features.gui.hooks.debug.DebugScreenEntriesAccessor",
     "features.gui.hooks.debug.DebugScreenEntryListMixin",
+    "features.gui.hooks.debug.DebugScreenOverlayMixin",
     "features.gui.hooks.settings.OptionsScreenMixin",
     "features.render.entity.CubeMixin",
     "features.render.entity.ModelPartMixin",
