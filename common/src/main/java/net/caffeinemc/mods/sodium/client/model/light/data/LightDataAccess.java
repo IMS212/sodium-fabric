@@ -65,7 +65,7 @@ public abstract class LightDataAccess {
 
         BlockState state = level.getBlockState(pos);
 
-        boolean em = state.emissiveRendering(level, pos);
+        boolean em = state.emissiveRendering();
         boolean op = state.isViewBlocking(level, pos) && state.getLightDampening() != 0;
         boolean fo = state.isSolidRender();
         boolean fc = state.isCollisionShapeFullBlock(level, pos);
@@ -83,7 +83,7 @@ public abstract class LightDataAccess {
                 bl = level.getBrightness(LightLayer.BLOCK, pos);
                 sl = level.getBrightness(LightLayer.SKY, pos);
             } else {
-                int light = LevelRenderer.getLightCoords(LevelRenderer.BrightnessGetter.DEFAULT, level, state, pos);
+                int light = LightCoordsUtil.getLightCoords(LightCoordsUtil.BrightnessGetter.DEFAULT, level, state, pos);
                 bl = LightCoordsUtil.block(light);
                 sl = LightCoordsUtil.sky(light);
             }

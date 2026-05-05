@@ -8,17 +8,18 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import net.caffeinemc.mods.sodium.client.util.sorting.VertexSorters;
 import net.caffeinemc.mods.sodium.client.util.sorting.VertexSortingExtended;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.caffeinemc.mods.sodium.api.memory.MemoryIntrinsics;
+import net.minecraft.client.renderer.StagedVertexBuffer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 
-@Mixin(MultiBufferSource.BufferSource.class)
-public class MultiBufferSourceMixin {
+@Mixin(StagedVertexBuffer.class)
+public class StagedVertexBufferMixin {
     @Unique
     private static final int VERTICES_PER_QUAD = 6;
 
+    /*
     @WrapOperation(
             method = "endBatch(Lnet/minecraft/client/renderer/rendertype/RenderType;Lcom/mojang/blaze3d/vertex/BufferBuilder;)V",
             at = @At(
@@ -92,5 +93,5 @@ public class MultiBufferSourceMixin {
             MemoryIntrinsics.putShort(ptr + 10L, (short) ((primitiveId * 4) + 0));
             ptr += 12L;
         }
-    }
+    }*/
 }

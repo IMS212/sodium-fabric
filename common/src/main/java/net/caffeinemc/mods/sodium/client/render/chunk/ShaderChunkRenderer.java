@@ -1,9 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
-import com.mojang.blaze3d.opengl.GlConst;
-import com.mojang.blaze3d.opengl.GlDevice;
-import com.mojang.blaze3d.opengl.GlStateManager;
-import com.mojang.blaze3d.opengl.GlTexture;
+import com.mojang.blaze3d.opengl.*;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuSampler;
@@ -11,6 +8,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.caffeinemc.mods.sodium.client.gl.attribute.GlVertexFormat;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.gl.shader.GlProgram;
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.*;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
@@ -20,6 +18,9 @@ import net.caffeinemc.mods.sodium.mixin.core.CommandEncoderAccessor;
 import net.caffeinemc.mods.sodium.mixin.core.GlCommandEncoderAccessor;
 import net.caffeinemc.mods.sodium.mixin.core.GpuDeviceAccessor;
 import net.minecraft.resources.Identifier;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public abstract class ShaderChunkRenderer implements ChunkRenderer {
@@ -89,8 +90,10 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
     protected void begin(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler) {
         RenderTarget target = pass.getTarget();
 
+        var glDevice = ((GlDevice) ((GpuDeviceAccessor) RenderSystem.getDevice()).sodium$getBackend());
+
         GlStateManager._viewport(0, 0, target.getColorTexture().getWidth(0), target.getColorTexture().getHeight(0));
-        GlStateManager._glBindFramebuffer(GlConst.GL_FRAMEBUFFER, ((GlTexture) target.getColorTexture()).getFbo(((GlDevice) ((GpuDeviceAccessor) RenderSystem.getDevice()).sodium$getBackend()).directStateAccess(), target.getDepthTexture()));
+        GlStateManager._glBindFramebuffer(GlConst.GL_FRAMEBUFFER, glDevice.frameBufferCache().getFbo(glDevice.directStateAccess(), List.of((GlTexture) target.getColorTexture()), (FrameBufferAttachment) target.getDepthTexture()));
         ((GlCommandEncoderAccessor) ((CommandEncoderAccessor) RenderSystem.getDevice().createCommandEncoder()).sodium$getBackend()).sodium$applyPipelineState(pass.getPipeline());
         ((GlCommandEncoderAccessor) ((CommandEncoderAccessor) RenderSystem.getDevice().createCommandEncoder()).sodium$getBackend()).sodium$setLastProgram(null);
 

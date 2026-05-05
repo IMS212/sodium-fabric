@@ -169,7 +169,7 @@ public class ConsoleRenderer {
     }
 
     private record ActiveMessage(MessageLevel level, Component text, double duration, double timestamp) {
-        private static final FontDescription UNIFORM = new FontDescription.Resource(Minecraft.UNIFORM_FONT);
+        private static final FontDescription UNIFORM = new FontDescription.Resource(Minecraft.DEFAULT_FONT);
 
         public static ActiveMessage create(Message message, double timestamp) {
             var text = (message.translated() ? Component.translatable(message.text()) : Component.literal(message.text()))
