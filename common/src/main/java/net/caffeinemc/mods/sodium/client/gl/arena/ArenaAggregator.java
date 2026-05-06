@@ -1,8 +1,8 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferUsage;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gui.Colors;
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
@@ -34,14 +34,13 @@ public class ArenaAggregator {
     private static final float RESIZE_TO_COMPACT_TOTAL_FREE_FRACTION = 0.05f;
     private static final float COMPACTION_MARGIN = 0.1f;
 
-    private static final GlBufferUsage BUFFER_USAGE = GlBufferUsage.STATIC_DRAW;
     private static final long NO_MAX_CAPACITY = 0;
     private static final int DISALLOW_NEW_ALLOCATION = 0;
     private static final int ALLOW_NEW_ALLOCATION = 1;
     private static final int REQUIRE_NEW_ALLOCATION = 2;
 
     final StagingBuffer stagingBuffer;
-    private final GlMutableBuffer[] freeBuffers = new GlMutableBuffer[8];
+    private final GpuBuffer[] freeBuffers = new GpuBuffer[8];
     private static int freeBufferCount = 0;
 
     private final DataType index = new DataType("Index", Integer.BYTES) {
@@ -151,8 +150,8 @@ public class ArenaAggregator {
         abstract long calculateArenaSize(int newArenaCount, long requiredSize, long maxSize);
 
         SharedGlBufferArena createSharedArena(CommandList commands, long requiredSize) {
-            GlMutableBuffer buffer = ArenaAggregator.this.getBufferOfSizeAtLeast(commands, requiredSize);
-            long actualCapacity = buffer.getSize() / this.stride;
+            GpuBuffer buffer = ArenaAggregator.this.getBufferOfSizeAtLeast(commands, requiredSize);
+            long actualCapacity = buffer.size() / this.stride;
             return new SharedGlBufferArena(ArenaAggregator.this, buffer, actualCapacity, this.stride);
         }
 
@@ -341,13 +340,13 @@ public class ArenaAggregator {
     }
 
     GlBufferArena createDedicatedArena(CommandList commands, long requiredCapacity, int stride) {
-        GlMutableBuffer buffer = getBufferOfSizeAtLeast(commands, requiredCapacity * stride);
-        long actualCapacity = buffer.getSize() / stride;
+        GpuBuffer buffer = getBufferOfSizeAtLeast(commands, requiredCapacity * stride);
+        long actualCapacity = buffer.size() / stride;
         return new SingleOwnerGlBufferArena(this, buffer, actualCapacity, stride);
     }
 
-    GlMutableBuffer getBufferOfSizeAtLeast(CommandList commands, long bytes) {
-        GlMutableBuffer buffer = null;
+    GpuBuffer getBufferOfSizeAtLeast(CommandList commands, long bytes) {
+        GpuBuffer buffer = null;
 
         if (freeBufferCount > 0) {
             // get any buffer of at least the requested size but at most MAX_BUFFER_REUSE_SIZE_FACTOR larger
@@ -356,11 +355,11 @@ public class ArenaAggregator {
             // iterate buffers to get the smallest acceptable one
             int candidateIndex = -1;
             for (int i = 0; i < this.freeBuffers.length; i++) {
-                GlMutableBuffer freeBuffer = this.freeBuffers[i];
+                GpuBuffer freeBuffer = this.freeBuffers[i];
                 if (freeBuffer != null) {
-                    long testSize = freeBuffer.getSize();
+                    long testSize = freeBuffer.size();
                     if (testSize >= bytes && testSize <= maxAcceptableSize &&
-                            (buffer == null || testSize < buffer.getSize())) {
+                            (buffer == null || testSize < buffer.size())) {
                         candidateIndex = i;
                         buffer = freeBuffer;
                     }
@@ -373,15 +372,15 @@ public class ArenaAggregator {
         }
 
         if (buffer == null) {
-            buffer = commands.createMutableBuffer();
-            commands.allocateStorage(buffer, bytes, BUFFER_USAGE);
+            buffer = RenderSystem.getDevice().createBuffer(() -> "Arena buffer",
+                    GpuBuffer.USAGE_INDEX | GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_COPY_DST | GpuBuffer.USAGE_COPY_SRC, bytes);
             this.allocationCount++;
             this.allocationBytes += bytes;
         }
         return buffer;
     }
 
-    void releaseBufferForReuse(CommandList commands, GlMutableBuffer buffer) {
+    void releaseBufferForReuse(CommandList commands, GpuBuffer buffer) {
         // find an empty slot if there is one
         if (freeBufferCount < this.freeBuffers.length) {
             for (int i = 0; i < this.freeBuffers.length; i++) {
@@ -395,15 +394,15 @@ public class ArenaAggregator {
 
         // evict randomly if no empty slot available
         int evictIndex = (int) (Math.random() * this.freeBuffers.length);
-        commands.deleteBuffer(this.freeBuffers[evictIndex]);
+        if (this.freeBuffers[evictIndex] != null) this.freeBuffers[evictIndex].close();
         this.freeBuffers[evictIndex] = buffer;
     }
 
     public void delete(CommandList commands) {
         for (int i = 0; i < this.freeBuffers.length; i++) {
-            GlMutableBuffer buffer = this.freeBuffers[i];
+            GpuBuffer buffer = this.freeBuffers[i];
             if (buffer != null) {
-                commands.deleteBuffer(buffer);
+                buffer.close();
                 this.freeBuffers[i] = null;
             }
         }
@@ -458,9 +457,9 @@ public class ArenaAggregator {
 
     public long getMiscAllocatedMemory() {
         long allocated = 0;
-        for (GlMutableBuffer buffer : this.freeBuffers) {
+        for (GpuBuffer buffer : this.freeBuffers) {
             if (buffer != null) {
-                allocated += buffer.getSize();
+                allocated += buffer.size();
             }
         }
         return allocated;

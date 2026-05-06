@@ -1,9 +1,9 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
 import net.caffeinemc.mods.sodium.client.gl.arena.staging.StagingBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.util.MathUtil;
 import net.minecraft.client.Minecraft;
@@ -33,7 +33,7 @@ public abstract class GlBufferArena implements AllocatorBase {
 
     final ArenaAggregator parent;
     final StagingBuffer stagingBuffer;
-    GlMutableBuffer arenaBuffer;
+    GpuBuffer arenaBuffer;
 
     GlBufferSegment head;
 
@@ -43,7 +43,7 @@ public abstract class GlBufferArena implements AllocatorBase {
 
     final int stride;
 
-    protected GlBufferArena(ArenaAggregator parent, GlMutableBuffer initialBuffer, long capacity, int stride) {
+    protected GlBufferArena(ArenaAggregator parent, GpuBuffer initialBuffer, long capacity, int stride) {
         this.parent = parent;
         this.stagingBuffer = parent.stagingBuffer;
         this.arenaBuffer = initialBuffer;
@@ -55,7 +55,7 @@ public abstract class GlBufferArena implements AllocatorBase {
 
     protected abstract void handleResizeUploads(CommandList commandList, RegionAllocatorHandle owner, List<PendingUpload> queue, long totalUploadBytes);
 
-    protected abstract int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GlMutableBuffer srcBufferObj, RegionAllocatorHandle owner);
+    protected abstract int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GpuBuffer srcBufferObj, RegionAllocatorHandle owner);
 
     List<PendingBufferCopyCommand> buildTransferList(List<GlBufferSegment> usedSegments, long base) {
         List<PendingBufferCopyCommand> pendingCopies = new ArrayList<>();
@@ -100,9 +100,12 @@ public abstract class GlBufferArena implements AllocatorBase {
         return pendingCopies;
     }
 
-    void executeCopyCommands(CommandList commandList, Collection<PendingBufferCopyCommand> list, GlMutableBuffer srcBufferObj, GlMutableBuffer dstBufferObj) {
+    void executeCopyCommands(CommandList commandList, Collection<PendingBufferCopyCommand> list, GpuBuffer srcBufferObj, GpuBuffer dstBufferObj) {
         for (PendingBufferCopyCommand cmd : list) {
-            commandList.copyBufferSubData(srcBufferObj, dstBufferObj, cmd.getReadOffset() * this.stride, cmd.getWriteOffset() * this.stride, cmd.getLength() * this.stride);
+            RenderSystem.getDevice().createCommandEncoder().copyToBuffer(
+                    srcBufferObj.slice(cmd.getReadOffset() * this.stride, cmd.getLength() * this.stride),
+                    dstBufferObj.slice(cmd.getWriteOffset() * this.stride, cmd.getLength() * this.stride)
+            );
         }
     }
 
@@ -209,7 +212,7 @@ public abstract class GlBufferArena implements AllocatorBase {
     }
 
     public void deleteSingleOwner(CommandList commands, RegionAllocatorHandle owner) {
-        commands.deleteBuffer(this.arenaBuffer);
+        this.arenaBuffer.close();
     }
 
     @Override
@@ -218,14 +221,14 @@ public abstract class GlBufferArena implements AllocatorBase {
     }
 
     @Override
-    public GlBuffer getBufferObject() {
+    public GpuBuffer getBufferObject() {
         return this.arenaBuffer;
     }
 
     public boolean upload(CommandList commandList, RegionAllocatorHandle owner, Stream<PendingUpload> stream) {
         // Record the buffer object before we start any work
         // If the arena needs to re-allocate a buffer, this will allow us to check and return an appropriate flag
-        GlBuffer prevBuffer = this.arenaBuffer;
+        GpuBuffer prevBuffer = this.arenaBuffer;
 
         // A linked list is used as we'll be randomly removing elements and want O(1) performance
         long totalUploadBytes = 0;

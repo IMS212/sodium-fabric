@@ -1,6 +1,6 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 
 import java.util.ArrayList;
@@ -15,7 +15,7 @@ public class SharedGlBufferArena extends DefragmentingGlBufferArena implements S
     private final int identifier;
     private static int nextIdentifier = 1;
 
-    protected SharedGlBufferArena(ArenaAggregator allocator, GlMutableBuffer initialBuffer, long capacity, int stride) {
+    protected SharedGlBufferArena(ArenaAggregator allocator, GpuBuffer initialBuffer, long capacity, int stride) {
         super(allocator, initialBuffer, capacity, stride);
         this.identifier = nextIdentifier++;
     }
@@ -241,7 +241,7 @@ public class SharedGlBufferArena extends DefragmentingGlBufferArena implements S
     }
 
     @Override
-    protected int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GlMutableBuffer srcBufferObj, RegionAllocatorHandle owner) {
+    protected int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GpuBuffer srcBufferObj, RegionAllocatorHandle owner) {
         this.used += owner.used;
         this.usedSegments += segments.size();
         if (this.used > this.capacity) {

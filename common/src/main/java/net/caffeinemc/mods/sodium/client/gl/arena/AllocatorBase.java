@@ -1,6 +1,6 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 
 public interface AllocatorBase {
     long getDeviceUsedMemory();
@@ -11,5 +11,5 @@ public interface AllocatorBase {
 
     boolean isEmpty();
 
-    GlBuffer getBufferObject();
+    GpuBuffer getBufferObject();
 }

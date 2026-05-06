@@ -1,6 +1,7 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -21,7 +22,7 @@ public abstract class DefragmentingGlBufferArena extends GlBufferArena {
     // direction to move the biggest free segment in during defragmentation
     private boolean defragmentRight = true;
 
-    protected DefragmentingGlBufferArena(ArenaAggregator parent, GlMutableBuffer initialBuffer, long capacity, int stride) {
+    protected DefragmentingGlBufferArena(ArenaAggregator parent, GpuBuffer initialBuffer, long capacity, int stride) {
         super(parent, initialBuffer, capacity, stride);
         this.addFreeSegment(this.head);
     }
@@ -208,10 +209,9 @@ public abstract class DefragmentingGlBufferArena extends GlBufferArena {
         if (totalMoveLength > 0) {
             // execute the copy of the continuous segments
             long bytes = totalMoveLength * this.stride;
-            commands.copyBufferSubData(this.arenaBuffer, this.arenaBuffer,
-                    freeEnd * this.stride,
-                    freeOffset * this.stride,
-                    bytes
+            RenderSystem.getDevice().createCommandEncoder().copyToBuffer(
+                    this.arenaBuffer.slice(freeEnd * this.stride, bytes),
+                    this.arenaBuffer.slice(freeOffset * this.stride, bytes)
             );
             budget.consumeElementCopy(totalMoveLength, bytes);
 
@@ -282,10 +282,9 @@ public abstract class DefragmentingGlBufferArena extends GlBufferArena {
         if (totalMoveLength > 0) {
             // execute the copy of the continuous segments
             long bytes = totalMoveLength * this.stride;
-            commands.copyBufferSubData(this.arenaBuffer, this.arenaBuffer,
-                    (freeOffset - totalMoveLength) * this.stride,
-                    (freeEnd - totalMoveLength) * this.stride,
-                    bytes
+            RenderSystem.getDevice().createCommandEncoder().copyToBuffer(
+                    this.arenaBuffer.slice((freeOffset - totalMoveLength) * this.stride, bytes),
+                    this.arenaBuffer.slice((freeEnd - totalMoveLength) * this.stride, bytes)
             );
             budget.consumeElementCopy(totalMoveLength, bytes);
 

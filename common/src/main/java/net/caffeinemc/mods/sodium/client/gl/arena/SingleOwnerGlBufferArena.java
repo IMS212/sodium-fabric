@@ -1,6 +1,6 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 
 import java.util.ArrayList;
@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.List;
 
 public class SingleOwnerGlBufferArena extends GlBufferArena {
-    protected SingleOwnerGlBufferArena(ArenaAggregator parent, GlMutableBuffer initialBuffer, long capacity, int stride) {
+    protected SingleOwnerGlBufferArena(ArenaAggregator parent, GpuBuffer initialBuffer, long capacity, int stride) {
         super(parent, initialBuffer, capacity, stride);
     }
 
@@ -27,7 +27,7 @@ public class SingleOwnerGlBufferArena extends GlBufferArena {
     }
 
     @Override
-    protected int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GlMutableBuffer srcBufferObj, RegionAllocatorHandle owner) {
+    protected int receiveSegmentsFrom(CommandList commandList, List<GlBufferSegment> segments, GpuBuffer srcBufferObj, RegionAllocatorHandle owner) {
         this.used = owner.used;
         this.usedSegments = segments.size();
         if (this.used > this.capacity) {
@@ -89,8 +89,8 @@ public class SingleOwnerGlBufferArena extends GlBufferArena {
             throw new IllegalArgumentException("Maximum arena buffer size is 4 GiB");
         }
 
-        GlMutableBuffer srcBufferObj = this.arenaBuffer;
-        GlMutableBuffer dstBufferObj = this.parent.getBufferOfSizeAtLeast(commandList, bufferSize);
+        GpuBuffer srcBufferObj = this.arenaBuffer;
+        GpuBuffer dstBufferObj = this.parent.getBufferOfSizeAtLeast(commandList, bufferSize);
 
         executeCopyCommands(commandList, list, srcBufferObj, dstBufferObj);
 
@@ -99,7 +99,7 @@ public class SingleOwnerGlBufferArena extends GlBufferArena {
         this.arenaBuffer = dstBufferObj;
 
         // set the capacity using the size of the buffer since it may be larger than the expected capacity due to buffer reuse
-        this.capacity = this.arenaBuffer.getSize() / this.stride;
+        this.capacity = this.arenaBuffer.size() / this.stride;
     }
 
     private void finalizeCompactedSegments(long tail, List<GlBufferSegment> usedSegments) {

@@ -1,6 +1,6 @@
 package net.caffeinemc.mods.sodium.client.gl.arena;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
 
@@ -64,7 +64,7 @@ public class RegionAllocatorHandle implements AllocatorBase, SizedTreeMap.Sized 
     }
 
     @Override
-    public GlBuffer getBufferObject() {
+    public GpuBuffer getBufferObject() {
         return this.backingArena.getBufferObject();
     }
 
