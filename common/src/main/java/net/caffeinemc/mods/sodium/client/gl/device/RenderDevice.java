@@ -1,6 +1,5 @@
 package net.caffeinemc.mods.sodium.client.gl.device;
 
-import net.caffeinemc.mods.sodium.client.gl.functions.DeviceFunctions;
 import org.lwjgl.opengl.GLCapabilities;
 
 public interface RenderDevice {
@@ -21,7 +20,6 @@ public interface RenderDevice {
 
     GLCapabilities getCapabilities();
 
-    DeviceFunctions getDeviceFunctions();
 
     int getSubTexelPrecisionBits();
 }

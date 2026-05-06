@@ -1,33 +1,26 @@
 package net.caffeinemc.mods.sodium.client.gl.arena.staging;
 
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBuffer;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlBufferUsage;
-import net.caffeinemc.mods.sodium.client.gl.buffer.GlMutableBuffer;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 
 import java.nio.ByteBuffer;
 
 public class FallbackStagingBuffer implements StagingBuffer {
-    private final GlMutableBuffer fallbackBufferObject;
-
     public FallbackStagingBuffer(CommandList commandList) {
-        this.fallbackBufferObject = commandList.createMutableBuffer();
     }
 
     @Override
-    public void enqueueCopy(CommandList commandList, ByteBuffer data, GlBuffer dst, long writeOffset) {
-        commandList.uploadData(this.fallbackBufferObject, data, GlBufferUsage.STREAM_COPY);
-        commandList.copyBufferSubData(this.fallbackBufferObject, dst, 0, writeOffset, data.remaining());
+    public void enqueueCopy(CommandList commandList, ByteBuffer data, GpuBuffer dst, long writeOffset) {
+        RenderSystem.getDevice().createCommandEncoder().writeToBuffer(dst.slice(writeOffset, data.remaining()), data);
     }
 
     @Override
     public void flush(CommandList commandList) {
-        commandList.allocateStorage(this.fallbackBufferObject, 0L, GlBufferUsage.STREAM_COPY);
     }
 
     @Override
     public void delete(CommandList commandList) {
-        commandList.deleteBuffer(this.fallbackBufferObject);
     }
 
     @Override

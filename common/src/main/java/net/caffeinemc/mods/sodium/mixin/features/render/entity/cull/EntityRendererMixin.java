@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(EntityRenderer.class)
 public abstract class EntityRendererMixin<T extends Entity, S extends EntityRenderState> {
+    @SuppressWarnings("unchecked")
     @WrapOperation(method = "shouldRender", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/culling/Frustum;isVisible(Lnet/minecraft/world/phys/AABB;)Z", ordinal = 0))
     private boolean preShouldRender(Frustum instance, AABB aABB, Operation<Boolean> original, T entity) {
         var renderer = SodiumWorldRenderer.instanceNullable();

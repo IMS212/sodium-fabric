@@ -1,14 +1,19 @@
 package net.caffeinemc.mods.sodium.client.gl.device;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.OsUtils;
 import net.caffeinemc.mods.sodium.client.gl.array.GlVertexArray;
 import net.caffeinemc.mods.sodium.client.gl.buffer.*;
-import net.caffeinemc.mods.sodium.client.gl.functions.DeviceFunctions;
 import net.caffeinemc.mods.sodium.client.gl.state.GlStateTracker;
 import net.caffeinemc.mods.sodium.client.gl.sync.GlFence;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.*;
 import net.caffeinemc.mods.sodium.client.gl.util.EnumBitField;
+import net.caffeinemc.mods.sodium.mixin.core.GlBufferAccessor;
 import org.lwjgl.opengl.*;
+import org.lwjgl.system.MemoryUtil;
+
 import java.nio.ByteBuffer;
 
 public class GLRenderDevice implements RenderDevice {
@@ -16,7 +21,6 @@ public class GLRenderDevice implements RenderDevice {
     private final CommandList commandList = new ImmediateCommandList(this.stateTracker);
     private final DrawCommandList drawCommandList = new ImmediateDrawCommandList();
 
-    private final DeviceFunctions functions = new DeviceFunctions(this);
 
     private boolean isActive;
     private GlTessellation activeTessellation;
@@ -54,11 +58,6 @@ public class GLRenderDevice implements RenderDevice {
     }
 
     @Override
-    public DeviceFunctions getDeviceFunctions() {
-        return this.functions;
-    }
-
-    @Override
     public int getSubTexelPrecisionBits() {
         // OpenGL only specifies "at least" 4 bits of sub-texel precision for texture fetches. Thankfully, nearly every
         // graphics card is Direct3D-compatible and capable of providing 8 bits of precision. The only exception to this
@@ -90,66 +89,12 @@ public class GLRenderDevice implements RenderDevice {
                 GL30C.glBindVertexArray(array.handle());
             }
         }
-
-        @Override
-        public void uploadData(GlMutableBuffer glBuffer, ByteBuffer byteBuffer, GlBufferUsage usage) {
-            this.bindBuffer(GlBufferTarget.ARRAY_BUFFER, glBuffer);
-
-            GL20C.glBufferData(GlBufferTarget.ARRAY_BUFFER.getTargetParameter(), byteBuffer, usage.getId());
-            glBuffer.setSize(byteBuffer.remaining());
-        }
-
-        @Override
-        public void uploadDataToOffset(GlMutableBuffer glBuffer, int offset, long pointer, int size) {
-            this.bindBuffer(GlBufferTarget.ARRAY_BUFFER, glBuffer);
-
-            GL20C.nglBufferSubData(GlBufferTarget.ARRAY_BUFFER.getTargetParameter(), offset, size, pointer);
-        }
-
-        @Override
-        public void copyBufferSubData(GlBuffer src, GlBuffer dst, long readOffset, long writeOffset, long bytes) {
-            this.bindBuffer(GlBufferTarget.COPY_READ_BUFFER, src);
-            this.bindBuffer(GlBufferTarget.COPY_WRITE_BUFFER, dst);
-
-            GL31C.glCopyBufferSubData(GL31C.GL_COPY_READ_BUFFER, GL31C.GL_COPY_WRITE_BUFFER, readOffset, writeOffset, bytes);
-        }
-
-        @Override
-        public void bindBuffer(GlBufferTarget target, GlBuffer buffer) {
-            if (this.stateTracker.makeBufferActive(target, buffer)) {
-                GL20C.glBindBuffer(target.getTargetParameter(), buffer.handle());
-            }
-        }
-
         @Override
         public void unbindVertexArray() {
             if (this.stateTracker.makeVertexArrayActive(null)) {
                 GL30C.glBindVertexArray(GlVertexArray.NULL_ARRAY_ID);
             }
         }
-
-        @Override
-        public void allocateStorage(GlMutableBuffer buffer, long bufferSize, GlBufferUsage usage) {
-            this.bindBuffer(GlBufferTarget.ARRAY_BUFFER, buffer);
-
-            GL20C.glBufferData(GlBufferTarget.ARRAY_BUFFER.getTargetParameter(), bufferSize, usage.getId());
-            buffer.setSize(bufferSize);
-        }
-
-        @Override
-        public void deleteBuffer(GlBuffer buffer) {
-            if (buffer.getActiveMapping() != null) {
-                this.unmap(buffer.getActiveMapping());
-            }
-
-            this.stateTracker.notifyBufferDeleted(buffer);
-
-            int handle = buffer.handle();
-            buffer.invalidateHandle();
-
-            GL20C.glDeleteBuffers(handle);
-        }
-
         @Override
         public void deleteVertexArray(GlVertexArray vertexArray) {
             this.stateTracker.notifyVertexArrayDeleted(vertexArray);
@@ -179,96 +124,16 @@ public class GLRenderDevice implements RenderDevice {
         }
 
         @Override
-        public GlBufferMapping mapBuffer(GlBuffer buffer, long offset, long length, EnumBitField<GlBufferMapFlags> flags) {
-            if (buffer.getActiveMapping() != null) {
-                throw new IllegalStateException("Buffer is already mapped");
-            }
-
-            if (flags.contains(GlBufferMapFlags.PERSISTENT) && !(buffer instanceof GlImmutableBuffer)) {
-                throw new IllegalStateException("Tried to map mutable buffer as persistent");
-            }
-
-            // TODO: speed this up?
-            if (buffer instanceof GlImmutableBuffer) {
-                EnumBitField<GlBufferStorageFlags> bufferFlags = ((GlImmutableBuffer) buffer).getFlags();
-
-                if (flags.contains(GlBufferMapFlags.PERSISTENT) && !bufferFlags.contains(GlBufferStorageFlags.PERSISTENT)) {
-                    throw new IllegalArgumentException("Tried to map non-persistent buffer as persistent");
-                }
-
-                if (flags.contains(GlBufferMapFlags.WRITE) && !bufferFlags.contains(GlBufferStorageFlags.MAP_WRITE)) {
-                    throw new IllegalStateException("Tried to map non-writable buffer as writable");
-                }
-
-                if (flags.contains(GlBufferMapFlags.READ) && !bufferFlags.contains(GlBufferStorageFlags.MAP_READ)) {
-                    throw new IllegalStateException("Tried to map non-readable buffer as readable");
-                }
-            }
-
-            this.bindBuffer(GlBufferTarget.ARRAY_BUFFER, buffer);
-
-            ByteBuffer buf = GL32C.glMapBufferRange(GlBufferTarget.ARRAY_BUFFER.getTargetParameter(), offset, length, flags.getBitField());
-
-            if (buf == null) {
-                throw new RuntimeException("Failed to map buffer");
-            }
-
-            GlBufferMapping mapping = new GlBufferMapping(buffer, buf);
-
-            buffer.setActiveMapping(mapping);
-
-            return mapping;
-        }
-
-        @Override
-        public void unmap(GlBufferMapping map) {
-            checkMapDisposed(map);
-
-            GlBuffer buffer = map.getBufferObject();
-
-            this.bindBuffer(GlBufferTarget.ARRAY_BUFFER, buffer);
-            GL32C.glUnmapBuffer(GlBufferTarget.ARRAY_BUFFER.getTargetParameter());
-
-            buffer.setActiveMapping(null);
-            map.dispose();
-        }
-
-        @Override
-        public void flushMappedRange(GlBufferMapping map, int offset, int length) {
-            checkMapDisposed(map);
-
-            GlBuffer buffer = map.getBufferObject();
-
-            this.bindBuffer(GlBufferTarget.COPY_READ_BUFFER, buffer);
-            GL32C.glFlushMappedBufferRange(GlBufferTarget.COPY_READ_BUFFER.getTargetParameter(), offset, length);
-        }
-
-        @Override
         public GlFence createFence() {
             return new GlFence(GL32C.glFenceSync(GL32C.GL_SYNC_GPU_COMMANDS_COMPLETE, 0));
         }
 
-        private void checkMapDisposed(GlBufferMapping map) {
-            if (map.isDisposed()) {
-                throw new IllegalStateException("Buffer mapping is already disposed");
-            }
-        }
-
         @Override
-        public GlMutableBuffer createMutableBuffer() {
-            return new GlMutableBuffer();
+        public void flushMappedRange(GpuBufferSlice.MappedView map, int start, int length) {
+            int handle = ((GlBufferAccessor) map.slice().buffer()).getHandle();
+            GL46C.glFlushMappedNamedBufferRange(handle, start, length);
         }
 
-        @Override
-        public GlImmutableBuffer createImmutableBuffer(long bufferSize, EnumBitField<GlBufferStorageFlags> flags) {
-            GlImmutableBuffer buffer = new GlImmutableBuffer(flags);
-
-            this.bindBuffer(GlBufferTarget.ARRAY_BUFFER, buffer);
-            GLRenderDevice.this.functions.getBufferStorageFunctions()
-                    .createBufferStorage(GlBufferTarget.ARRAY_BUFFER, bufferSize, flags);
-
-            return buffer;
-        }
 
         @Override
         public GlTessellation createTessellation(GlPrimitiveType primitiveType, TessellationBinding[] bindings) {

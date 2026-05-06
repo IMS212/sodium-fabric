@@ -12,6 +12,7 @@
   },
   "client": [
     "core.BackendLimitMixin",
+    "core.GlBufferAccessor",
     "core.CommandEncoderAccessor",
     "core.GlCommandEncoderAccessor",
     "core.GpuDeviceAccessor",
