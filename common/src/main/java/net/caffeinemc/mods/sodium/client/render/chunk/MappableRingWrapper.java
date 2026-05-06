@@ -4,7 +4,6 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import net.caffeinemc.mods.sodium.mixin.core.GlBufferAccessor;
 import net.minecraft.client.renderer.MappableRingBuffer;
-import org.lwjgl.opengl.GL46C;
 import org.lwjgl.system.MemoryUtil;
 
 import java.util.Arrays;

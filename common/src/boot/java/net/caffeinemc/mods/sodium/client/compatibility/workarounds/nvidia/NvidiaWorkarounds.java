@@ -12,8 +12,6 @@ import net.caffeinemc.mods.sodium.client.platform.windows.WindowsFileVersion;
 import net.caffeinemc.mods.sodium.client.platform.windows.api.d3dkmt.D3DKMT;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GL32C;
-import org.lwjgl.opengl.KHRDebug;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,7 +128,7 @@ public class NvidiaWorkarounds {
         if (capabilities.GL_KHR_debug) {
             LOGGER.info("Enabling GL_DEBUG_OUTPUT_SYNCHRONOUS to force the NVIDIA driver to disable threaded " +
                     "command submission");
-            GL32C.glEnable(KHRDebug.GL_DEBUG_OUTPUT_SYNCHRONOUS);
+            //GL32C.glEnable(KHRDebug.GL_DEBUG_OUTPUT_SYNCHRONOUS);
         } else {
             LOGGER.error("GL_KHR_debug does not appear to be supported, unable to disable threaded " +
                     "command submission!");

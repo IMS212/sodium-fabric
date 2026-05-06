@@ -175,7 +175,7 @@ public class SectionRenderDataStorage {
         }
 
         // create and upload a new shared index buffer
-        var buffer = SharedQuadIndexBuffer.createIndexBuffer(SharedQuadIndexBuffer.IndexType.INTEGER, this.sharedIndexCapacity);
+        var buffer = SharedQuadIndexBuffer.createIndexBuffer(SharedQuadIndexBuffer.SodiumIndexType.INTEGER, this.sharedIndexCapacity);
         var pendingUpload = new PendingUpload(buffer, RenderRegion.SHARED_INDEX_DATA_INDEX);
         var bufferChanged = arena.upload(commandList, Stream.of(pendingUpload));
         this.sharedIndexAllocation = pendingUpload.getResult();

@@ -1,10 +1,9 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
+import com.mojang.blaze3d.IndexType;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.tessellation.GlIndexType;
-import net.caffeinemc.mods.sodium.client.gl.util.EnumBitField;
 import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
 
 import java.nio.ByteBuffer;
@@ -16,11 +15,11 @@ public class SharedQuadIndexBuffer {
     private static final int VERTICES_PER_PRIMITIVE = 4;
 
     private GpuBuffer buffer;
-    private final IndexType indexType;
+    private final SodiumIndexType indexType;
 
     private int maxPrimitives;
 
-    public SharedQuadIndexBuffer(CommandList commandList, IndexType indexType) {
+    public SharedQuadIndexBuffer(CommandList commandList, SodiumIndexType indexType) {
         this.indexType = indexType;
     }
 
@@ -57,7 +56,7 @@ public class SharedQuadIndexBuffer {
         this.maxPrimitives = primitiveCount;
     }
 
-    public static NativeBuffer createIndexBuffer(IndexType indexType, int primitiveCount) {
+    public static NativeBuffer createIndexBuffer(SodiumIndexType indexType, int primitiveCount) {
         var bufferSize = primitiveCount * indexType.getBytesPerElement() * ELEMENTS_PER_PRIMITIVE;
         var buffer = new NativeBuffer(bufferSize);
 
@@ -74,8 +73,8 @@ public class SharedQuadIndexBuffer {
         if (this.buffer != null) this.buffer.close();
     }
 
-    public enum IndexType {
-        SHORT(GlIndexType.UNSIGNED_SHORT, 64 * 1024) {
+    public enum SodiumIndexType {
+        SHORT(IndexType.SHORT, 64 * 1024) {
             @Override
             public void createIndexBuffer(ByteBuffer byteBuffer, int primitiveCount) {
                 ShortBuffer shortBuffer = byteBuffer.asShortBuffer();
@@ -94,7 +93,7 @@ public class SharedQuadIndexBuffer {
                 }
             }
         },
-        INTEGER(GlIndexType.UNSIGNED_INT, Integer.MAX_VALUE) {
+        INTEGER(IndexType.INT, Integer.MAX_VALUE) {
             @Override
             public void createIndexBuffer(ByteBuffer byteBuffer, int primitiveCount) {
                 IntBuffer intBuffer = byteBuffer.asIntBuffer();
@@ -114,12 +113,12 @@ public class SharedQuadIndexBuffer {
             }
         };
 
-        public static final IndexType[] VALUES = IndexType.values();
+        public static final SodiumIndexType[] VALUES = SodiumIndexType.values();
 
-        private final GlIndexType format;
+        private final IndexType format;
         private final int maxElementCount;
 
-        IndexType(GlIndexType format, int maxElementCount) {
+        SodiumIndexType(IndexType format, int maxElementCount) {
             this.format = format;
             this.maxElementCount = maxElementCount;
         }
@@ -127,10 +126,10 @@ public class SharedQuadIndexBuffer {
         public abstract void createIndexBuffer(ByteBuffer buffer, int primitiveCount);
 
         public int getBytesPerElement() {
-            return this.format.getStride();
+            return this.format.bytes;
         }
 
-        public GlIndexType getFormat() {
+        public IndexType getFormat() {
             return this.format;
         }
 

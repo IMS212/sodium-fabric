@@ -20,9 +20,9 @@ layout(std140, binding = 2) uniform ChunkUniforms {
     vec2 u_RenderFog;
 };
 
-#import <sodium:include/fog.glsl>
-#import <sodium:include/chunk_vertex.glsl>
-#import <sodium:include/chunk_matrices.glsl>
+#moj_import <sodium:fog.glsl>
+#moj_import <sodium:chunk_vertex.glsl>
+#moj_import <sodium:chunk_matrices.glsl>
 
 out vec4 v_Color;
 out vec2 v_TexCoord;
@@ -39,9 +39,7 @@ layout(std140) uniform ChunkData {
     ivec4 u_chunkFades[64]; // Packing into ivec4 is needed to avoid wasting 3KB...
 };
 
-layout(std430) buffer PosBuffer {
-    uvec2 chunkPos[];
-};
+uniform usamplerBuffer PosBuffer;
 
 
 ivec3 _sign_extend_section_pos(uvec3 v) {
@@ -78,7 +76,7 @@ void main() {
     _vert_init();
 
     // Transform the chunk-local vertex position into world model space
-    ivec3 sectionCoord = _unpack_section_pos(chunkPos[_draw_id]) * 16;
+    ivec3 sectionCoord = _unpack_section_pos(texelFetch(PosBuffer, int(_draw_id)).xy) * 16;
     sectionCoord -= u_CameraPosInt.xyz;
 
     vec3 translation =

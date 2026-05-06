@@ -20,8 +20,8 @@ layout(std140, binding = 2) uniform ChunkUniforms {
     vec2 u_RenderFog;
 };
 
-#import <sodium:include/fog.glsl>
-#import <sodium:include/chunk_material.glsl>
+#moj_import <sodium:fog.glsl>
+#moj_import <sodium:chunk_material.glsl>
 
 in vec4 v_Color; // The interpolated vertex color
 in vec2 v_TexCoord; // The interpolated block texture coordinates
@@ -33,7 +33,7 @@ uniform sampler2D u_BlockTex; // The block texture
 
 out vec4 fragColor; // The output fragment for the color framebuffer
 
-vec4 sampleNearest(sampler2D sampler, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv, vec2 texelScreenSize) {
+vec4 sampleNearest(vec2 uv, vec2 pixelSize, vec2 du, vec2 dv, vec2 texelScreenSize) {
     // Convert our UV back up to texel coordinates and find out how far over we are from the center of each pixel
     vec2 uvTexelCoords = uv / pixelSize;
     vec2 texelCenter = round(uvTexelCoords) - 0.5f;
@@ -44,18 +44,18 @@ vec4 sampleNearest(sampler2D sampler, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv,
     texelOffset = clamp(texelOffset, 0.0f, 1.0f);
 
     uv = (texelCenter + texelOffset) * pixelSize;
-    return textureGrad(sampler, uv, du, dv);
+    return textureGrad(u_BlockTex, uv, du, dv);
 }
 
-vec4 sampleNearest(sampler2D source, vec2 uv, vec2 pixelSize) {
+vec4 sampleNearest(vec2 uv, vec2 pixelSize) {
     vec2 du = dFdx(uv);
     vec2 dv = dFdy(uv);
     vec2 texelScreenSize = sqrt(du * du + dv * dv);
-    return sampleNearest(source, uv, pixelSize, du, dv, texelScreenSize);
+    return sampleNearest(uv, pixelSize, du, dv, texelScreenSize);
 }
 
 // Rotated Grid Super-Sampling
-vec4 sampleRGSS(sampler2D source, vec2 uv, vec2 pixelSize) {
+vec4 sampleRGSS(vec2 uv, vec2 pixelSize) {
     vec2 du = dFdx(uv);
     vec2 dv = dFdy(uv);
 
@@ -87,17 +87,17 @@ vec4 sampleRGSS(sampler2D source, vec2 uv, vec2 pixelSize) {
     vec4 rgssColor = vec4(0.0);
     for (int i = 0; i < 4; ++i) {
         vec2 sampleUV = uv + offsets[i] * pixelSize;
-        rgssColor += textureLod(source, sampleUV, mipLevelExact);
+        rgssColor += textureLod(u_BlockTex, sampleUV, mipLevelExact);
     }
     rgssColor *= 0.25;
 
-    vec4 nearestColor = sampleNearest(source, uv, pixelSize, du, dv, texelScreenSize);
+    vec4 nearestColor = sampleNearest(uv, pixelSize, du, dv, texelScreenSize);
 
     return mix(nearestColor, rgssColor, blendFactor);
 }
 
 void main() {
-    vec4 color = u_UseRGSS ? sampleRGSS(u_BlockTex, v_TexCoord, u_TexelSize) : sampleNearest(u_BlockTex, v_TexCoord, u_TexelSize);
+    vec4 color = u_UseRGSS ? sampleRGSS(v_TexCoord, u_TexelSize) : sampleNearest( v_TexCoord, u_TexelSize);
     color *= v_Color; // Apply per-vertex color modulator
 
 #ifdef USE_FRAGMENT_DISCARD

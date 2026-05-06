@@ -36,8 +36,6 @@ import net.minecraft.server.level.ParticleStatus;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GLCapabilities;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -187,6 +185,17 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                                 .setBinding(value -> this.vanillaOpts.gamma().set(value * 0.01D), () -> (int) (this.vanillaOpts.gamma().get() / 0.01D))
                 )
         );
+
+        generalPage.addOptionGroup(builder.createOptionGroup().addOption(builder.createEnumOption(Identifier.parse("sodium:graphics_api"),
+                PreferredGraphicsApi.class)
+                .setDefaultValue(PreferredGraphicsApi.DEFAULT)
+                .setBinding(this.vanillaOpts.preferredGraphicsBackend()::set, this.vanillaOpts.preferredGraphicsBackend()::get)
+                .setName(Component.translatable("options.graphicsApi"))
+                .setTooltip(Component.translatable("options.graphicsApi.tooltip"))
+                .setElementNameProvider(PreferredGraphicsApi::caption)
+                .setFlags(OptionFlag.REQUIRES_GAME_RESTART)
+                .setStorageHandler(this.vanillaStorage)
+        ));
         generalPage.addOptionGroup(builder.createOptionGroup()
                 .addOption(
                         builder.createIntegerOption(Identifier.parse("sodium:general.gui_scale"))
@@ -685,11 +694,7 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                 .setTooltip(Component.translatable("sodium.options.use_no_error_context.tooltip"))
                 .setDefaultValue(DEFAULTS.performance.useNoErrorGLContext)
                 .setBinding(value -> this.sodiumOpts.performance.useNoErrorGLContext = value, () -> this.sodiumOpts.performance.useNoErrorGLContext)
-                .setEnabledProvider((state) -> {
-                    GLCapabilities capabilities = GL.getCapabilities();
-                    return (capabilities.OpenGL46 || capabilities.GL_KHR_no_error)
-                            && !Workarounds.isWorkaroundEnabled(Workarounds.Reference.NO_ERROR_CONTEXT_UNSUPPORTED);
-                })
+
                 .setImpact(OptionImpact.LOW)
                 .setFlags(OptionFlag.REQUIRES_GAME_RESTART);
     }

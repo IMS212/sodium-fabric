@@ -157,7 +157,7 @@ public class RenderSectionManager {
 
         int maxSections = diameter * diameter * heightSections;
         this.sectionPosBuffer = new MappableRingWrapper(() -> "Chunk pos buffer",
-                GpuBuffer.USAGE_MAP_WRITE | GpuBuffer.USAGE_UNIFORM, maxSections * Long.BYTES);
+                GpuBuffer.USAGE_MAP_WRITE | GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER, maxSections * Long.BYTES);
 
         this.regions = new RenderRegionManager(commandList);
         this.sectionCache = new ClonedChunkSectionCache(this.level);
@@ -1219,6 +1219,6 @@ public class RenderSectionManager {
     }
 
     public void renderBufferDebug(GuiGraphicsExtractor guiGraphics) {
-        this.regions.getArenaAggregator().renderBufferDebug(guiGraphics);
+        if (Minecraft.getInstance().hasAltDown()) this.regions.getArenaAggregator().renderBufferDebug(guiGraphics);
     }
 }

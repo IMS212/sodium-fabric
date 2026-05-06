@@ -48,7 +48,7 @@ public class GlBufferStreamer {
         if (requiresFlush) {
             requiresFlush = false;
             if (this.mapping != null) {
-                GL44C.glMemoryBarrier(GL44C.GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT); // TODO: I don't know yet if this is required.
+                //GL44C.glMemoryBarrier(GL44C.GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT); // TODO: I don't know yet if this is required.
             }
         }
 

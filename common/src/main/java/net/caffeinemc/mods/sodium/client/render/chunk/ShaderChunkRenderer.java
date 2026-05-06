@@ -1,19 +1,21 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.opengl.*;
-import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.*;
+import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuSampler;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.caffeinemc.mods.sodium.client.gl.attribute.GlVertexFormat;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
-import net.caffeinemc.mods.sodium.client.gl.shader.GlProgram;
-import net.caffeinemc.mods.sodium.client.render.chunk.shader.*;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
-import net.caffeinemc.mods.sodium.client.gl.shader.*;
+import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.impl.CompactChunkVertex;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import net.caffeinemc.mods.sodium.mixin.core.CommandEncoderAccessor;
 import net.caffeinemc.mods.sodium.mixin.core.GlCommandEncoderAccessor;
@@ -22,16 +24,17 @@ import net.minecraft.resources.Identifier;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public abstract class ShaderChunkRenderer implements ChunkRenderer {
-    private final Map<ChunkShaderOptions, GlProgram<ChunkShaderInterface>> programs = new Object2ObjectOpenHashMap<>();
+    private static final Map<TerrainRenderPass, RenderPipeline> programs = new Object2ObjectOpenHashMap<>();
 
     protected final ChunkVertexType vertexType;
-    protected final GlVertexFormat vertexFormat;
+    protected final VertexFormat vertexFormat;
 
     protected final RenderDevice device;
 
-    protected GlProgram<ChunkShaderInterface> activeProgram;
+    protected RenderPipeline activeProgram;
 
     public ShaderChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
         this.device = device;
@@ -39,8 +42,8 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         this.vertexFormat = vertexType.getVertexFormat();
     }
 
-    protected GlProgram<ChunkShaderInterface> compileProgram(ChunkShaderOptions options) {
-        GlProgram<ChunkShaderInterface> program = this.programs.get(options);
+    protected RenderPipeline compileProgram(TerrainRenderPass options) {
+        RenderPipeline program = this.programs.get(options);
 
         if (program == null) {
             this.programs.put(options, program = this.createShader("blocks/block_layer_opaque", options));
@@ -49,73 +52,45 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         return program;
     }
 
-    private GlProgram<ChunkShaderInterface> createShader(String path, ChunkShaderOptions options) {
-        ShaderConstants constants = createShaderConstants(options);
+    private RenderPipeline createShader(String path, TerrainRenderPass options) {
+        var builder = RenderPipeline.builder()
+                .withBindGroupLayout(BindGroupLayout.builder()
+                        .withUniform("ChunkUniforms", UniformType.UNIFORM_BUFFER)
+                        .withUniform("ChunkData", UniformType.UNIFORM_BUFFER)
+                        .withUniform("PosBuffer", UniformType.TEXEL_BUFFER, GpuFormat.RG32_UINT)
+                        .withSampler("u_BlockTex").withSampler("u_LightTex").build())
+                .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true))
+                .withColorTargetState(new ColorTargetState(
+                        options.isTranslucent() ? Optional.of(BlendFunction.TRANSLUCENT) : Optional.empty(), GpuFormat.RGBA8_UNORM, 0xFFFFFFFF))
+                .withFragmentShader(Identifier.tryParse("sodium:blocks/block_layer_opaque"))
+                .withLocation(Identifier.fromNamespaceAndPath("sodium", path))
+                .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                .withCull(true)
+                .withShaderDefine("USE_FOG")
+                .withShaderDefine("USE_VERTEX_COMPRESSION")
+                .withVertexBinding(0, CompactChunkVertex.VERTEX_FORMAT)
+                .withVertexShader(Identifier.tryParse("sodium:blocks/block_layer_opaque"));
 
-        GlShader vertShader = ShaderLoader.loadShader(ShaderType.VERTEX,
-                Identifier.fromNamespaceAndPath("sodium", path + ".vsh"), constants);
-
-        GlShader fragShader = ShaderLoader.loadShader(ShaderType.FRAGMENT,
-                Identifier.fromNamespaceAndPath("sodium", path + ".fsh"), constants);
-
-        try {
-            return GlProgram.builder(Identifier.fromNamespaceAndPath("sodium", "chunk_shader"))
-                    .attachShader(vertShader)
-                    .attachShader(fragShader)
-                    .bindAttribute("a_Position", ChunkShaderBindingPoints.ATTRIBUTE_POSITION)
-                    .bindAttribute("a_Color", ChunkShaderBindingPoints.ATTRIBUTE_COLOR)
-                    .bindAttribute("a_TexCoord", ChunkShaderBindingPoints.ATTRIBUTE_TEXTURE)
-                    .bindAttribute("a_LightAndData", ChunkShaderBindingPoints.ATTRIBUTE_LIGHT_MATERIAL_INDEX)
-                    .bindFragmentData("fragColor", ChunkShaderBindingPoints.FRAG_COLOR)
-                    .link((shader) -> new DefaultShaderInterface(shader, options));
-        } finally {
-            vertShader.delete();
-            fragShader.delete();
+        if (options.supportsFragmentDiscard()) {
+            builder.withShaderDefine("USE_FRAGMENT_DISCARD");
         }
-    }
-
-    private static ShaderConstants createShaderConstants(ChunkShaderOptions options) {
-        ShaderConstants.Builder builder = ShaderConstants.builder();
-        builder.addAll(options.fog().getDefines());
-
-        if (options.pass().supportsFragmentDiscard()) {
-            builder.add("USE_FRAGMENT_DISCARD");
-        }
-
-        builder.add("USE_VERTEX_COMPRESSION"); // TODO: allow compact vertex format to be disabled
 
         return builder.build();
     }
 
     protected void begin(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler, GpuBuffer posBuffer, GpuBuffer ubo) {
-        RenderTarget target = pass.getTarget();
 
-        var glDevice = ((GlDevice) ((GpuDeviceAccessor) RenderSystem.getDevice()).sodium$getBackend());
-
-        GlStateManager._viewport(0, 0, target.getColorTexture().getWidth(0), target.getColorTexture().getHeight(0));
-        GlStateManager._glBindFramebuffer(GlConst.GL_FRAMEBUFFER, glDevice.frameBufferCache().getFbo(glDevice.directStateAccess(), List.of((GlTexture) target.getColorTexture()), (FrameBufferAttachment) target.getDepthTexture()));
-        ((GlCommandEncoderAccessor) ((CommandEncoderAccessor) RenderSystem.getDevice().createCommandEncoder()).sodium$getBackend()).sodium$applyPipelineState(pass.getPipeline());
-        ((GlCommandEncoderAccessor) ((CommandEncoderAccessor) RenderSystem.getDevice().createCommandEncoder()).sodium$getBackend()).sodium$setLastProgram(null);
-
-        ChunkShaderOptions options = new ChunkShaderOptions(ChunkFogMode.SMOOTH, pass, this.vertexType);
+        var options = pass;
 
         this.activeProgram = this.compileProgram(options);
-        this.activeProgram.bind();
-        this.activeProgram.getInterface()
-                .setupState(pass, parameters, terrainSampler, posBuffer, ubo);
     }
 
     protected void end(TerrainRenderPass pass) {
-        this.activeProgram.getInterface()
-                .resetState();
-        this.activeProgram.unbind();
         this.activeProgram = null;
     }
 
     @Override
     public void delete(CommandList commandList) {
-        this.programs.values()
-                .forEach(GlProgram::delete);
     }
 
 }

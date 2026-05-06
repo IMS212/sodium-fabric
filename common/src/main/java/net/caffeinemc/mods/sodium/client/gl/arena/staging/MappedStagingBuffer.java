@@ -7,10 +7,7 @@ import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
 import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
-import net.caffeinemc.mods.sodium.client.gl.sync.GlFence;
-import net.caffeinemc.mods.sodium.client.gl.util.EnumBitField;
 import net.caffeinemc.mods.sodium.client.util.MathUtil;
-import net.caffeinemc.mods.sodium.client.gl.buffer.*;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
@@ -108,7 +105,7 @@ public class MappedStagingBuffer implements StagingBuffer {
             );
         }
 
-        this.fencedRegions.enqueue(new FencedMemoryRegion(commandList.createFence(), bytes));
+        this.fencedRegions.enqueue(new FencedMemoryRegion(RenderSystem.getDevice().createCommandEncoder().createFence(), bytes));
 
         this.start = this.pos;
     }
@@ -140,8 +137,8 @@ public class MappedStagingBuffer implements StagingBuffer {
         while (!this.fencedRegions.isEmpty()) {
             var region = this.fencedRegions.dequeue();
             var fence = region.fence();
-            fence.sync();
-            fence.delete();
+            fence.awaitCompletion(1000);
+            fence.close();
         }
 
         this.mappedBuffer.delete(commandList);
@@ -155,11 +152,11 @@ public class MappedStagingBuffer implements StagingBuffer {
             var region = this.fencedRegions.first();
             var fence = region.fence();
 
-            if (!fence.isCompleted()) {
+            if (!fence.awaitCompletion(0)) {
                 break;
             }
 
-            fence.delete();
+            fence.close();
 
             this.fencedRegions.dequeue();
             this.remaining += region.length();
@@ -201,7 +198,7 @@ public class MappedStagingBuffer implements StagingBuffer {
         }
     }
 
-    private record FencedMemoryRegion(GlFence fence, int length) {
+    private record FencedMemoryRegion(com.mojang.blaze3d.buffers.GpuFence fence, int length) {
 
     }
 
