@@ -6,7 +6,6 @@ import net.minecraft.client.gui.components.debug.DebugScreenEntries;
 import net.minecraft.client.gui.components.debug.DebugScreenEntryList;
 import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.client.gui.components.debug.DebugScreenProfile;
-import org.objectweb.asm.Opcodes;
 import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -50,6 +49,11 @@ public class DebugScreenEntryListMixin {
         Identifier setting = PlatformRuntimeInformation.getInstance().isDevelopmentEnvironment() ? SodiumClientMod.SODIUM_DEBUG_ENTRY_FULL : SodiumClientMod.SODIUM_DEBUG_ENTRY_REDUCED;
         if (!this.allStatuses.containsKey(setting)) {
             this.allStatuses.put(setting, DebugScreenEntryStatus.IN_OVERLAY);
+        }
+
+        // TODO: turn this off by default before shipping
+        if (!this.allStatuses.containsKey(SodiumClientMod.SODIUM_DEBUG_ENTRY_BUFFER_ARENA)) {
+            this.allStatuses.put(SodiumClientMod.SODIUM_DEBUG_ENTRY_BUFFER_ARENA, DebugScreenEntryStatus.IN_OVERLAY);
         }
     }
 }

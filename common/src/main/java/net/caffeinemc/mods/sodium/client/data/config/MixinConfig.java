@@ -1,7 +1,6 @@
 package net.caffeinemc.mods.sodium.client.data.config;
 
 import net.caffeinemc.mods.sodium.client.services.PlatformMixinOverrides;
-import net.caffeinemc.mods.sodium.client.services.Services;
 import net.caffeinemc.mods.sodium.mixin.MixinOption;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,6 +25,8 @@ public class MixinConfig {
         // Defines the default rules which can be configured by the user or other mods.
         // You must manually add a rule for any new mixins not covered by an existing package rule.
         this.addMixinRule("core", true); // TODO: Don't actually allow the user to disable this
+
+        this.addMixinRule("debug", true);
 
         this.addMixinRule("features", true);
 
