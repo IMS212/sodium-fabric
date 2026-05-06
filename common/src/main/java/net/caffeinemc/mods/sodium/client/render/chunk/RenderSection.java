@@ -64,10 +64,12 @@ public class RenderSection {
     private int pendingUpdateType;
     private long pendingUpdateSince;
 
+    private final int uniqueId;
+
     // Lifetime state
     private boolean disposed;
 
-    public RenderSection(RenderRegion region, int chunkX, int chunkY, int chunkZ) {
+    public RenderSection(RenderRegion region, int chunkX, int chunkY, int chunkZ, int uniqueId) {
         this.chunkX = chunkX;
         this.chunkY = chunkY;
         this.chunkZ = chunkZ;
@@ -78,7 +80,13 @@ public class RenderSection {
 
         this.sectionIndex = LocalSectionIndex.pack(rX, rY, rZ);
 
+        this.uniqueId = uniqueId;
+
         this.region = region;
+    }
+
+    public int getUniqueId() {
+        return this.uniqueId;
     }
 
     public RenderSection getAdjacent(int direction) {

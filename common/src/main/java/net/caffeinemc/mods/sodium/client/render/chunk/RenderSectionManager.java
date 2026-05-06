@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.textures.GpuSampler;
 import it.unimi.dsi.fastutil.longs.Long2ReferenceMap;
 import it.unimi.dsi.fastutil.longs.Long2ReferenceMaps;
@@ -45,6 +46,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -56,6 +58,7 @@ import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3dc;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryUtil;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -126,10 +129,17 @@ public class RenderSectionManager {
 
     private final AsyncCameraTimingControl cameraTimingControl = new AsyncCameraTimingControl();
 
+    private final IntPool idPool = new IntPool();
+    private final MappableRingWrapper sectionPosBuffer;
+
+    private final MappableRingBuffer ubo;
+    private boolean uboUpdated;
+
     public RenderSectionManager(ClientLevel level, int renderDistance, SortBehavior sortBehavior, CommandList commandList) {
         this.meshTaskSizeEstimator = new MeshTaskSizeEstimator(level);
 
         this.chunkRenderer = new DefaultChunkRenderer(RenderDevice.INSTANCE, ChunkMeshFormats.COMPACT);
+        ubo = new MappableRingBuffer(() -> "Sodium Data UBO", GpuBuffer.USAGE_MAP_WRITE | GpuBuffer.USAGE_UNIFORM, chunkRenderer.getUniformDataSize());
 
         this.level = level;
         this.builder = new ChunkBuilder(level, ChunkMeshFormats.COMPACT);
@@ -142,6 +152,12 @@ public class RenderSectionManager {
         } else {
             this.sortTriggering = null;
         }
+        int heightSections = level.getMaxSectionY() - level.getMinSectionY() + 1;
+        int diameter = renderDistance * 2 + 1;
+
+        int maxSections = diameter * diameter * heightSections;
+        this.sectionPosBuffer = new MappableRingWrapper(() -> "Chunk pos buffer",
+                GpuBuffer.USAGE_MAP_WRITE | GpuBuffer.USAGE_UNIFORM, maxSections * Long.BYTES);
 
         this.regions = new RenderRegionManager(commandList);
         this.sectionCache = new ClonedChunkSectionCache(this.level);
@@ -159,6 +175,9 @@ public class RenderSectionManager {
 
     public void prepareFrame(Vector3dc cameraPosition) {
         this.cameraPosition = cameraPosition;
+
+        sectionPosBuffer.rotate();
+        this.uboUpdated = false;
 
         var now = System.nanoTime();
         this.lastFrameDuration = now - this.lastFrameAtTime;
@@ -382,8 +401,10 @@ public class RenderSectionManager {
 
         RenderRegion region = this.regions.createForChunk(x, y, z);
 
-        RenderSection renderSection = new RenderSection(region, x, y, z);
+        RenderSection renderSection = new RenderSection(region, x, y, z, idPool.acquire());
         region.addSection(renderSection);
+        // TODO: Put this somewhere good
+        this.sectionPosBuffer.write(renderSection.getUniqueId() * Long.BYTES, key);
 
         this.sectionByPosition.put(key, renderSection);
 
@@ -427,6 +448,7 @@ public class RenderSectionManager {
         this.updateSectionInfo(section, null);
 
         section.delete();
+        idPool.release(section.getUniqueId());
 
         // force update to remove section from render lists
         this.markGraphDirty();
@@ -436,7 +458,15 @@ public class RenderSectionManager {
         RenderDevice device = RenderDevice.INSTANCE;
         CommandList commandList = device.createCommandList();
 
-        this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z), fogParameters, this.sortBehavior != SortBehavior.OFF, terrainSampler);
+        if (!uboUpdated) {
+            uboUpdated = true;
+
+            ubo.rotate();
+            chunkRenderer.fillUniformData(ubo.currentBuffer(), matrices, fogParameters, x, y, z);
+        }
+
+        this.chunkRenderer.render(matrices, commandList, this.renderLists, pass, new CameraTransform(x, y, z), fogParameters, this.sortBehavior != SortBehavior.OFF, terrainSampler,
+                this.sectionPosBuffer.currentBuffer(), this.ubo.currentBuffer());
 
         commandList.flush();
     }

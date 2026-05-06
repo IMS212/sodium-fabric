@@ -1,4 +1,24 @@
-#version 330 core
+#version 450 core
+
+layout(std140, binding = 2) uniform ChunkUniforms {
+    mat4 u_ModelViewMatrix;
+    mat4 u_ProjectionMatrix;
+
+    vec2 u_TexelSize;
+    vec2 u_TexCoordShrink;
+
+    int u_CurrentTime;
+    bool u_UseRGSS;
+    float u_FadePeriodInv;
+
+    ivec4 u_CameraPosInt;
+
+    vec4 u_CameraPosFract;
+    vec4 u_FogColor;
+
+    vec2 u_EnvironmentFog;
+    vec2 u_RenderFog;
+};
 
 #import <sodium:include/fog.glsl>
 #import <sodium:include/chunk_vertex.glsl>
@@ -7,24 +27,43 @@
 out vec4 v_Color;
 out vec2 v_TexCoord;
 
-flat out uint v_Material;
 
 #ifdef USE_FOG
 out vec2 v_FragDistance;
 out float fadeFactor;
 #endif
 
-uniform vec3 u_RegionOffset;
-uniform vec2 u_TexCoordShrink;
-
 uniform sampler2D u_LightTex; // The light map texture sampler
-
-uniform int u_CurrentTime;
-uniform float u_FadePeriodInv;
 
 layout(std140) uniform ChunkData {
     ivec4 u_chunkFades[64]; // Packing into ivec4 is needed to avoid wasting 3KB...
 };
+
+layout(std430) buffer PosBuffer {
+    uvec2 chunkPos[];
+};
+
+
+ivec3 _sign_extend_section_pos(uvec3 v) {
+    return ivec3(
+        (int(v.x << 10u)) >> 10,
+        (int(v.y << 12u)) >> 12,
+        (int(v.z << 10u)) >> 10
+    );
+}
+
+ivec3 _unpack_section_pos(uvec2 pkd) {
+    uint lo = pkd.x;
+    uint hi = pkd.y;
+
+    uint x = (hi >> 10u) & 0x3FFFFFu;
+
+    uint y = lo & 0xFFFFFu;
+
+    uint z = ((lo >> 20u) & 0xFFFu) | ((hi & 0x3FFu) << 12u);
+
+    return _sign_extend_section_pos(uvec3(x, y, z));
+}
 
 uvec3 _get_relative_chunk_coord(uint pos) {
     // Packing scheme is defined by LocalSectionIndex
@@ -39,7 +78,11 @@ void main() {
     _vert_init();
 
     // Transform the chunk-local vertex position into world model space
-    vec3 translation = u_RegionOffset + _get_draw_translation(_draw_id);
+    ivec3 sectionCoord = _unpack_section_pos(chunkPos[_draw_id]) * 16;
+    sectionCoord -= u_CameraPosInt.xyz;
+
+    vec3 translation =
+        (vec3(sectionCoord)) - u_CameraPosFract.xyz;
     vec3 position = _vert_position + translation;
 
 #ifdef USE_FOG
@@ -50,7 +93,7 @@ void main() {
     int fadeTime = u_CurrentTime - chunkFade;
     float elapsed = float(fadeTime);
     float fade = clamp(float(u_CurrentTime - chunkFade) * u_FadePeriodInv, 0.0, 1.0);
-    fadeFactor = (chunkFade < 0) ? 1.0 : fade;
+    fadeFactor = 1.0; // TODO (chunkFade < 0) ? 1.0 : fade;
 #endif
 
     // Transform the vertex position into model-view-projection space
@@ -60,5 +103,4 @@ void main() {
     v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord);
     v_TexCoord = (_vert_tex_diffuse_coord_bias * u_TexCoordShrink) + _vert_tex_diffuse_coord; // FMA for precision
 
-    v_Material = _material_params;
 }

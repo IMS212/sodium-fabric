@@ -18,6 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.TextureFilteringMethod;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import org.joml.Matrix4fc;
+import org.jspecify.annotations.NonNull;
 import org.lwjgl.opengl.GL32C;
 import org.lwjgl.opengl.GL33C;
 
@@ -30,42 +31,25 @@ import java.util.Map;
 public class DefaultShaderInterface implements ChunkShaderInterface {
     private final Map<ChunkShaderTextureSlot, GlUniformInt> uniformTextures;
 
-    private final GlUniformMatrix4f uniformModelViewMatrix;
-    private final GlUniformMatrix4f uniformProjectionMatrix;
-    private final GlUniformFloat3v uniformRegionOffset;
-    private final GlUniformFloat2v uniformTexCoordShrink;
-    private final GlUniformFloat2v uniformTexelSize;
-    private final GlUniformBool uniformRGSS;
-    private final GlUniformInt uniformCurrentTime;
-    private final GlUniformFloat uniformFadePeriod;
-
     private final GlUniformBlock uniformChunkData;
 
     // The fog shader component used by this program in order to set up the appropriate GL state
-    private final ChunkShaderFogComponent fogShader;
+    private final GlStorageBlock uniformChunkPos;
+    private final GlUniformBlock ubo;
 
     public DefaultShaderInterface(ShaderBindingContext context, ChunkShaderOptions options) {
-        this.uniformModelViewMatrix = context.bindUniform("u_ModelViewMatrix", GlUniformMatrix4f::new);
-        this.uniformProjectionMatrix = context.bindUniform("u_ProjectionMatrix", GlUniformMatrix4f::new);
-        this.uniformRegionOffset = context.bindUniform("u_RegionOffset", GlUniformFloat3v::new);
-        this.uniformTexCoordShrink = context.bindUniform("u_TexCoordShrink", GlUniformFloat2v::new);
-        this.uniformTexelSize = context.bindUniform("u_TexelSize", GlUniformFloat2v::new);
-        this.uniformRGSS = context.bindUniform("u_UseRGSS", GlUniformBool::new);
-
-        this.uniformCurrentTime = context.bindUniform("u_CurrentTime", GlUniformInt::new);
-        this.uniformFadePeriod = context.bindUniform("u_FadePeriodInv", GlUniformFloat::new);
-
         this.uniformChunkData = context.bindUniformBlock("ChunkData", 0);
+        this.uniformChunkPos = context.bindStorageBlock("PosBuffer", 1);
 
         this.uniformTextures = new EnumMap<>(ChunkShaderTextureSlot.class);
         this.uniformTextures.put(ChunkShaderTextureSlot.BLOCK, context.bindUniform("u_BlockTex", GlUniformInt::new));
         this.uniformTextures.put(ChunkShaderTextureSlot.LIGHT, context.bindUniform("u_LightTex", GlUniformInt::new));
 
-        this.fogShader = options.fog().getFactory().apply(context);
+        this.ubo = context.bindUniformBlock("ChunkUniforms", 2);
     }
 
     @Override // the shader interface should not modify pipeline state
-    public void setupState(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler) {
+    public void setupState(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler, GpuBuffer posBuffer, GpuBuffer ubo) {
         this.bindTexture(ChunkShaderTextureSlot.BLOCK, pass.getAtlas(), terrainSampler);
         this.bindTexture(ChunkShaderTextureSlot.LIGHT, Minecraft.getInstance().gameRenderer.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
 
@@ -73,28 +57,10 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
                 .getTextureManager()
                 .getTexture(TextureAtlas.LOCATION_BLOCKS);
 
-        // There is a limited amount of sub-texel precision when using hardware texture sampling. The mapped texture
-        // area must be "shrunk" by at least one sub-texel to avoid bleed between textures in the atlas. And since we
-        // offset texture coordinates in the vertex format by one texel, we also need to undo that here.
-        double subTexelPrecision = (1 << GLRenderDevice.INSTANCE.getSubTexelPrecisionBits());
-        double subTexelOffset = 1.0f / CompactChunkVertex.TEXTURE_MAX_VALUE;
+        uniformChunkPos.bindBuffer(posBuffer);
 
-        this.uniformTexCoordShrink.set(
-                (float) (subTexelOffset - (((1.0D / textureAtlas.sodium$getWidth()) / subTexelPrecision))),
-                (float) (subTexelOffset - (((1.0D / textureAtlas.sodium$getHeight()) / subTexelPrecision)))
-        );
-
-        this.uniformTexelSize.set(
-                1.0f / textureAtlas.sodium$getWidth(),
-                1.0f / textureAtlas.sodium$getHeight()
-        );
-
-        uniformFadePeriod.setFloat((float) (1.0 / (Minecraft.getInstance().options.chunkSectionFadeInTime().get() * 1000.0))); // this is in seconds!
-
-        this.uniformRGSS.setBool(Minecraft.getInstance().options.textureFiltering().get() == TextureFilteringMethod.RGSS);
-
-        this.fogShader.setup(parameters);
-    }
+        this.ubo.bindBuffer(ubo);
+ }
 
     @Override // the shader interface should not modify pipeline state
     public void resetState() {
@@ -117,21 +83,17 @@ public class DefaultShaderInterface implements ChunkShaderInterface {
     @Override
     public void setChunkData(GpuBuffer data, int time) {
         uniformChunkData.bindBuffer(data);
-        uniformCurrentTime.set(time);
     }
 
     @Override
     public void setProjectionMatrix(Matrix4fc matrix) {
-        this.uniformProjectionMatrix.set(matrix);
     }
 
     @Override
     public void setModelViewMatrix(Matrix4fc matrix) {
-        this.uniformModelViewMatrix.set(matrix);
     }
 
     @Override
     public void setRegionOffset(float x, float y, float z) {
-        this.uniformRegionOffset.set(x, y, z);
     }
 }

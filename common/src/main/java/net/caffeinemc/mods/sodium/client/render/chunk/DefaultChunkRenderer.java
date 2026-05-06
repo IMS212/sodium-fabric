@@ -1,12 +1,11 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.Std140Builder;
+import com.mojang.blaze3d.buffers.Std140SizeCalculator;
 import com.mojang.blaze3d.textures.GpuSampler;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.DrawCommandList;
-import net.caffeinemc.mods.sodium.client.gl.device.MultiDrawBatch;
-import net.caffeinemc.mods.sodium.client.gl.device.RenderDevice;
+import net.caffeinemc.mods.sodium.client.gl.device.*;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlIndexType;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlPrimitiveType;
 import net.caffeinemc.mods.sodium.client.gl.tessellation.GlTessellation;
@@ -20,11 +19,17 @@ import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
+import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.impl.CompactChunkVertex;
 import net.caffeinemc.mods.sodium.client.render.viewport.CameraTransform;
 import net.caffeinemc.mods.sodium.client.util.BitwiseMath;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import net.caffeinemc.mods.sodium.client.util.UInt32;
 import net.caffeinemc.mods.sodium.api.memory.MemoryIntrinsics;
+import net.caffeinemc.mods.sodium.mixin.core.render.texture.TextureAtlasAccessor;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.TextureFilteringMethod;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import org.joml.Vector3dc;
 import org.lwjgl.system.Pointer;
 
 import java.util.Iterator;
@@ -51,8 +56,8 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
                        CameraTransform camera,
                        FogParameters parameters,
                        boolean indexedRenderingEnabled,
-                       GpuSampler terrainSampler) {
-        super.begin(renderPass, parameters, terrainSampler);
+                       GpuSampler terrainSampler, GpuBuffer posBuffer, GpuBuffer ubo) {
+        super.begin(renderPass, parameters, terrainSampler, posBuffer, ubo);
 
         final boolean useBlockFaceCulling = SodiumClientMod.options().performance.useBlockFaceCulling;
         final boolean useIndexedTessellation = renderPass.isTranslucent() && indexedRenderingEnabled;
@@ -364,5 +369,54 @@ public class DefaultChunkRenderer extends ShaderChunkRenderer {
         super.delete(commandList);
 
         this.sharedIndexBuffer.delete(commandList);
+    }
+
+    @Override
+    public int getUniformDataSize() {
+        return new Std140SizeCalculator()
+                .putMat4f() // model view
+                .putMat4f() // projection
+                .putVec2() // texel size
+                .putVec2() // tex coord shrink
+                .putInt() // current time
+                .putInt() // use RGSS
+                .putFloat() // u_FadePeriodInv
+                .putIVec4() // cameraPosInt
+                .putVec4() // cameraPosFract
+                .putVec4() // fog color
+                .putVec2() // env start/end
+                .putVec2() // distance start/end
+                .get();
+    }
+
+    @Override
+    public void fillUniformData(GpuBuffer gpuBuffer, ChunkRenderMatrices matrices, FogParameters fogParameters, double x, double y, double z) {
+        try (var map = gpuBuffer.map(false, true)) {
+            var textureAtlas = (TextureAtlasAccessor) Minecraft.getInstance()
+                    .getTextureManager()
+                    .getTexture(TextureAtlas.LOCATION_BLOCKS);
+
+            // There is a limited amount of sub-texel precision when using hardware texture sampling. The mapped texture
+            // area must be "shrunk" by at least one sub-texel to avoid bleed between textures in the atlas. And since we
+            // offset texture coordinates in the vertex format by one texel, we also need to undo that here.
+            double subTexelPrecision = (1 << GLRenderDevice.INSTANCE.getSubTexelPrecisionBits());
+            double subTexelOffset = 1.0f / CompactChunkVertex.TEXTURE_MAX_VALUE;
+
+            Std140Builder.intoBuffer(map.data())
+                    .putMat4f(matrices.modelView())
+                    .putMat4f(matrices.projection())
+                    .putVec2(1.0f / textureAtlas.sodium$getWidth(),
+                            1.0f / textureAtlas.sodium$getHeight())
+                    .putVec2((float) (subTexelOffset - (((1.0D / textureAtlas.sodium$getWidth()) / subTexelPrecision))),
+                            (float) (subTexelOffset - (((1.0D / textureAtlas.sodium$getHeight()) / subTexelPrecision))))
+                    .putInt(0) // TODO: fix chunk fade
+                    .putInt(Minecraft.getInstance().options.textureFiltering().get() == TextureFilteringMethod.RGSS ? 1 : 0)
+                    .putFloat(1.0f) // TODO: fix chunk fade
+                    .putIVec4((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z), 0)
+                    .putVec4((float) (x - Math.floor(x)), (float) (y - Math.floor(y)), (float) (z - Math.floor(z)), 0.0f)
+                    .putVec4(fogParameters.red(), fogParameters.green(), fogParameters.blue(), fogParameters.alpha())
+                    .putVec2(fogParameters.environmentalStart(), fogParameters.environmentalEnd())
+                    .putVec2(fogParameters.renderStart(), fogParameters.renderEnd());
+        }
     }
 }

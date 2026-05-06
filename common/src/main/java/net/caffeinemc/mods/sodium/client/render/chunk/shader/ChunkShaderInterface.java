@@ -8,7 +8,7 @@ import org.joml.Matrix4fc;
 
 public interface ChunkShaderInterface {
     @Deprecated
-    void setupState(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler);
+    void setupState(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler, GpuBuffer posBuffer, GpuBuffer ubo);
 
     @Deprecated
     void resetState();

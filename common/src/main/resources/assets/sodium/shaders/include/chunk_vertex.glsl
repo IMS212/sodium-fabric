@@ -14,8 +14,6 @@ vec4 _vert_color;
 // The index of the draw command which this vertex belongs to
 uint _draw_id;
 
-// The material bits for the primitive
-uint _material_params;
 
 #ifdef USE_VERTEX_COMPRESSION
 const uint POSITION_BITS        = 20u;
@@ -41,6 +39,19 @@ uvec3 _deinterleave_u20x3(uvec2 data) {
     return (hi << 10u) | lo;
 }
 
+uint _get_draw_id() {
+    uint low0_1  = (a_Position.x >> 30u) & 0x3u;
+    uint low2_3  = (a_Position.y >> 30u) & 0x3u;
+
+    uint mid4_11 = a_LightAndData.z & 0xFFu;
+    uint hi12_19 = a_LightAndData.w & 0xFFu;
+
+    return low0_1 |
+           (low2_3  << 2u) |
+           (mid4_11 << 4u) |
+           (hi12_19 << 12u);
+}
+
 vec2 _get_texcoord() {
     return vec2(a_TexCoord & TEXTURE_MAX_VALUE) / float(TEXTURE_MAX_COORD);
 }
@@ -57,8 +68,7 @@ void _vert_init() {
 
     _vert_tex_light_coord = vec2(a_LightAndData.xy) / vec2(256.0);
 
-    _material_params = a_LightAndData[2];
-    _draw_id = a_LightAndData[3];
+    _draw_id = _get_draw_id();
 }
 
 #else

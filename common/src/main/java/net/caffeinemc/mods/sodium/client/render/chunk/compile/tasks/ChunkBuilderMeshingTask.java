@@ -72,7 +72,7 @@ public class ChunkBuilderMeshingTask extends ChunkBuilderTask<ChunkBuildOutput> 
         DirectionalVisGraph occluder = new DirectionalVisGraph();
 
         ChunkBuildBuffers buffers = buildContext.buffers;
-        buffers.init(renderData, this.section.getSectionIndex());
+        buffers.init(renderData, this.section.getUniqueId());
 
         BlockRenderCache cache = buildContext.cache;
         cache.init(this.renderContext);

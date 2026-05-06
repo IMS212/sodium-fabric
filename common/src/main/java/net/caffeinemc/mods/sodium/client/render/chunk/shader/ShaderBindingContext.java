@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.shader;
 
+import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlStorageBlock;
 import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniform;
 import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformBlock;
 import org.jspecify.annotations.NonNull;
@@ -19,4 +20,6 @@ public interface ShaderBindingContext {
 
     @Nullable
     GlUniformBlock bindUniformBlockOptional(String name, int bindingPoint);
+
+    GlStorageBlock bindStorageBlock(String name, int bindingPoint);
 }

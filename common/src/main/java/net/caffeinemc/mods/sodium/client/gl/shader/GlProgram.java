@@ -2,6 +2,7 @@ package net.caffeinemc.mods.sodium.client.gl.shader;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
 import net.caffeinemc.mods.sodium.client.gl.GlObject;
+import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlStorageBlock;
 import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniform;
 import net.caffeinemc.mods.sodium.client.gl.shader.uniform.GlUniformBlock;
 import net.caffeinemc.mods.sodium.client.render.chunk.shader.ShaderBindingContext;
@@ -12,6 +13,7 @@ import org.jspecify.annotations.NonNull;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL43C;
 
 import java.util.function.Function;
 import java.util.function.IntFunction;
@@ -97,6 +99,19 @@ public class GlProgram<T> extends GlObject implements ShaderBindingContext {
         GL32C.glUniformBlockBinding(this.handle(), index, bindingPoint);
 
         return new GlUniformBlock(bindingPoint);
+    }
+
+    @Override
+    public GlStorageBlock bindStorageBlock(String name, int bindingPoint) {
+        int index = GL43C.glGetProgramResourceIndex(this.handle(), GL43C.GL_SHADER_STORAGE_BLOCK, name);
+
+        if (index < 0) {
+            return null;
+        }
+
+        GL43C.glShaderStorageBlockBinding(this.handle(), index, bindingPoint);
+
+        return new GlStorageBlock(bindingPoint);
     }
 
     public static class Builder {

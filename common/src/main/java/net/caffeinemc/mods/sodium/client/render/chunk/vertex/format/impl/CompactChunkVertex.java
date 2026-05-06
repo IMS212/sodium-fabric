@@ -56,29 +56,17 @@ public class CompactChunkVertex implements ChunkVertexType {
 
                 int light = encodeLight(vertex.light);
 
-                MemoryIntrinsics.putInt(ptr +  0L, packPositionHi(x, y, z));
-                MemoryIntrinsics.putInt(ptr +  4L, packPositionLo(x, y, z));
+                MemoryIntrinsics.putInt(ptr +  0L, packPositionHi(x, y, z, section));
+                MemoryIntrinsics.putInt(ptr +  4L, packPositionLo(x, y, z, section));
                 MemoryIntrinsics.putInt(ptr +  8L, ColorARGB.mulRGB(vertex.color, vertex.ao));
                 MemoryIntrinsics.putInt(ptr + 12L, packTexture(u, v));
-                MemoryIntrinsics.putInt(ptr + 16L, packLightAndData(light, materialBits, section));
+                MemoryIntrinsics.putInt(ptr + 16L, packLightAndSection(light, section));
 
                 ptr += STRIDE;
             }
 
             return ptr;
         };
-    }
-
-    private static int packPositionHi(int x, int y, int z) {
-        return  (((x >>> 10) & 0x3FF) <<  0) |
-                (((y >>> 10) & 0x3FF) << 10) |
-                (((z >>> 10) & 0x3FF) << 20);
-    }
-
-    private static int packPositionLo(int x, int y, int z) {
-        return  ((x & 0x3FF) <<  0) |
-                ((y & 0x3FF) << 10) |
-                ((z & 0x3FF) << 20);
     }
 
     private static int quantizePosition(float position) {
@@ -113,10 +101,23 @@ public class CompactChunkVertex implements ChunkVertexType {
         return (block << 0) | (sky << 8);
     }
 
-    private static int packLightAndData(int light, int material, int section) {
+    private static int packPositionHi(int x, int y, int z, int section) {
+        return  (((x >>> 10) & 0x3FF) <<  0) |
+                (((y >>> 10) & 0x3FF) << 10) |
+                (((z >>> 10) & 0x3FF) << 20) |
+                (((section >>> 0) & 0x3) << 30);
+    }
+
+    private static int packPositionLo(int x, int y, int z, int section) {
+        return  ((x & 0x3FF) <<  0) |
+                ((y & 0x3FF) << 10) |
+                ((z & 0x3FF) << 20) |
+                (((section >>> 2) & 0x3) << 30);
+    }
+
+    private static int packLightAndSection(int light, int section) {
         return ((light & 0xFFFF) << 0) |
-                ((material & 0xFF) << 16) |
-                ((section & 0xFF) << 24);
+                (((section >>> 4) & 0xFFFF) << 16);
     }
 
     private static int sign(int x) {

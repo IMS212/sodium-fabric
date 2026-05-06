@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.opengl.*;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -19,7 +20,6 @@ import net.caffeinemc.mods.sodium.mixin.core.GlCommandEncoderAccessor;
 import net.caffeinemc.mods.sodium.mixin.core.GpuDeviceAccessor;
 import net.minecraft.resources.Identifier;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -87,7 +87,7 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         return builder.build();
     }
 
-    protected void begin(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler) {
+    protected void begin(TerrainRenderPass pass, FogParameters parameters, GpuSampler terrainSampler, GpuBuffer posBuffer, GpuBuffer ubo) {
         RenderTarget target = pass.getTarget();
 
         var glDevice = ((GlDevice) ((GpuDeviceAccessor) RenderSystem.getDevice()).sodium$getBackend());
@@ -102,7 +102,7 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         this.activeProgram = this.compileProgram(options);
         this.activeProgram.bind();
         this.activeProgram.getInterface()
-                .setupState(pass, parameters, terrainSampler);
+                .setupState(pass, parameters, terrainSampler, posBuffer, ubo);
     }
 
     protected void end(TerrainRenderPass pass) {

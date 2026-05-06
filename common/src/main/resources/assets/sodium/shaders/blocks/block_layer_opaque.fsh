@@ -1,4 +1,24 @@
-#version 330 core
+#version 460 core
+
+layout(std140, binding = 2) uniform ChunkUniforms {
+    mat4 u_ModelViewMatrix;
+    mat4 u_ProjectionMatrix;
+
+    vec2 u_TexelSize;
+    vec2 u_TexCoordShrink;
+
+    int u_CurrentTime;
+    bool u_UseRGSS;
+    float u_FadePeriodInv;
+
+    ivec4 u_CameraPosInt;
+
+    vec4 u_CameraPosFract;
+    vec4 u_FogColor;
+
+    vec2 u_EnvironmentFog;
+    vec2 u_RenderFog;
+};
 
 #import <sodium:include/fog.glsl>
 #import <sodium:include/chunk_material.glsl>
@@ -8,15 +28,8 @@ in vec2 v_TexCoord; // The interpolated block texture coordinates
 in vec2 v_FragDistance; // The fragment's distance from the camera (cylindrical and spherical)
 in float fadeFactor;
 
-flat in uint v_Material;
 
 uniform sampler2D u_BlockTex; // The block texture
-
-uniform vec4 u_FogColor; // The color of the shader fog
-uniform vec2 u_EnvironmentFog; // The start and end position for environmental fog
-uniform vec2 u_RenderFog; // The start and end position for border fog
-uniform vec2 u_TexelSize;
-uniform bool u_UseRGSS;
 
 out vec4 fragColor; // The output fragment for the color framebuffer
 
@@ -88,7 +101,7 @@ void main() {
     color *= v_Color; // Apply per-vertex color modulator
 
 #ifdef USE_FRAGMENT_DISCARD
-    if (color.a < _material_alpha_cutoff(v_Material)) {
+    if (color.a < 0.5) {
         discard;
     }
 #endif
