@@ -39,14 +39,18 @@ public class ChunkBuildOutput extends ChunkSortOutput {
         super.destroy();
 
         for (BuiltSectionMeshParts data : this.meshes.values()) {
-            data.getVertexData().free();
+             for (var buffer : data.getVertexDataBuffers()) {
+                buffer.free();
+            }
         }
     }
 
     private long getMeshSize() {
         long size = 0;
         for (var data : this.meshes.values()) {
-            size += data.getVertexData().getLength();
+            for (var buffer : data.getVertexDataBuffers()) {
+                size += buffer.getLength();
+            }
         }
         return size;
     }

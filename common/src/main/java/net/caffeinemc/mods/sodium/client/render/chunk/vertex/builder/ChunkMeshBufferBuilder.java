@@ -10,11 +10,12 @@ import java.nio.ByteBuffer;
 
 public class ChunkMeshBufferBuilder {
     private final ChunkVertexEncoder encoder;
-    private final int stride;
+    private final int[] strides;
+    private final long[] writePointers;
 
     private final int initialCapacity;
 
-    private MemorySegment buffer;
+    private final MemorySegment[] buffers;
     private int vertexCount;
     private int vertexCapacity;
 
@@ -22,9 +23,9 @@ public class ChunkMeshBufferBuilder {
 
     public ChunkMeshBufferBuilder(ChunkVertexType vertexType, int initialCapacity) {
         this.encoder = vertexType.getEncoder();
-        this.stride = vertexType.getVertexFormat().getVertexSize();
-
-        this.buffer = null;
+        this.strides = vertexType.getVertexBufferStrides();
+        this.writePointers = new long[this.strides.length];
+        this.buffers = new MemorySegment[this.strides.length];
 
         this.vertexCapacity = initialCapacity;
         this.initialCapacity = initialCapacity;
@@ -41,14 +42,20 @@ public class ChunkMeshBufferBuilder {
 
         this.ensureCapacity(4);
 
-        this.encoder.write(this.buffer.address() + ((long) this.vertexCount * this.stride),
-                materialBits, vertices, this.sectionIndex);
+        for (int i = 0; i < this.buffers.length; i++) {
+            this.writePointers[i] = this.buffers[i].address() + ((long) this.vertexCount * this.strides[i]);
+        }
+
+        this.encoder.write(this.writePointers, materialBits, vertices, this.sectionIndex);
         this.vertexCount += 4;
     }
 
-    public void writeExternal(ByteBuffer buffer, int position, ChunkVertexEncoder.Vertex[] vertices, Material material) {
-        this.encoder.write(MemoryUtil.memAddress(buffer, position * this.stride),
-                material.bits(), vertices, this.sectionIndex);
+    public void writeExternal(ByteBuffer[] buffers, int position, ChunkVertexEncoder.Vertex[] vertices, Material material) {
+        for (int i = 0; i < buffers.length; i++) {
+            this.writePointers[i] = MemoryUtil.memAddress(buffers[i], position * this.strides[i]);
+        }
+
+        this.encoder.write(this.writePointers, material.bits(), vertices, this.sectionIndex);
     }
 
     private void ensureCapacity(int vertexCount) {
@@ -65,7 +72,12 @@ public class ChunkMeshBufferBuilder {
     }
 
     private void reallocate(int vertexCount) {
-        this.buffer = MemorySegment.ofAddress(MemoryUtil.nmemRealloc(this.buffer == null ? 0L : this.buffer.address(), vertexCount * this.stride)).reinterpret(vertexCount * this.stride);
+        for (int i = 0; i < this.buffers.length; i++) {
+            var buffer = this.buffers[i];
+            var length = (long) vertexCount * this.strides[i];
+            this.buffers[i] = MemorySegment.ofAddress(MemoryUtil.nmemRealloc(buffer == null ? 0L : buffer.address(), length)).reinterpret(length);
+        }
+
         this.vertexCapacity = vertexCount;
     }
 
@@ -77,11 +89,13 @@ public class ChunkMeshBufferBuilder {
     }
 
     public void destroy() {
-        if (this.buffer != null) {
-            MemoryUtil.nmemFree(this.buffer.address());
-        }
+        for (int i = 0; i < this.buffers.length; i++) {
+            if (this.buffers[i] != null) {
+                MemoryUtil.nmemFree(this.buffers[i].address());
+            }
 
-        this.buffer = null;
+            this.buffers[i] = null;
+        }
     }
 
     public boolean isEmpty() {
@@ -89,11 +103,15 @@ public class ChunkMeshBufferBuilder {
     }
 
     public ByteBuffer slice() {
+        return this.slice(0);
+    }
+
+    public ByteBuffer slice(int bufferIndex) {
         if (this.isEmpty()) {
             throw new IllegalStateException("No vertex data in buffer");
         }
 
-        return this.buffer.asSlice(0, this.stride * this.vertexCount).asByteBuffer();
+        return this.buffers[bufferIndex].asSlice(0, (long) this.strides[bufferIndex] * this.vertexCount).asByteBuffer();
     }
 
     public int count() {

@@ -6,4 +6,8 @@ public interface ChunkVertexType {
     VertexFormat getVertexFormat();
 
     ChunkVertexEncoder getEncoder();
+
+    default int[] getVertexBufferStrides() {
+        return new int[] { this.getVertexFormat().getVertexSize() };
+    }
 }

@@ -102,9 +102,9 @@ public class FullTQuad extends RegularTQuad {
         this.writeToIndex = NO_WRITE;
     }
 
-    public void writeToBuffer(ChunkMeshBufferBuilder bufferBuilder, ByteBuffer buffer) {
+    public void writeToBuffer(ChunkMeshBufferBuilder bufferBuilder, ByteBuffer[] buffers) {
         if (this.writeToIndex != NO_WRITE) {
-            bufferBuilder.writeExternal(buffer, TranslucentData.quadCountToVertexCount(this.writeToIndex), this.vertices, DefaultMaterials.TRANSLUCENT);
+            bufferBuilder.writeExternal(buffers, TranslucentData.quadCountToVertexCount(this.writeToIndex), this.vertices, DefaultMaterials.TRANSLUCENT);
         }
     }
 

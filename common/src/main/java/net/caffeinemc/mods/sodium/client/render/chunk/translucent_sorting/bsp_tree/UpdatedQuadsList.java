@@ -23,9 +23,9 @@ public class UpdatedQuadsList extends ReferenceArrayList<FullTQuad> {
         this.indexQuadCount = indexQuadCount;
     }
 
-    public void applyBufferUpdates(ChunkMeshBufferBuilder builder, ByteBuffer buffer) {
+    public void applyBufferUpdates(ChunkMeshBufferBuilder builder, ByteBuffer[] buffers) {
         for (var quad : this) {
-            quad.writeToBuffer(builder, buffer);
+            quad.writeToBuffer(builder, buffers);
         }
     }
 }

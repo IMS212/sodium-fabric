@@ -62,7 +62,7 @@ public class ArenaAggregator {
         }
     };
 
-    private final DataType geometry = new DataType("Geometry", ChunkMeshFormats.COMPACT.getVertexFormat().getVertexSize()) {
+    private final DataType geometry = new DataType("Geometry", ChunkMeshFormats.getCurrent().getVertexFormat().getVertexSize()) {
         @Override
         long calculateArenaSize(int newArenaCount, long requiredSize) {
             var factorSize = switch (newArenaCount) {

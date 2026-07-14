@@ -15,6 +15,8 @@ import net.caffeinemc.mods.sodium.client.render.chunk.vertex.builder.ChunkMeshBu
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
 import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
 
+import java.nio.ByteBuffer;
+
 /**
  * A collection of temporary buffers for each worker thread which will be used to build chunk meshes for given render
  * passes. This makes a best-effort attempt to pick a suitable size for each scratch buffer, but will never try to
@@ -25,16 +27,16 @@ public class ChunkBuildBuffers {
 
     private final Reference2ReferenceOpenHashMap<TerrainRenderPass, BakedChunkModelBuilder> builders = new Reference2ReferenceOpenHashMap<>();
 
-    private final ChunkVertexType vertexType;
+    private final int[] vertexBufferStrides;
 
     public ChunkBuildBuffers(ChunkVertexType vertexType) {
-        this.vertexType = vertexType;
+        this.vertexBufferStrides = vertexType.getVertexBufferStrides();
 
         for (TerrainRenderPass pass : DefaultTerrainRenderPasses.ALL) {
             var vertexBuffers = new ChunkMeshBufferBuilder[ModelQuadFacing.COUNT];
 
             for (int facing = 0; facing < ModelQuadFacing.COUNT; facing++) {
-                vertexBuffers[facing] = new ChunkMeshBufferBuilder(this.vertexType, 128 * 1024);
+                vertexBuffers[facing] = new ChunkMeshBufferBuilder(vertexType, 128 * 1024);
             }
 
             this.builders.put(pass, new BakedChunkModelBuilder(vertexBuffers));
@@ -78,8 +80,8 @@ public class ChunkBuildBuffers {
             return null;
         }
 
-        var mergedBuffer = new NativeBuffer(vertexTotal * this.vertexType.getVertexFormat().getVertexSize());
-        var mergedBufferBuilder = mergedBuffer.getDirectBuffer();
+        var mergedBuffers = this.createMergedBuffers(vertexTotal);
+        var mergedBufferBuilders = getDirectBuffers(mergedBuffers);
 
         if (sliceReordering) {
             // sliceReordering implies !forceUnassigned
@@ -91,7 +93,7 @@ public class ChunkBuildBuffers {
             vertexSegments[vertexSegmentCount++] = unassignedBuffer.count();
             vertexSegments[vertexSegmentCount++] = ModelQuadFacing.UNASSIGNED.ordinal();
             if (!unassignedBuffer.isEmpty()) {
-                mergedBufferBuilder.put(unassignedBuffer.slice());
+                appendBuffers(mergedBufferBuilders, unassignedBuffer);
             }
 
             // write all visible and then invisible slices
@@ -109,7 +111,7 @@ public class ChunkBuildBuffers {
                     vertexSegments[vertexSegmentCount++] = facingIndex;
 
                     if (!buffer.isEmpty()) {
-                        mergedBufferBuilder.put(buffer.slice());
+                        appendBuffers(mergedBufferBuilders, buffer);
                     }
                 }
             }
@@ -130,12 +132,12 @@ public class ChunkBuildBuffers {
                         vertexSegments[segmentIndex] = buffer.count();
                         vertexSegments[segmentIndex + 1] = facingIndex;
                     }
-                    mergedBufferBuilder.put(buffer.slice());
+                    appendBuffers(mergedBufferBuilders, buffer);
                 }
             }
         }
 
-        return new BuiltSectionMeshParts(mergedBuffer, vertexSegments);
+        return new BuiltSectionMeshParts(mergedBuffers, vertexSegments);
     }
 
     public BuiltSectionMeshParts createModifiedTranslucentMesh(UpdatedQuadsList updatedQuads) {
@@ -143,25 +145,50 @@ public class ChunkBuildBuffers {
 
         var builder = this.builders.get(DefaultTerrainRenderPasses.TRANSLUCENT);
 
-        var stride = this.vertexType.getVertexFormat().getVertexSize();
         var vertexTotal = TranslucentData.quadCountToVertexCount(updatedQuads.getMeshQuadCount());
-        var mergedBuffer = new NativeBuffer(vertexTotal * stride);
-        var mergedBufferBuilder = mergedBuffer.getDirectBuffer();
+        var mergedBuffers = this.createMergedBuffers(vertexTotal);
+        var mergedBufferBuilders = getDirectBuffers(mergedBuffers);
 
         for (ModelQuadFacing facing : ModelQuadFacing.VALUES) {
             var buffer = builder.getVertexBuffer(facing);
             if (!buffer.isEmpty()) {
-                mergedBufferBuilder.put(buffer.slice());
+                appendBuffers(mergedBufferBuilders, buffer);
             }
         }
 
-        updatedQuads.applyBufferUpdates(builder.getVertexBuffer(ModelQuadFacing.UNASSIGNED), mergedBufferBuilder);
+        updatedQuads.applyBufferUpdates(builder.getVertexBuffer(ModelQuadFacing.UNASSIGNED), mergedBufferBuilders);
 
         int[] vertexSegments = makeVertexSegments();
         vertexSegments[UNASSIGNED_SEGMENT_INDEX] = vertexTotal;
         vertexSegments[UNASSIGNED_SEGMENT_INDEX + 1] = ModelQuadFacing.UNASSIGNED.ordinal();
 
-        return new BuiltSectionMeshParts(mergedBuffer, vertexSegments);
+        return new BuiltSectionMeshParts(mergedBuffers, vertexSegments);
+    }
+
+    private NativeBuffer[] createMergedBuffers(int vertexTotal) {
+        var buffers = new NativeBuffer[this.vertexBufferStrides.length];
+
+        for (int i = 0; i < buffers.length; i++) {
+            buffers[i] = new NativeBuffer(vertexTotal * this.vertexBufferStrides[i]);
+        }
+
+        return buffers;
+    }
+
+    private static ByteBuffer[] getDirectBuffers(NativeBuffer[] buffers) {
+        var directBuffers = new ByteBuffer[buffers.length];
+
+        for (int i = 0; i < buffers.length; i++) {
+            directBuffers[i] = buffers[i].getDirectBuffer();
+        }
+
+        return directBuffers;
+    }
+
+    private static void appendBuffers(ByteBuffer[] destinations, ChunkMeshBufferBuilder source) {
+        for (int i = 0; i < destinations.length; i++) {
+            destinations[i].put(source.slice(i));
+        }
     }
 
     public void destroy() {

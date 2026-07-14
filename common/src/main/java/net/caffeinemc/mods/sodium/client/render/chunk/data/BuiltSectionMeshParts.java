@@ -13,15 +13,19 @@ import net.caffeinemc.mods.sodium.client.util.NativeBuffer;
  */
 public class BuiltSectionMeshParts {
     private final int[] vertexSegments;
-    private final NativeBuffer buffer;
+    private final NativeBuffer[] buffers;
 
-    public BuiltSectionMeshParts(NativeBuffer buffer, int[] vertexSegments) {
+    public BuiltSectionMeshParts(NativeBuffer[] buffers, int[] vertexSegments) {
         this.vertexSegments = vertexSegments;
-        this.buffer = buffer;
+        this.buffers = buffers;
     }
 
     public NativeBuffer getVertexData() {
-        return this.buffer;
+        return this.buffers[0];
+    }
+
+    public NativeBuffer[] getVertexDataBuffers() {
+        return this.buffers;
     }
 
     public int[] getVertexSegments() {
