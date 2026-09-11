@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.gui;
 
+import com.mojang.blaze3d.Blaze3D;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.config.ConfigManager;
@@ -32,6 +33,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
+import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -378,7 +380,7 @@ public class VideoSettingsScreen extends Screen implements ScreenPromptable, Scr
     }
 
     private void openDonationPage() {
-        Util.getPlatform().openUri("https://caffeinemc.net/donate");
+        Blaze3D.openUri(URI.create("https://caffeinemc.net/donate"));
     }
 
     @Override

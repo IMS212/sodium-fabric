@@ -224,12 +224,6 @@ public class SodiumConfigBuilder implements ConfigEntryPoint {
                                                     this.vanillaOpts.exclusiveFullscreen().set(false);
                                                 }
                                             }
-
-                                            // apply the fullscreen state
-                                            if (this.window.isFullscreen() != this.vanillaOpts.fullscreen().get()) {
-                                                // The client might not be able to enter full-screen mode
-                                                this.vanillaOpts.fullscreen().set(this.window.isFullscreen());
-                                            }
                                         },
                                         () -> {
                                             boolean fullscreen = this.vanillaOpts.fullscreen().get();
